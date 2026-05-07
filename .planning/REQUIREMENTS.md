@@ -124,31 +124,35 @@ Explicit exkluderat. Dokumenterat för att förhindra scope creep och åter-deba
 
 ## Traceability
 
-Vilka faser täcker vilka krav. Fylls i av roadmap-skapandet.
+Vilka faser täcker vilka krav. Mappad av roadmap-skapandet 2026-05-07.
 
 | Krav | Fas | Status |
 |------|-----|--------|
-| F1 | Phase TBD | Pending |
-| F2 | Phase TBD | Pending |
-| F3 | Phase TBD | Pending |
-| F4 | Phase TBD | Pending |
-| F5 | Phase TBD | Pending |
-| F6 | Phase TBD | Pending |
-| F7 | Phase TBD | Pending |
-| F8 | Phase TBD | Pending |
-| F9 | Phase TBD | Pending |
-| F13 | Phase TBD | Pending |
-| F17 (schema) | Phase TBD | Pending |
-| F10 | Phase TBD | Pending |
-| F15 (konvention) | Phase TBD | Pending |
-| F11 | Phase TBD | Pending |
-| F12 | Phase TBD | Pending |
+| F1 (registrering + login) | Phase 3 — Auth & Persistent Session | Pending |
+| F2 (planer CRUD) | Phase 4 — Plans, Exercises & Offline-Queue Plumbing | Pending |
+| F3 (egna övningar) | Phase 4 — Plans, Exercises & Offline-Queue Plumbing | Pending |
+| F4 (ordna övningar i plan) | Phase 4 — Plans, Exercises & Offline-Queue Plumbing | Pending |
+| F5 (starta pass) | Phase 5 — Active Workout Hot Path | Pending |
+| F6 (logga set) | Phase 5 — Active Workout Hot Path | Pending |
+| F7 (senaste värdet) | Phase 5 — Active Workout Hot Path | Pending |
+| F8 (avsluta pass) | Phase 5 — Active Workout Hot Path | Pending |
+| F9 (historik-lista) | Phase 6 — History & Read-Side Polish | Pending |
+| F13 (offline-stöd) | Phase 5 — Active Workout Hot Path | Pending |
+| F17 (set-typ schema-only) | Phase 2 — Schema, RLS & Type Generation | Pending |
+| F10 (graf per övning) | Phase 6 — History & Read-Side Polish | Pending |
+| F15 (dark-mode konvention) | Phase 1 — Bootstrap & Infra Hardening | Pending |
+| F11 (RPE per set) | Phase 7 — V1 Polish Cut | Pending |
+| F12 (anteckningar per pass) | Phase 7 — V1 Polish Cut | Pending |
 
 **Coverage:**
 - V1 krav: 15 totalt (10 Måste + 1 schema-only + 2 Bör + 2 Kan)
-- Mapped till faser: 0 (väntar på roadmap)
-- Unmapped: 15 ⚠️ (uppdateras i Step 8)
+- Mapped till faser: 15 ✅
+- Unmapped: 0
+
+**V1.1 / V2 (skissade i ROADMAP.md som framtida faser, ej mappade till V1):**
+- V1.1: F14, F15-toggle, F17-UI, F18, F19
+- V2: F20-F30
 
 ---
 *Requirements defined: 2026-05-07*
-*Last updated: 2026-05-07 after initial definition*
+*Last updated: 2026-05-07 after roadmap creation (traceability filled)*
