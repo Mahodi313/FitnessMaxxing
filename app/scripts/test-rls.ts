@@ -25,6 +25,7 @@
 //   - .planning/research/PITFALLS.md §2.3, §2.5, §4.1, "Pitfall 8"
 
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "../types/database";
 
 // ---------------------------------------------------------------------------
 // Env guard — fail loud (mirrors app/lib/supabase.ts lines 16–24).
@@ -57,15 +58,15 @@ const userBEmail = `${TEST_EMAIL_PREFIX}b${TEST_EMAIL_DOMAIN}`;
 // Three isolated clients (PITFALLS Pitfall 8 — no client reuse).
 // ---------------------------------------------------------------------------
 
-const admin: SupabaseClient = createClient(url, serviceKey, {
+const admin: SupabaseClient<Database> = createClient<Database>(url, serviceKey, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
 
-const clientA: SupabaseClient = createClient(url, anonKey, {
+const clientA: SupabaseClient<Database> = createClient<Database>(url, anonKey, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
 
-const clientB: SupabaseClient = createClient(url, anonKey, {
+const clientB: SupabaseClient<Database> = createClient<Database>(url, anonKey, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
 
