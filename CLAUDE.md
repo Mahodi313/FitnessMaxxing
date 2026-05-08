@@ -145,6 +145,54 @@ En personlig gym-tracker för iPhone där användaren skapar egna träningsplane
 - **Why `style="auto"` on StatusBar (not `"light"`):** the smoke-test view uses both `bg-white` and `dark:bg-gray-900`. `"auto"` flips status-bar icon color with the system theme so icons always contrast against background. `"light"` would invert this in light mode (white icons on white bar = invisible).
 - **iOS status bar is OS-rendered, not React-rendered**: setting `dark:bg-gray-900` on a `<View>` does not affect status-bar icon color. You always need a sibling `<StatusBar>` element to control it.
 
+### Database conventions (established Phase 2)
+
+- **Migration-as-truth.** All schema changes ship as numbered SQL files in `app/supabase/migrations/` — Supabase Studio is read-only from Phase 2 forward. (PITFALLS 4.2 — drift detection requires a single source of truth; Studio edits leave no diff for review.) New deltas land as new files (`0002_*.sql`, `0003_*.sql`), never via dashboard.
+- **RLS pairs with policies.** Every migration that creates a table MUST `enable row level security` AND add at least one policy in the same file. (PITFALLS 2.1 + 2.2 — RLS-enabled-without-policy = "deny everything"; both must land together.)
+- **`using` AND `with check` on every writable policy.** Every writable RLS policy MUST declare BOTH `using` AND `with check`. `using` filters reads + which rows can be modified; `with check` validates the post-state of inserts/updates. (PITFALLS 2.5 — Phase 2 closed the original errata where `plan_exercises` and `exercise_sets` were missing `with check`.)
+- **Wrap every `auth.uid()` reference.** Every `auth.uid()` reference inside an RLS policy MUST be wrapped as `(select auth.uid())` for query-plan caching. Postgres caches the wrapped form per-query; the raw form re-evaluates per-row and tanks performance at scale. (PITFALLS 4.1.)
+- **Drift verification on Windows-without-Docker.** Use `npx tsx --env-file=.env.local scripts/verify-deploy.ts` from `app/` cwd to verify deployed schema state — NOT `npx supabase db diff` (the latter requires Docker per D-04). The harness queries `pg_catalog` directly (RLS state, policies, triggers, ENUMs, functions) which is at least as strong as `db diff` because it inspects the live database, not generated DDL.
+- **Studio UI gotchas.** Don't trust the Studio Tables-view RLS badges — they are version-/zoom-/cache-dependent. Trust `pg_class.relrowsecurity` (via verify-deploy.ts) instead. To see triggers on `auth.users` (e.g., `handle_new_user`), switch the Studio Triggers tab schema dropdown from `public` to `auth` — the default filter hides them.
+- **Type-gen runs after every schema migration.** `npm run gen:types` runs after every schema migration; the generated `app/types/database.ts` is committed in the same commit as the migration that produced it. Hand-editing `database.ts` is forbidden — fix the schema instead.
+- **Cross-user verification is a gate.** Schema migrations that touch user-scoped tables MUST add coverage to `app/scripts/test-rls.ts` (cross-user CRUD assertions for the new table). The cross-user test is the regression detector for RLS gaps; a migration without an updated test-rls assertion is incomplete.
+- **Service-role isolation.** `SUPABASE_SERVICE_ROLE_KEY` lives in `app/.env.local` only; NEVER prefixed with `EXPO_PUBLIC_`; NEVER imported from any path under `app/lib/`, `app/app/`, or any other Metro-bundled path. Audit gate: `git grep "service_role\|SERVICE_ROLE"` must match only `app/scripts/test-rls.ts`, `app/.env.example`, `.planning/`, and `CLAUDE.md`. (PITFALLS 2.3.)
+
+### Security conventions (OWASP MASVS L1 + API Top 10 — established Phase 2)
+
+**Applied frameworks:**
+- **OWASP API Security Top 10** (Supabase REST/PostgREST surface) — primary control set since the data path is API-first.
+- **OWASP MASVS L1 / Mobile Top 10** (iOS app surface) — relevant to expo-secure-store, deep-links, and any future on-device data.
+- **OWASP ASVS L1** baseline; specific controls cited as `V{n}.{m}` in per-phase SECURITY.md.
+
+**Per-phase contract:** every plan in `plan-phase` MUST include a `<threat_model>` block with a STRIDE register (`T-{NN}-{XX}` IDs, `category`, `component`, `disposition: mitigate | accept | transfer`, `mitigation_pattern`). After execution, `gsd-secure-phase {N}` audits the register against the implementation and writes `{N}-SECURITY.md` with `threats_open: 0` before the phase is considered closed. (Phase 2 closed 27/27.)
+
+**Established controls (do not regress):**
+- **API1 / V4 — Broken object-level authorization.** RLS enforced at the database with `(select auth.uid())` wrapped predicate + `with check` on every writable policy. Cross-user regression test: `app/scripts/test-rls.ts` (must extend with assertions for every new user-scoped table). (See "Database conventions" above for the full RLS rules.)
+- **API2 / V2 / M3 — Broken authentication.** Sessions stored via `LargeSecureStore` (AES-encrypted blob in AsyncStorage with key in `expo-secure-store`); never AsyncStorage in plaintext. Service-role key never leaves Node-only scripts (audit gate above).
+- **API3 — Excessive data exposure.** RLS scopes data at the DB layer; clients never rely on client-side filtering for security. New SELECT policies must be paired with explicit column-level review if a table contains both public-safe and sensitive columns (V8.3).
+- **API8 / M9 / V14 — Security misconfiguration.** Migration-as-truth (no Studio editing); `gen:types` regenerates after every schema change; `verify-deploy.ts` confirms deployed state. Secrets only via `.env.local` (gitignored, with `.env.example` placeholders showing the security comment + `EXPO_PUBLIC_` prefix rules).
+- **M2 — Insecure data storage.** No PII or auth state in AsyncStorage without encryption; `expo-secure-store` for keys; `aes-js` + `react-native-get-random-values` for the LargeSecureStore wrapper (already in stack).
+- **M7 — Client code quality.** TypeScript strict via Expo template; `createClient<Database>` everywhere a Supabase client is instantiated (Node scripts included — see WR-03 in 02-REVIEW.md for why untyped clients are a false-pass risk in security gates).
+
+**Phase-specific checklists** (planner agents must consider these when relevant):
+- **Auth phase (Phase 3 — F1):** API2 (auth) + V2.1.1 (passwords ≥12 chars or zxcvbn ≥3); V3 (session management — refresh-rotation if implemented); deep-link handling (M4 — anti-phishing for email confirm / magic-link URLs). Threat IDs T-03-* in PLAN.md.
+- **Forms phase (Phase 4 — F2/F4):** API4 (rate-limiting if writes are user-triggered loops) + V5 (input validation — Zod schemas at every form boundary AND every Supabase response boundary). Validate types/database.ts shape with Zod parse, not bare cast. Threat IDs T-04-*.
+- **Active workout / offline (Phase 5 — F5/F6/F7/F13):** M2 (offline queue must encrypt PII at rest) + API4 (sync rate-limiting) + V11 (anti-flood on rapid set-logging). Threat IDs T-05-*.
+- **Read-side / charts (Phase 6 — F9/F10):** API3 (no aggregation across users); V12 (file/data uploads N/A in V1). Threat IDs T-06-*.
+- **Polish (Phase 7 — F11/F12 + F15 toggle):** review for accumulated debt; rotate any keys whose entropy is exposed in logs.
+
+**Tooling gates already wired:**
+- `gsd-code-review` runs after every phase — checks for service-role leaks, untyped clients, unsafe SQL, unsanitized deep-links.
+- `gsd-secure-phase {N}` runs the threat-register audit; produces `{N}-SECURITY.md` with `threats_open: 0` requirement before phase advancement.
+- `npm run test:rls` is the cross-user RLS regression gate (must stay green; extend per new table per Phase contract above).
+- `app/scripts/verify-deploy.ts` is the post-migration drift check (run after every `supabase db push`).
+
+**Out-of-scope for V1 (deferred — document in SECURITY.md accepted-risks per phase if encountered):**
+- WAF / DDoS protection (Supabase platform handles base rate-limit; app-level rate-limit deferred).
+- Penetration testing (V14.5 — defer to pre-TestFlight).
+- App-Store-specific MASVS L2 controls (binary obfuscation, anti-tamper, jailbreak detection — V2 / TestFlight phase).
+- Audit logging for admin operations (no admin surface in V1; Supabase logs cover platform layer).
+
 <!-- GSD:conventions-end -->
 
 <!-- GSD:architecture-start source:ARCHITECTURE.md -->

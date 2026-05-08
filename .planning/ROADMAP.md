@@ -15,8 +15,8 @@ FitnessMaxxing levereras som en personlig iPhone gym-tracker via Expo Go. Resan 
 - Integer phases (1-7): Planned V1 milestone work
 - Decimal phases reserved for urgent insertions (created via `/gsd-insert-phase` if needed)
 
-- [ ] **Phase 1: Bootstrap & Infra Hardening** - Locked stack installerad med rätt pins, NativeWind-smoke-test renderar på iPhone, dark-mode-konvention etablerad
-- [ ] **Phase 2: Schema, RLS & Type Generation** - Korrigerat schema applicerat i Supabase med både `using` och `with check`, cross-user-fixturer passerar, TS-typer genererade
+- [x] **Phase 1: Bootstrap & Infra Hardening** - Locked stack installerad med rätt pins, NativeWind-smoke-test renderar på iPhone, dark-mode-konvention etablerad *(2026-05-08)*
+- [x] **Phase 2: Schema, RLS & Type Generation** - Korrigerat schema applicerat i Supabase med både `using` och `with check`, cross-user-fixturer passerar (22/22), TS-typer genererade, 27/27 SECURED *(2026-05-09)*
 - [ ] **Phase 3: Auth & Persistent Session** - Användare kan registrera, logga in, och sessioner överlever app-restart via LargeSecureStore
 - [ ] **Phase 4: Plans, Exercises & Offline-Queue Plumbing** - Användare kan skapa planer och övningar offline; airplane-mode-test bekräftar att kön persisterar och replayas korrekt
 - [ ] **Phase 5: Active Workout Hot Path (F13 lives or dies)** - Användare loggar set under pass; varje set överlever airplane mode + force-quit + battery-pull
@@ -52,7 +52,13 @@ FitnessMaxxing levereras som en personlig iPhone gym-tracker via Expo Go. Resan 
   3. Cross-user-fixturtest visar att User B inte kan läsa eller skriva User A:s planer, övningar, pass eller set (både SELECT och INSERT/UPDATE blockas)
   4. `exercise_sets` har `set_type` enum-kolumn (working/warmup/dropset/failure) med default `'working'` (F17 schema, UI deferred till V1.1)
   5. `npm run gen:types` producerar `types/database.ts` som matchar applicerat schema; TS-kompileringen är ren
-**Plans**: TBD
+**Plans**: 6 plans
+  - [x] 02-01-PLAN.md — CLI bootstrap & preflight (supabase init/link, tsx, npm scripts, .env.example, .env.local)
+  - [x] 02-02-PLAN.md — Author 0001_initial_schema.sql (errata-fixed RLS, set_type ENUM, handle_new_user trigger)
+  - [x] 02-03-PLAN.md — [BLOCKING] supabase db push + db diff + Studio sanity check
+  - [x] 02-04-PLAN.md — Generate types/database.ts; type the supabase client; remove phase1ConnectTest
+  - [x] 02-05-PLAN.md — Author scripts/test-rls.ts; npm run test:rls passes (proves errata closed)
+  - [x] 02-06-PLAN.md — Doc reconciliation: ARCHITECTURE §4/§5, STATE.md, CLAUDE.md Database conventions
 
 ### Phase 3: Auth & Persistent Session
 **Goal**: Användare kan registrera konto, logga in, och sessionen överlever app-restart även offline
@@ -153,13 +159,15 @@ Phases execute sequentially: 1 → 2 → 3 → 4 → 5 → 6 → 7. Phase 5 må*
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Bootstrap & Infra Hardening | 0/3 | Not started | - |
-| 2. Schema, RLS & Type Generation | 0/TBD | Not started | - |
-| 3. Auth & Persistent Session | 0/TBD | Not started | - |
-| 4. Plans, Exercises & Offline-Queue Plumbing | 0/TBD | Not started | - |
-| 5. Active Workout Hot Path | 0/TBD | Not started | - |
-| 6. History & Read-Side Polish | 0/TBD | Not started | - |
-| 7. V1 Polish Cut | 0/TBD | Not started | - |
+| 1. Bootstrap & Infra Hardening | 3/3 | ✓ Complete | 2026-05-08 |
+| 2. Schema, RLS & Type Generation | 6/6 | ✓ Complete (27/27 SECURED, F17 validated) | 2026-05-09 |
+| 3. Auth & Persistent Session | 0/TBD | ○ Not started | — |
+| 4. Plans, Exercises & Offline-Queue Plumbing | 0/TBD | ○ Not started | — |
+| 5. Active Workout Hot Path | 0/TBD | ○ Not started | — |
+| 6. History & Read-Side Polish | 0/TBD | ○ Not started | — |
+| 7. V1 Polish Cut | 0/TBD | ○ Not started | — |
+
+**Project progress:** 2 of 7 phases complete (~29%); 9 of 9 known plans complete (Phases 3-7 plan counts pending discuss/plan).
 
 ## Phase Ordering Rationale
 

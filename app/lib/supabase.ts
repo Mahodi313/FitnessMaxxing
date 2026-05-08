@@ -10,6 +10,7 @@ import * as aesjs from "aes-js";
 import * as SecureStore from "expo-secure-store";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createClient } from "@supabase/supabase-js";
+import type { Database } from "@/types/database";
 import { AppState, Platform } from "react-native";
 
 // Runtime-guard per PITFALLS §2.6 — fail loudly om env saknas, inte silent.
@@ -69,7 +70,7 @@ class LargeSecureStore {
   }
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
     storage: new LargeSecureStore(),
     autoRefreshToken: true,
@@ -84,36 +85,3 @@ AppState.addEventListener("change", (state) => {
   if (state === "active") supabase.auth.startAutoRefresh();
   else supabase.auth.stopAutoRefresh();
 });
-
-/**
- * Phase 1 connect-test (D-07). Bevisar funktionellt att klient + nätverk + auth-headers
- * funkar mot riktiga Supabase-endpoint utan att kräva en faktisk tabell.
- *
- * Förväntad utfall: error med kod "PGRST205" eller liknande "table not found"-shape
- * (tabellen `_phase1_smoke` finns inte). Det bevisar att:
- *   1. Network-rundresan funkar
- *   2. Auth-headers (apikey + Authorization) accepteras av Supabase
- *   3. Klient-konfigen är rätt
- *
- * Anropas en gång från app/_layout.tsx i useEffect. Tas bort senast i Phase 2 när
- * riktiga tabeller finns.
- */
-export async function phase1ConnectTest() {
-  try {
-    const { data, error, status } = await supabase
-      .from("_phase1_smoke")
-      .select("*")
-      .limit(0);
-    // eslint-disable-next-line no-console
-    console.log("[phase1-connect-test]", {
-      ok: status >= 200 && status < 500, // 4xx is also "klient + nätverk funkar"
-      status,
-      errorCode: error?.code,
-      errorMessage: error?.message,
-      dataLength: Array.isArray(data) ? data.length : null,
-    });
-  } catch (e) {
-    // eslint-disable-next-line no-console
-    console.error("[phase1-connect-test] FAILED", e);
-  }
-}
