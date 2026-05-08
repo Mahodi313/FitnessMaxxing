@@ -138,7 +138,13 @@ En personlig gym-tracker för iPhone där användaren skapar egna träningsplane
 <!-- GSD:conventions-start source:CONVENTIONS.md -->
 ## Conventions
 
-Conventions not yet established. Will populate as patterns emerge during development.
+### Navigation header & status bar (established Phase 1, Plan 01-02)
+
+- **Root layout** (`app/app/_layout.tsx`) renders `<Stack screenOptions={{ headerShown: false }} />` paired with `<StatusBar style="auto" />` from `expo-status-bar`. The smoke-test screen needs an edge-to-edge background to prove F15 dark-mode convention end-to-end, and the default expo-router header is a white iOS strip that breaks dark-mode coverage above the content view.
+- **Real screens (Phase 4+)**: opt headers back in **per screen** via `<Stack.Screen options={{ headerShown: true, headerStyle: { backgroundColor: ... }, headerTintColor: ... }} />`, and choose a header style that respects `useColorScheme()` so dark mode covers the header too. Do NOT flip `headerShown: true` globally — settings/auth screens may still want it off.
+- **Why `style="auto"` on StatusBar (not `"light"`):** the smoke-test view uses both `bg-white` and `dark:bg-gray-900`. `"auto"` flips status-bar icon color with the system theme so icons always contrast against background. `"light"` would invert this in light mode (white icons on white bar = invisible).
+- **iOS status bar is OS-rendered, not React-rendered**: setting `dark:bg-gray-900` on a `<View>` does not affect status-bar icon color. You always need a sibling `<StatusBar>` element to control it.
+
 <!-- GSD:conventions-end -->
 
 <!-- GSD:architecture-start source:ARCHITECTURE.md -->
