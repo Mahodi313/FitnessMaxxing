@@ -39,7 +39,7 @@ FitnessMaxxing levereras som en personlig iPhone gym-tracker via Expo Go. Resan 
 **Plans**: 3 plans
   - [x] 01-01-reset-and-install-stack-PLAN.md — Reset Expo-scaffolden och installera locked-stacken (CLAUDE.md TL;DR-pinnar) med rätt verktyg per pakettyp; expo-doctor 0 fel
   - [x] 01-02-nativewind-darkmode-smoketest-PLAN.md — NativeWind 4 + Tailwind 3-trippel + darkMode:'class'; smoke-test-vy renderar på iPhone via Expo Go med dark:-konvention
-  - [ ] 01-03-env-supabase-providers-PLAN.md — .env.local + lib/supabase.ts (LargeSecureStore) + lib/query-client.ts + provider-stack i _layout.tsx + connect-test bevisar Supabase-rundresan
+  - [x] 01-03-env-supabase-providers-PLAN.md — .env.local + lib/supabase.ts (LargeSecureStore) + lib/query-client.ts + provider-stack i _layout.tsx + connect-test bevisar Supabase-rundresan
 
 ### Phase 2: Schema, RLS & Type Generation
 **Goal**: Korrigerat databas-schema är applicerat i Supabase, RLS-policys verifierade med cross-user-fixturer, TS-typer genererade
