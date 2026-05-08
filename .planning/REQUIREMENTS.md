@@ -138,7 +138,7 @@ Vilka faser täcker vilka krav. Mappad av roadmap-skapandet 2026-05-07.
 | F8 (avsluta pass) | Phase 5 — Active Workout Hot Path | Pending |
 | F9 (historik-lista) | Phase 6 — History & Read-Side Polish | Pending |
 | F13 (offline-stöd) | Phase 5 — Active Workout Hot Path | Pending |
-| F17 (set-typ schema-only) | Phase 2 — Schema, RLS & Type Generation | Pending |
+| F17 (set-typ schema-only) | Phase 2 — Schema, RLS & Type Generation | Validated 2026-05-09 |
 | F10 (graf per övning) | Phase 6 — History & Read-Side Polish | Pending |
 | F15 (dark-mode konvention) | Phase 1 — Bootstrap & Infra Hardening | Pending |
 | F11 (RPE per set) | Phase 7 — V1 Polish Cut | Pending |
