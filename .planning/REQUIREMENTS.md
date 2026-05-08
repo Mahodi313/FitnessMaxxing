@@ -49,7 +49,7 @@ Krav för initial release. Mappade till roadmap-faser i Traceability-sektionen.
 
 ### Schema-only (UI senare)
 
-- [ ] **F17**: Set-typ-kolumn i `exercise_sets` (working/warmup/dropset/failure)
+- [x] **F17**: Set-typ-kolumn i `exercise_sets` (working/warmup/dropset/failure)
   - V1 levererar enum-kolumn med default 'working'. UI för att tagga sets ligger i V1.1.
   - Schema-migration är gratis innan data finns; expensive efter.
 
