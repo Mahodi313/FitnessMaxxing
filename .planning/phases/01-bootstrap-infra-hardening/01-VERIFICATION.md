@@ -1,7 +1,9 @@
 ---
 phase: 01-bootstrap-infra-hardening
 verified: 2026-05-08T22:00:00Z
-status: human_needed
+status: passed
+human_verified_at: 2026-05-08
+human_verification_evidence: "User re-tested on iPhone after WR-02 (60372c3) + WR-03 (7f8c141) patches; smoke-test view + dark-mode toggle + connect-test all confirmed working. See 01-HUMAN-UAT.md."
 score: 5/5 must-haves verified
 overrides_applied: 0
 human_verification:
