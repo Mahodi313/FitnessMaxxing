@@ -155,9 +155,14 @@ must_haves:
           ["babel-preset-expo", { jsxImportSource: "nativewind" }],
           "nativewind/babel",
         ],
-        // OBS: INTE 'react-native-reanimated/plugin' — Reanimated 4.1 i SDK 54 hanteras via
-        // babel-preset-expo's automatic worklets-integration (PITFALLS §3.1).
-        // Lägg INTE till 'react-native-worklets/plugin' separat heller.
+        // ⚠ DO NOT add 'react-native-worklets/plugin' here — it causes the
+        //   "Duplicate plugin/preset detected" warning that breaks success
+        //   criterion #5. Reanimated 4.1 in SDK 54 wires worklets automatically
+        //   via babel-preset-expo. See PITFALLS §3.1.
+        // ⚠ DO NOT add 'react-native-reanimated/plugin' here either, for the
+        //   same reason. If Metro DOES complain about a missing plugin (rare on
+        //   SDK 54), and ONLY then, add 'plugins: ["react-native-reanimated/plugin"]'
+        //   as the LAST plugin — never alongside any worklets plugin.
       };
     };
     ```
@@ -267,42 +272,29 @@ must_haves:
   </action>
   <verify>
     <automated>
-      Working dir: `app/`. Kör:
+      **Working dir:** `app/`.
+
+      Kör (paths är relativa till `app/`, så `app/index.tsx` = `<repo>/app/app/index.tsx`):
       `grep -q "Hello FitnessMaxxing" app/index.tsx && grep -q "dark:text-blue-300" app/index.tsx && grep -q "import \"../global.css\"" app/_layout.tsx && echo OK`
+
       Förväntat: `OK`. Detta bevisar att smoke-test-strängen + dark:-konventionen + global.css-importen finns på rätt plats.
+
+      Om `grep` returnerar exit 1: kontrollera att executor faktiskt står i `app/` — kör `pwd` först och bekräfta att sista segmentet är `app`.
     </automated>
   </verify>
   <done>Smoke-test-vyn använder `dark:`-varianter; `_layout.tsx` importerar `global.css`.</done>
 </task>
 
 <task type="auto">
-  <name>Task 3: Cache-bust + lint + tsc</name>
+  <name>Task 3: Lint + TypeScript-kontroll</name>
   <files></files>
   <action>
     Working dir: `app/`.
 
-    Per PITFALLS §3.1 + §3.2: efter ändringar i `babel.config.js` eller `metro.config.js` MÅSTE Metro-cachen rensas, annars kör appen mot stale config och NativeWind-pipelinen kan se ut att vara trasig.
+    Cache-bust-disciplin (PITFALLS §3.1 + §3.2): efter ändringar i `babel.config.js` eller `metro.config.js` MÅSTE Metro starta med `--clear` nästa gång — annars kör appen mot stale config och NativeWind-pipelinen kan se ut att vara trasig. **Vi gör inte cache-busten i denna task** — Task 4 (iPhone-checkpointen) startar Metro med `npx expo start --clear` som första steg, vilket utför cache-busten naturligt under den första bundeln. Att kicka igång en bakgrunds-server bara för att rensa cachen är skört (windows-process-kill, sleep-timing) och tillför ingen säkerhetsmarginal när Task 4 ändå rensar.
 
-    ```bash
-    # Cache-bust (kör en gång; behöver inte starta dev-server här — checkpoint Task 4 startar den)
-    npx expo start --clear --no-dev --max-workers=2 &
-    EXPO_PID=$!
-    # Vänta tills Metro bundlat första gången, sedan döda servern
-    sleep 25
-    kill $EXPO_PID 2>/dev/null || true
-    wait $EXPO_PID 2>/dev/null || true
-    ```
+    Den här tasken fokuserar på två snabba statiska kontroller:
 
-    På Windows PowerShell-equivalent:
-    ```powershell
-    $proc = Start-Process npx -ArgumentList "expo", "start", "--clear", "--no-dev" -PassThru -NoNewWindow
-    Start-Sleep -Seconds 25
-    Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
-    ```
-
-    Detta är BARA cache-bust. Den faktiska iPhone-rendering-verifikationen sker i Task 4 där användaren startar om Metro själv och scannar QR.
-
-    **Lint + TypeScript:**
     ```bash
     npm run lint
     npx tsc --noEmit
@@ -310,21 +302,19 @@ must_haves:
 
     Båda måste exit 0. Om `tsc --noEmit` klagar på `className`-prop saknas på `View`/`Text`, har `nativewind-env.d.ts` inte plockats upp — verifiera `tsconfig.json` `include`-array.
 
-    **Förväntade icke-blockerande Metro-warnings (ignoreras):**
+    **Förväntade icke-blockerande warnings (ignoreras):**
     - "Some peer dependencies are unmet" från `victory-native` (CLAUDE.md medger detta).
-    - Eventuellt "react-native-reanimated/plugin not loaded" om babel-preset-expo's auto-läge inte täcker — då, och bara då, lägg till plugin sist (se Task 1-anteckning).
 
     **Blockerande output (rapportera till checkpoint):**
-    - "Duplicate plugin/preset detected" → babel-config har dubbletter (oftast `react-native-worklets/plugin` + `react-native-reanimated/plugin`).
-    - Röd skärm vid Metro-start.
-    - `tsc --noEmit` errors.
+    - `npm run lint` exit ≠ 0
+    - `npx tsc --noEmit` errors (ej warnings)
   </action>
   <verify>
     <automated>
       Working dir: `app/`. `npm run lint` exit 0 OCH `npx tsc --noEmit` exit 0.
     </automated>
   </verify>
-  <done>Metro-cachen är rensad; `npm run lint` + `npx tsc --noEmit` båda exit 0.</done>
+  <done>`npm run lint` + `npx tsc --noEmit` båda exit 0. (Metro-cache rensas naturligt vid Task 4 step 1 via `npx expo start --clear`.)</done>
 </task>
 
 <task type="checkpoint:human-verify" gate="blocking">
@@ -334,11 +324,10 @@ must_haves:
     - `darkMode: 'class'` i `tailwind.config.js`
     - Smoke-test-vyn `<Text>Hello FitnessMaxxing</Text>` med `text-2xl text-blue-500 dark:text-blue-300` + `<View>` med `bg-white dark:bg-gray-900`
     - `_layout.tsx` importerar `global.css`
-    - Metro-cache rensad efter babel/metro-ändringar
   </what-built>
   <how-to-verify>
-    1. Från `app/`-mappen, starta dev-servern: `npx expo start` (utan `--clear` denna gång — vi rensade i Task 3).
-    2. Vänta tills Metro skriver ut QR-koden i terminalen (ungefär 5-15 sekunder första gången). **Granska terminal-output:** det ska INTE finnas "Duplicate plugin/preset detected" eller "Error: Cannot find module 'nativewind'"-meddelanden. Om sådana dyker upp → STOPPA, rapportera.
+    1. Från `app/`-mappen, starta dev-servern med cache-bust (PITFALLS §3.1 — krävs efter babel/metro-ändringar): `npx expo start --clear`. Första bundeln tar lite längre eftersom transform-cachen byggs om från scratch — det är förväntat och är hela poängen med flaggan.
+    2. Vänta tills Metro skriver ut QR-koden i terminalen (ungefär 15-40 sekunder med `--clear` första gången). **Granska terminal-output:** det ska INTE finnas "Duplicate plugin/preset detected" eller "Error: Cannot find module 'nativewind'"-meddelanden. Om sådana dyker upp → STOPPA, rapportera.
     3. På din iPhone: öppna Expo Go-appen. Scanna QR-koden från terminalen (kameran in-app fungerar; eller använd iPhone-kameran och tryck på notifikationen).
     4. Vänta 10-30 sekunder tills bundeln laddas första gången. Du ska se:
        - Centrerad text "Hello FitnessMaxxing" mitt på skärmen

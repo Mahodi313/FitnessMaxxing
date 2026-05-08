@@ -188,8 +188,9 @@ must_haves:
     # Steg 6 — NetInfo för onlineManager-bridge i _layout.tsx (Plan 03)
     npx expo install @react-native-community/netinfo
 
-    # Steg 7 — TanStack Query persister (pure-JS)
-    npm install @tanstack/query-async-storage-persister
+    # Steg 7 — TanStack Query persister (pure-JS) — BÅDA paketen krävs:
+    # query-async-storage-persister = AsyncStorage-adaptern; react-query-persist-client = persistQueryClient-wrappern
+    npm install @tanstack/query-async-storage-persister @tanstack/react-query-persist-client
 
     # Steg 8 — Charting (Phase 6 förberedelse — installeras nu så framtida faser inte stannar)
     npx expo install @shopify/react-native-skia
@@ -208,7 +209,7 @@ must_haves:
   </action>
   <verify>
     <automated>
-      Working dir: `app/`. Kör `node -e "const p = require('./package.json'); const expect = { 'nativewind': '^4.2.3', 'tailwindcss': '^3.4.17', '@tanstack/react-query': '^5.100.9', 'zustand': '^5.0.13', 'react-hook-form': '^7.75.0', '@hookform/resolvers': '^5.2.2', 'zod': '^4.4.3', 'date-fns': '^4.1.0', 'aes-js': '^3.1.2', 'victory-native': '^41.20.2', '@tanstack/query-async-storage-persister': true }; const all = {...p.dependencies, ...p.devDependencies}; const missing = Object.entries(expect).filter(([k,v]) => !all[k] || (typeof v === 'string' && all[k] !== v && !all[k].startsWith(v.replace(/^[\\^~]/, '').split('.')[0]))); console.log(missing.length === 0 ? 'OK' : 'MISSING/MISMATCH: ' + JSON.stringify(missing));"`
+      Working dir: `app/`. Kör `node -e "const p = require('./package.json'); const expect = { 'nativewind': '^4.2.3', 'tailwindcss': '^3.4.17', '@tanstack/react-query': '^5.100.9', 'zustand': '^5.0.13', 'react-hook-form': '^7.75.0', '@hookform/resolvers': '^5.2.2', 'zod': '^4.4.3', 'date-fns': '^4.1.0', 'aes-js': '^3.1.2', 'victory-native': '^41.20.2', '@tanstack/query-async-storage-persister': true, '@tanstack/react-query-persist-client': true }; const all = {...p.dependencies, ...p.devDependencies}; const missing = Object.entries(expect).filter(([k,v]) => !all[k] || (typeof v === 'string' && all[k] !== v && !all[k].startsWith(v.replace(/^[\\^~]/, '').split('.')[0]))); console.log(missing.length === 0 ? 'OK' : 'MISSING/MISMATCH: ' + JSON.stringify(missing));"`
       Förväntat: `OK`.
     </automated>
   </verify>
@@ -251,7 +252,7 @@ must_haves:
     1. Öppna `app/package.json` i editor. Verifiera visuellt att följande nycklar finns under `dependencies` ELLER `devDependencies`:
        - `nativewind` (`^4.2.3`)
        - `tailwindcss` (`^3.4.17`) — **MÅSTE vara v3, INTE v4**. Om du ser `^4.x.x`, STOPPA och rapportera.
-       - `prettier-plugin-tailwindcss`, `@tanstack/react-query`, `@tanstack/query-async-storage-persister`, `zustand`, `react-hook-form`, `@hookform/resolvers`, `zod`, `date-fns`, `@supabase/supabase-js`, `expo-secure-store`, `@react-native-async-storage/async-storage`, `aes-js`, `react-native-get-random-values`, `@react-native-community/netinfo`, `@shopify/react-native-skia`, `victory-native`
+       - `prettier-plugin-tailwindcss`, `@tanstack/react-query`, `@tanstack/query-async-storage-persister`, `@tanstack/react-query-persist-client`, `zustand`, `react-hook-form`, `@hookform/resolvers`, `zod`, `date-fns`, `@supabase/supabase-js`, `expo-secure-store`, `@react-native-async-storage/async-storage`, `aes-js`, `react-native-get-random-values`, `@react-native-community/netinfo`, `@shopify/react-native-skia`, `victory-native`
        - Befintliga (inte bumpade): `expo` (`~54.0.33`), `expo-router` (`~6.0.23`), `react-native` (`0.81.5`), `react` (`19.1.0`), `react-native-reanimated` (`~4.1.1`)
     2. Öppna en terminal och kör `ls app/` — du ska INTE se `app-example/`, `components/`, `hooks/`, `constants/`, eller `scripts/`. Du SKA se: `app/`, `assets/`, `node_modules/`, `package.json`, `tsconfig.json`, `app.json`, `eslint.config.js`, `.gitignore`.
     3. Öppna `app/app/index.tsx` — det ska vara ~10 rader med en `<Text>Edit app/index.tsx...</Text>` (reset-default). Tailwind-klasser kommer i Plan 02.

@@ -149,13 +149,13 @@ const persister = createAsyncStoragePersister({ storage: AsyncStorage });
 persistQueryClient({ queryClient, persister, maxAge: 1000 * 60 * 60 * 24 }); // 24h per D-08
 ```
 
-NOTERA: `persistQueryClient` ligger i `@tanstack/react-query-persist-client` (separat paket från `@tanstack/react-query`). Plan 01 installerade `@tanstack/query-async-storage-persister` men INTE `@tanstack/react-query-persist-client` — Task 1 nedan installerar den. Detta är ett tillägg på Plan 01:s install-lista. Det är pure-JS så `npm install` är rätt verktyg.
+NOTERA: `persistQueryClient` ligger i `@tanstack/react-query-persist-client` (separat paket från `@tanstack/react-query`). Plan 01 installerar BÅDA persister-paketen (Steg 7). Task 2 nedan kör samma `npm install` som idempotent säkerhetsnät — om Plan 01 körts korrekt är det no-op.
 </interfaces>
 </context>
 
 <scope>
 **In scope:**
-- Installera `@tanstack/react-query-persist-client` (saknades i Plan 01-listan; pure-JS, npm install)
+- Verifiera att `@tanstack/react-query-persist-client` är installerad (Plan 01 Steg 7 lägger den; idempotent re-install i Task 2 om något gått fel)
 - Skapa `app/.env.local` (gitignored) med `EXPO_PUBLIC_SUPABASE_URL` + `EXPO_PUBLIC_SUPABASE_ANON_KEY` — användaren tillhandahåller värdena via user_setup-checkpoint
 - Skapa `app/.env.example` (committad) med placeholder-värden så framtida agenter/utvecklare ser shape:n
 - Skapa `app/lib/supabase.ts` per CLAUDE.md Recipe §A med:
