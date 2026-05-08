@@ -14,7 +14,7 @@ Logga ett set och omedelbart se vad jag tog senast på samma övning — utan at
 
 <!-- Shipped and confirmed valuable. -->
 
-(None yet — ship to validate)
+- **F15 (konvention)** — Validated in Phase 1: dark mode established as a project-wide convention (`darkMode:'class'` in `tailwind.config.js` with NativeWind 4 system-theme bridge); `dark:` variants used from start in `app/app/index.tsx`, status-bar + nav-header conventions captured in `CLAUDE.md ## Conventions`. Manual toggle UI deferred to Phase 7.
 
 ### Active
 
@@ -37,7 +37,7 @@ Logga ett set och omedelbart se vad jag tog senast på samma övning — utan at
 
 - [ ] **F10** — Graf per övning över tid (max vikt, total volym)
 - [ ] **F14** — Apple Sign-In (V1.1)
-- [ ] **F15** — Dark mode
+- [x] **F15** — Dark mode (konvention etablerad i Phase 1; manual toggle UI deferred till Phase 7)
 
 #### V1 Kan
 
@@ -115,4 +115,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-07 after initialization*
+*Last updated: 2026-05-08 after Phase 1 (Bootstrap & Infra Hardening) completion — locked stack installed, NativeWind dark-mode pipeline proven on iPhone, Supabase walking-skeleton round-trip closed*
