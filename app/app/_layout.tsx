@@ -25,7 +25,11 @@ focusManager.setEventListener((setFocused) => {
 
 onlineManager.setEventListener((setOnline) => {
   const unsubscribe = NetInfo.addEventListener((state) => {
-    setOnline(!!state.isConnected);
+    // NetInfo's isConnected is boolean | null; null = unknown (cold start
+    // before first probe). Treat unknown as online so TanStack Query doesn't
+    // mark mutations offline before we know — only an explicit `false` flips
+    // us offline.
+    setOnline(state.isConnected !== false);
   });
   return unsubscribe;
 });
