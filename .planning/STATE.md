@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 1 context gathered — alla scaffold-, provider- och mapp-beslut låsta i 01-CONTEXT.md
-last_updated: "2026-05-08T19:29:28.911Z"
+stopped_at: Phase 2 context gathered — schema/RLS/types decisions locked in 02-CONTEXT.md
+last_updated: "2026-05-08T20:20:19.667Z"
 last_activity: 2026-05-08
 progress:
   total_phases: 7
@@ -96,7 +96,7 @@ Items acknowledged for later:
 
 ## Session Continuity
 
-Last session: 2026-05-08
-Stopped at: Phase 1 context gathered — alla scaffold-, provider- och mapp-beslut låsta i 01-CONTEXT.md
-Resume file: .planning/phases/01-bootstrap-infra-hardening/01-CONTEXT.md
+Last session: 2026-05-08T20:20:19.663Z
+Stopped at: Phase 2 context gathered — schema/RLS/types decisions locked in 02-CONTEXT.md
+Resume file: .planning/phases/02-schema-rls-type-generation/02-CONTEXT.md
 Next: kör `/gsd-plan-phase 1` för att skapa PLAN.md
