@@ -38,7 +38,7 @@ FitnessMaxxing levereras som en personlig iPhone gym-tracker via Expo Go. Resan 
   5. Reanimated 4.1 babel-plugin är konfigurerad utan dubbletter (ingen "Duplicate plugin/preset detected"-varning)
 **Plans**: 3 plans
   - [x] 01-01-reset-and-install-stack-PLAN.md — Reset Expo-scaffolden och installera locked-stacken (CLAUDE.md TL;DR-pinnar) med rätt verktyg per pakettyp; expo-doctor 0 fel
-  - [ ] 01-02-nativewind-darkmode-smoketest-PLAN.md — NativeWind 4 + Tailwind 3-trippel + darkMode:'class'; smoke-test-vy renderar på iPhone via Expo Go med dark:-konvention
+  - [x] 01-02-nativewind-darkmode-smoketest-PLAN.md — NativeWind 4 + Tailwind 3-trippel + darkMode:'class'; smoke-test-vy renderar på iPhone via Expo Go med dark:-konvention
   - [ ] 01-03-env-supabase-providers-PLAN.md — .env.local + lib/supabase.ts (LargeSecureStore) + lib/query-client.ts + provider-stack i _layout.tsx + connect-test bevisar Supabase-rundresan
 
 ### Phase 2: Schema, RLS & Type Generation
