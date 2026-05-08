@@ -7,7 +7,8 @@
   "firecrawl": false,
   "exa_search": false,
   "git": {
-    "branching_strategy": "none",
+    "branching_strategy": "phase",
+    "base_branch": "dev",
     "phase_branch_template": "gsd/phase-{phase}-{slug}",
     "milestone_branch_template": "gsd/{milestone}-{slug}",
     "quick_branch_template": null
@@ -25,7 +26,7 @@
     "ai_integration_phase": true,
     "tdd_mode": false,
     "text_mode": false,
-    "research_before_questions": false,
+    "research_before_questions": true,
     "discuss_mode": "discuss",
     "skip_discuss": false,
     "code_review": true,
@@ -39,7 +40,15 @@
     "post_planning_gaps": true,
     "security_enforcement": true,
     "security_asvs_level": 1,
-    "security_block_on": "high"
+    "security_block_on": "high",
+    "ui_review": true,
+    "use_worktrees": true
+  },
+  "intel": {
+    "enabled": false
+  },
+  "graphify": {
+    "enabled": false
   },
   "hooks": {
     "context_warnings": true
