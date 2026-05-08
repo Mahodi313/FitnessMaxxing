@@ -61,8 +61,11 @@ class LargeSecureStore {
   }
 
   async removeItem(key: string) {
-    await AsyncStorage.removeItem(key);
+    // Delete the AES key first so a crash between the two ops can't leave an
+    // orphaned key for a blob that's already gone. The undecryptable blob is
+    // harmless and gets cleaned up next time setItem runs for this key.
     await SecureStore.deleteItemAsync(key);
+    await AsyncStorage.removeItem(key);
   }
 }
 
