@@ -774,27 +774,27 @@ Plus removal of `phase1ConnectTest` (lines 88–119 of current `app/lib/supabase
 
 **Confirmation needed before planning:** A1 (DB password), A2 (PAT vs login), A3 (no prior Studio activity). The planner should include a "Wave 0 / preflight" task that has the user produce these so the planner doesn't ship blocking ambiguity into the executor's hands.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should Phase 2 run `supabase db diff` after `db push` as a verification step, or is `npm run test:rls` exit-0 sufficient proof?**
    - What we know: `db diff` against linked project shows any schema differences. Empty output = local SQL matches remote.
    - What's unclear: D-08/D-10 only specify `test:rls` exit-0. CONTEXT.md doesn't explicitly require a `db diff` check.
-   - Recommendation: Include `npx supabase db diff` as a one-time post-push sanity check in the plan (NOT a recurring CI gate per CONTEXT.md deferred items). Document the expected output ("no changes") in the verification task. Cheap, catches Studio-drift early.
+   - **RESOLVED:** include `npx supabase db diff` as a one-time post-push sanity check (NOT a recurring CI gate per CONTEXT.md deferred items). Plan 03 implements this; expected output is "No schema changes found".
 
 2. **Should `app/types/database.ts` be in `app/.gitignore`?**
    - What we know: D-04 says "committed". The same file is committed in many open-source Supabase projects.
    - What's unclear: Some teams gitignore it because they regenerate per CI run.
-   - Recommendation: COMMIT it (D-04 is explicit). Solo V1 — having it in git makes onboarding (and code review) easier and provides a visible diff when the schema changes.
+   - **RESOLVED:** commit `app/types/database.ts` (D-04 is explicit). Plan 04 commits the generated file alongside the migration; provides visible schema-change diffs and easier onboarding.
 
 3. **Test users — clean up at start, end, or both?**
    - What we know: D-08 says "cleanup at start AND end of every run."
    - What's unclear: If the script crashes mid-run, end-cleanup never runs. Start-cleanup the next time fixes it; until then, dangling rows exist.
-   - Recommendation: Implement BOTH. Start-cleanup makes the script crash-resilient (defensive); end-cleanup keeps the dev project tidy in the happy path. Wrap end-cleanup in a `try/finally` block.
+   - **RESOLVED:** cleanup at BOTH start and end. Start-cleanup makes the script crash-resilient; end-cleanup keeps the dev project tidy in the happy path. Plan 05 wraps end-cleanup in a `try/finally` block.
 
 4. **Should `EXPO_PUBLIC_SUPABASE_PROJECT_ID` exist at all, or hard-code the project-id in the gen:types npm script?**
    - What we know: D-03 says it should exist as a duplicate of `supabase/config.toml`'s project_id. PowerShell env-var interpolation in npm scripts has cross-shell complications.
    - What's unclear: The actual benefit of the env-var indirection. The project-id is non-sensitive and changes never (Supabase project IDs are fixed for life).
-   - Recommendation: Hard-code the literal project-id in the npm script — `"gen:types": "supabase gen types typescript --project-id abcdef... > types/database.ts"`. Drop `EXPO_PUBLIC_SUPABASE_PROJECT_ID` from `.env.example` and `.env.local` unless a runtime use case appears in V1.1+. Flag this for user confirmation in `/gsd-plan-phase`.
+   - **RESOLVED (with user confirmation 2026-05-08):** hard-code the literal project-id in the npm script. Drop `EXPO_PUBLIC_SUPABASE_PROJECT_ID` from `.env.example` and `.env.local`. Plan 01 implements; CONTEXT.md `<decisions>` D-03 was relaxed to move the env-var indirection to "Claude's Discretion" — the substantive D-04 intent ("remote linked project, not local Docker") is preserved.
 
 ## Environment Availability
 
