@@ -15,6 +15,7 @@ Logga ett set och omedelbart se vad jag tog senast på samma övning — utan at
 <!-- Shipped and confirmed valuable. -->
 
 - **F15 (konvention)** — Validated in Phase 1: dark mode established as a project-wide convention (`darkMode:'class'` in `tailwind.config.js` with NativeWind 4 system-theme bridge); `dark:` variants used from start in `app/app/index.tsx`, status-bar + nav-header conventions captured in `CLAUDE.md ## Conventions`. Manual toggle UI deferred to Phase 7.
+- **F17 (set-typ schema-only)** — Validated in Phase 2: `set_type` Postgres ENUM with values `working | warmup | dropset | failure` is live in remote DB and surfaces through `app/types/database.ts` to the typed Supabase client. `is_warmup` removed everywhere. UI for toggling set type is deferred to V1.1 — V1 always writes `'working'` (default).
 
 ### Active
 
@@ -63,7 +64,7 @@ Logga ett set och omedelbart se vad jag tog senast på samma övning — utan at
 - **Plattform**: Windows + PowerShell + Claude Code nativt (inte WSL). Expo Go på iPhone för dev. Ingen Mac initialt; EAS Build hanterar bygg när TestFlight blir aktuellt.
 - **Stack är låst** i ARCHITECTURE.md beslutsregister: Expo SDK 54, TypeScript, Expo Router (file-based), NativeWind, TanStack Query v5, Zustand, react-hook-form + zod, date-fns, victory-native (eller react-native-skia), Supabase (Postgres + Auth + auto-REST + RLS), expo-secure-store för sessions.
 - **Datamodell är förkonstruerad** i ARCHITECTURE.md sektion 4: 6 tabeller (`profiles`, `exercises`, `workout_plans`, `plan_exercises`, `workout_sessions`, `exercise_sets`) med index och RLS-policies redan utskrivna.
-- **Supabase-projekt finns redan** — URL + anon-key sparade undan av användaren, klistras in i `.env.local` under Phase 1. Schemat är ännu inte applicerat.
+- **Supabase-projekt finns redan** — URL + anon-key i `.env.local` (Phase 1). Schema applicerat på remote i Phase 2 (`0001_initial_schema.sql`): 6 tabeller med RLS, errata-fixat `with check`, wrapped `(select auth.uid())`, `set_type` ENUM, `handle_new_user` trigger. Verifierat live via 22/22 cross-user assertions.
 - **Scaffolding-status**: `app/`-mappen innehåller `npx create-expo-app` default (Expo Router 6, TS, Reanimated, Gesture handler, Safe area, Screens). Stack-paket från ARCHITECTURE (NativeWind, TanStack, Zustand, Supabase, zod) är **ännu inte installerade**.
 - **Referensdokument**: `PRD.md` och `ARCHITECTURE.md` i projektroten är auktoritativa källor för krav och teknisk arkitektur. GSD läser dem vid varje plan-phase.
 
@@ -115,4 +116,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-08 after Phase 1 (Bootstrap & Infra Hardening) completion — locked stack installed, NativeWind dark-mode pipeline proven on iPhone, Supabase walking-skeleton round-trip closed*
+*Last updated: 2026-05-09 after Phase 2 (Schema, RLS & Type Generation) completion — V1 schema deployed to remote project mokmiuifpdzwnceufduu with errata-fixed RLS, generated `types/database.ts` wired through `createClient<Database>`, cross-user RLS test harness 22/22 PASS, F17 validated, DB conventions codified in CLAUDE.md*
