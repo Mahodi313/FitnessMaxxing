@@ -11,8 +11,8 @@ See: .planning/PROJECT.md (updated 2026-05-07)
 
 Phase: 1 of 7 (Bootstrap & Infra Hardening)
 Plan: 0 of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-05-07 — Roadmap skapad (7 V1-faser, 15/15 krav mappade)
+Status: Context gathered — ready for research/planning
+Last activity: 2026-05-08 — Phase 1 CONTEXT.md skriven (3 områden diskuterade: scaffold-strategi, provider-scaffold-gräns, mapp-/route-konventioner)
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -77,6 +77,7 @@ Items acknowledged for later:
 
 ## Session Continuity
 
-Last session: 2026-05-07
-Stopped at: ROADMAP.md skapad, STATE.md initialiserad, REQUIREMENTS.md traceability uppdaterad
-Resume file: None — kör `/gsd-plan-phase 1` för att börja Phase 1
+Last session: 2026-05-08
+Stopped at: Phase 1 context gathered — alla scaffold-, provider- och mapp-beslut låsta i 01-CONTEXT.md
+Resume file: .planning/phases/01-bootstrap-infra-hardening/01-CONTEXT.md
+Next: kör `/gsd-plan-phase 1` för att skapa PLAN.md
