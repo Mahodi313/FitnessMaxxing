@@ -57,7 +57,7 @@ FitnessMaxxing levereras som en personlig iPhone gym-tracker via Expo Go. Resan 
   - [x] 02-02-PLAN.md — Author 0001_initial_schema.sql (errata-fixed RLS, set_type ENUM, handle_new_user trigger)
   - [x] 02-03-PLAN.md — [BLOCKING] supabase db push + db diff + Studio sanity check
   - [x] 02-04-PLAN.md — Generate types/database.ts; type the supabase client; remove phase1ConnectTest
-  - [ ] 02-05-PLAN.md — Author scripts/test-rls.ts; npm run test:rls passes (proves errata closed)
+  - [x] 02-05-PLAN.md — Author scripts/test-rls.ts; npm run test:rls passes (proves errata closed)
   - [ ] 02-06-PLAN.md — Doc reconciliation: ARCHITECTURE §4/§5, STATE.md, CLAUDE.md Database conventions
 
 ### Phase 3: Auth & Persistent Session
