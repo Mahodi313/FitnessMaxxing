@@ -3,15 +3,16 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed Phase 2 Plan 01 (Supabase CLI bootstrap + credential surface)
-last_updated: "2026-05-08T22:51:40.616Z"
-last_activity: 2026-05-08
+stopped_at: Phase 02 complete (27/27 SECURED, F17 validated, OWASP conventions codified). Phase 03 ready to discuss.
+last_updated: "2026-05-09T01:15:00.000Z"
+last_activity: 2026-05-09
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 9
-  completed_plans: 10
-  percent: 100
+  completed_plans: 9
+  percent: 29
+  percent_basis: phases (2/7 — plan counts for Phases 3-7 are TBD)
 ---
 
 # Project State
@@ -21,45 +22,38 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-07)
 
 **Core value:** Logga ett set och omedelbart se vad jag tog senast på samma övning — utan att tappa data, någonsin.
-**Current focus:** Phase 02 — schema-rls-type-generation
+**Current focus:** Phase 03 — auth-persistent-session (ready to discuss)
 
 ## Current Position
 
 Phase: 3
 Plan: Not started
 Status: Ready to execute
-Last activity: 2026-05-08
+Last activity: 2026-05-09
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [██░░░░░░░░] 29%  (2/7 phases complete; Phase 3-7 plan counts TBD)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 10
-- Average duration: —
-- Total execution time: 0 hours
+- Total plans completed: 9 (3 in Phase 1, 6 in Phase 2)
+- Phases complete: 2 of 7
+- Total execution time: ~2 active days (2026-05-07 → 2026-05-09)
 
 **By Phase:**
 
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| 1. Bootstrap & Infra Hardening | 0 | — | — |
-| 2. Schema, RLS & Type Generation | 0 | — | — |
-| 3. Auth & Persistent Session | 0 | — | — |
-| 4. Plans, Exercises & Offline-Queue | 0 | — | — |
-| 5. Active Workout Hot Path | 0 | — | — |
-| 6. History & Read-Side Polish | 0 | — | — |
-| 7. V1 Polish Cut | 0 | — | — |
-| 01 | 3 | - | - |
-
-**Recent Trend:**
-
-- Last 5 plans: —
-- Trend: — (no plans executed yet)
+| Phase | Plans | Status | Completed |
+|-------|-------|--------|-----------|
+| 1. Bootstrap & Infra Hardening | 3/3 | ✓ Complete | 2026-05-08 |
+| 2. Schema, RLS & Type Generation | 6/6 | ✓ Complete (27/27 SECURED) | 2026-05-09 |
+| 3. Auth & Persistent Session | 0/TBD | ○ Not started | — |
+| 4. Plans, Exercises & Offline-Queue | 0/TBD | ○ Not started | — |
+| 5. Active Workout Hot Path | 0/TBD | ○ Not started | — |
+| 6. History & Read-Side Polish | 0/TBD | ○ Not started | — |
+| 7. V1 Polish Cut | 0/TBD | ○ Not started | — |
 
 *Updated after each plan completion*
-| Phase 02 P01 | 180 | 3 tasks | 5 files |
 
 ## Accumulated Context
 
