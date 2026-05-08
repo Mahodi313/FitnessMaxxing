@@ -1,6 +1,5 @@
 // app/app/_layout.tsx
 import "../global.css";
-import { useEffect } from "react";
 import { AppState, Platform } from "react-native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -12,7 +11,6 @@ import {
 import NetInfo from "@react-native-community/netinfo";
 
 import { queryClient } from "@/lib/query-client";
-import { phase1ConnectTest } from "@/lib/supabase";
 
 // ---- Module-level listeners (Recipe §B). Set once when module loads. ----
 
@@ -35,12 +33,6 @@ onlineManager.setEventListener((setOnline) => {
 });
 
 export default function RootLayout() {
-  useEffect(() => {
-    if (__DEV__) {
-      phase1ConnectTest();
-    }
-  }, []);
-
   return (
     <QueryClientProvider client={queryClient}>
       <Stack screenOptions={{ headerShown: false }} />

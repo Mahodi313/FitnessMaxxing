@@ -42,7 +42,8 @@
     "security_asvs_level": 1,
     "security_block_on": "high",
     "ui_review": true,
-    "use_worktrees": true
+    "use_worktrees": true,
+    "_auto_chain_active": false
   },
   "intel": {
     "enabled": false
