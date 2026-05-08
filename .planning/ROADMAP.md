@@ -53,7 +53,7 @@ FitnessMaxxing levereras som en personlig iPhone gym-tracker via Expo Go. Resan 
   4. `exercise_sets` har `set_type` enum-kolumn (working/warmup/dropset/failure) med default `'working'` (F17 schema, UI deferred till V1.1)
   5. `npm run gen:types` producerar `types/database.ts` som matchar applicerat schema; TS-kompileringen är ren
 **Plans**: 6 plans
-  - [ ] 02-01-PLAN.md — CLI bootstrap & preflight (supabase init/link, tsx, npm scripts, .env.example, .env.local)
+  - [x] 02-01-PLAN.md — CLI bootstrap & preflight (supabase init/link, tsx, npm scripts, .env.example, .env.local)
   - [ ] 02-02-PLAN.md — Author 0001_initial_schema.sql (errata-fixed RLS, set_type ENUM, handle_new_user trigger)
   - [ ] 02-03-PLAN.md — [BLOCKING] supabase db push + db diff + Studio sanity check
   - [ ] 02-04-PLAN.md — Generate types/database.ts; type the supabase client; remove phase1ConnectTest

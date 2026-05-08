@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 2 context gathered — schema/RLS/types decisions locked in 02-CONTEXT.md
-last_updated: "2026-05-08T20:20:19.667Z"
+stopped_at: Completed Phase 2 Plan 01 (Supabase CLI bootstrap + credential surface)
+last_updated: "2026-05-08T21:48:44.198Z"
 last_activity: 2026-05-08
 progress:
   total_phases: 7
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
-  percent: 100
+  total_plans: 9
+  completed_plans: 5
+  percent: 56
 ---
 
 # Project State
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-07)
 
 **Core value:** Logga ett set och omedelbart se vad jag tog senast på samma övning — utan att tappa data, någonsin.
-**Current focus:** Phase 01 — bootstrap-infra-hardening
+**Current focus:** Phase 02 — schema-rls-type-generation
 
 ## Current Position
 
-Phase: 2
-Plan: Not started
-Status: Executing Phase 01
+Phase: 02 (schema-rls-type-generation) — EXECUTING
+Plan: 2 of 6
+Status: Ready to execute
 Last activity: 2026-05-08
 
 Progress: [░░░░░░░░░░] 0%
@@ -59,6 +59,7 @@ Progress: [░░░░░░░░░░] 0%
 - Trend: — (no plans executed yet)
 
 *Updated after each plan completion*
+| Phase 02 P01 | 180 | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -73,6 +74,8 @@ Recent decisions affecting current work:
 - **2026-05-07**: Apple Sign-In (F14) deferred till V1.1 (App Store-blocker, inte personlig)
 - **2026-05-07**: ARCHITECTURE.md §4 errata: `with check` saknas på `plan_exercises` + `exercise_sets` — fixas i Phase 2
 - **2026-05-07**: ARCHITECTURE.md §7 ersatt av research/ARCHITECTURE.md §7 (offline-first ships i V1, inte V1.5)
+- [Phase 02]: Hard-code project-ref into gen:types npm script (RESEARCH Open Q#4 → option 1) — Non-sensitive (also in EXPO_PUBLIC_SUPABASE_URL and config.toml); avoids PowerShell-vs-Bash env-var-interpolation footgun
+- [Phase 02]: Set config.toml project_id field to remote ref (CLI 2.98 default is working-dir name) — Plan acceptance criteria require project_id to match PROJECT_REF; CLI link command stores binding in supabase/.temp/project-ref (gitignored), so editing config.toml's project_id makes the committed file self-documenting
 
 ### Pending Todos
 
@@ -96,7 +99,7 @@ Items acknowledged for later:
 
 ## Session Continuity
 
-Last session: 2026-05-08T20:20:19.663Z
-Stopped at: Phase 2 context gathered — schema/RLS/types decisions locked in 02-CONTEXT.md
-Resume file: .planning/phases/02-schema-rls-type-generation/02-CONTEXT.md
+Last session: 2026-05-08T21:48:35.632Z
+Stopped at: Completed Phase 2 Plan 01 (Supabase CLI bootstrap + credential surface)
+Resume file: None
 Next: kör `/gsd-plan-phase 1` för att skapa PLAN.md
