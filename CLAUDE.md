@@ -145,6 +145,18 @@ En personlig gym-tracker för iPhone där användaren skapar egna träningsplane
 - **Why `style="auto"` on StatusBar (not `"light"`):** the smoke-test view uses both `bg-white` and `dark:bg-gray-900`. `"auto"` flips status-bar icon color with the system theme so icons always contrast against background. `"light"` would invert this in light mode (white icons on white bar = invisible).
 - **iOS status bar is OS-rendered, not React-rendered**: setting `dark:bg-gray-900` on a `<View>` does not affect status-bar icon color. You always need a sibling `<StatusBar>` element to control it.
 
+### Database conventions (established Phase 2)
+
+- **Migration-as-truth.** All schema changes ship as numbered SQL files in `app/supabase/migrations/` — Supabase Studio is read-only from Phase 2 forward. (PITFALLS 4.2 — drift detection requires a single source of truth; Studio edits leave no diff for review.) New deltas land as new files (`0002_*.sql`, `0003_*.sql`), never via dashboard.
+- **RLS pairs with policies.** Every migration that creates a table MUST `enable row level security` AND add at least one policy in the same file. (PITFALLS 2.1 + 2.2 — RLS-enabled-without-policy = "deny everything"; both must land together.)
+- **`using` AND `with check` on every writable policy.** Every writable RLS policy MUST declare BOTH `using` AND `with check`. `using` filters reads + which rows can be modified; `with check` validates the post-state of inserts/updates. (PITFALLS 2.5 — Phase 2 closed the original errata where `plan_exercises` and `exercise_sets` were missing `with check`.)
+- **Wrap every `auth.uid()` reference.** Every `auth.uid()` reference inside an RLS policy MUST be wrapped as `(select auth.uid())` for query-plan caching. Postgres caches the wrapped form per-query; the raw form re-evaluates per-row and tanks performance at scale. (PITFALLS 4.1.)
+- **Drift verification on Windows-without-Docker.** Use `npx tsx --env-file=.env.local scripts/verify-deploy.ts` from `app/` cwd to verify deployed schema state — NOT `npx supabase db diff` (the latter requires Docker per D-04). The harness queries `pg_catalog` directly (RLS state, policies, triggers, ENUMs, functions) which is at least as strong as `db diff` because it inspects the live database, not generated DDL.
+- **Studio UI gotchas.** Don't trust the Studio Tables-view RLS badges — they are version-/zoom-/cache-dependent. Trust `pg_class.relrowsecurity` (via verify-deploy.ts) instead. To see triggers on `auth.users` (e.g., `handle_new_user`), switch the Studio Triggers tab schema dropdown from `public` to `auth` — the default filter hides them.
+- **Type-gen runs after every schema migration.** `npm run gen:types` runs after every schema migration; the generated `app/types/database.ts` is committed in the same commit as the migration that produced it. Hand-editing `database.ts` is forbidden — fix the schema instead.
+- **Cross-user verification is a gate.** Schema migrations that touch user-scoped tables MUST add coverage to `app/scripts/test-rls.ts` (cross-user CRUD assertions for the new table). The cross-user test is the regression detector for RLS gaps; a migration without an updated test-rls assertion is incomplete.
+- **Service-role isolation.** `SUPABASE_SERVICE_ROLE_KEY` lives in `app/.env.local` only; NEVER prefixed with `EXPO_PUBLIC_`; NEVER imported from any path under `app/lib/`, `app/app/`, or any other Metro-bundled path. Audit gate: `git grep "service_role\|SERVICE_ROLE"` must match only `app/scripts/test-rls.ts`, `app/.env.example`, `.planning/`, and `CLAUDE.md`. (PITFALLS 2.3.)
+
 <!-- GSD:conventions-end -->
 
 <!-- GSD:architecture-start source:ARCHITECTURE.md -->
