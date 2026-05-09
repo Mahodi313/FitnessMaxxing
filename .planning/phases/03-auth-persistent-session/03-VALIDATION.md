@@ -1,16 +1,18 @@
 ---
 phase: 3
 slug: auth-persistent-session
-status: draft
-nyquist_compliant: false
+status: planner-finalized
+nyquist_compliant: true
 wave_0_complete: false
 created: 2026-05-09
+finalized: 2026-05-09
 ---
 
 # Phase 3 — Validation Strategy
 
 > Per-phase validation contract for feedback sampling during execution.
 > Source: `.planning/phases/03-auth-persistent-session/03-RESEARCH.md` § Validation Architecture.
+> Finalized after PLAN.md files created (03-01 through 03-04).
 
 ---
 
@@ -18,42 +20,42 @@ created: 2026-05-09
 
 | Property | Value |
 |----------|-------|
-| **Framework** | TBD — planner finalizes (likely vitest 1.x or jest 29.x for Zod-schema unit tests; manual iPhone checklist for runtime) |
-| **Config file** | TBD (Wave 0 installs if no framework detected; current repo has none) |
-| **Quick run command** | TBD (e.g., `npm run test:schemas` from `app/` cwd) |
-| **Full suite command** | TBD (e.g., `npm run test` from `app/` cwd) |
-| **Estimated runtime** | ~< 5 seconds (schema unit tests only — no integration framework in V1) |
+| **Framework** | None — Plan 01 introduces a Node-only schema test (`tsx scripts/test-auth-schemas.ts`) instead of Vitest/Jest. Consistent with Phase 1+2 (no test framework in V1). |
+| **Config file** | None |
+| **Quick run command** | `cd app && npm run test:auth-schemas` (schema unit tests, ~1 second runtime) |
+| **Full suite command** | `cd app && npx tsc --noEmit && npm run test:auth-schemas && npm run test:rls && npx expo-doctor && npm run lint` (TS + schema + RLS + Doctor + lint) |
+| **Estimated runtime** | ~30 seconds full suite; ~1 second schema-only |
+| **Manual iOS smoke** | `cd app && npm run start` then scan QR in Expo Go on physical iPhone (Plan 04) |
 
 ---
 
 ## Sampling Rate
 
-- **After every task commit:** Run quick schema-test command (when framework wired)
-- **After every plan wave:** Run full suite + manual sanity (Expo Go cold-start on iPhone)
-- **Before `/gsd-verify-work`:** Full suite green AND manual iPhone checklist signed off (success criterion #3 — kill-and-reopen — has no automated counterpart in V1)
+- **After every task commit:** `cd app && npx tsc --noEmit` (TypeScript clean)
+- **After every plan wave:** Above + `cd app && npm run test:auth-schemas` (Wave 1+) + `cd app && npm run test:rls` (Phase 2 regression)
+- **Before `/gsd-verify-work 3`:** Full suite green AND manual iPhone checklist signed off in `03-VERIFICATION.md` (success criterion #3 — kill-and-reopen — has no automated counterpart in V1; Plan 04 is the manual gate)
 - **Max feedback latency:** ≤ 30 seconds (auto) + ≤ 5 minutes (manual iPhone session)
 
 ---
 
 ## Per-Task Verification Map
 
-> Planner finalizes per-task IDs once PLAN.md files are written. Skeleton below maps F1 success criteria to verification gates surfaced by RESEARCH.md.
-
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 03-XX-XX | TBD  | 0    | F1 | — | Wave 0: install test framework + scaffold `app/lib/schemas/auth.test.ts` | unit | `npm run test:schemas` | ❌ W0 | ⬜ pending |
-| 03-XX-XX | TBD  | 1    | F1 | T-03-* | Zod sign-up schema rejects `password.length < 12` (D-12) | unit | `npm run test:schemas -- signUpSchema` | ❌ W0 | ⬜ pending |
-| 03-XX-XX | TBD  | 1    | F1 | T-03-* | Zod sign-up schema rejects `password !== confirmPassword` (D-14) | unit | `npm run test:schemas -- signUpSchema` | ❌ W0 | ⬜ pending |
-| 03-XX-XX | TBD  | 1    | F1 | T-03-* | Zod sign-up schema rejects invalid email (`z.email()` Zod 4 form) | unit | `npm run test:schemas -- signUpSchema` | ❌ W0 | ⬜ pending |
-| 03-XX-XX | TBD  | 1    | F1 | T-03-* | Zod sign-in schema rejects empty password (D-13: `min(1)`, not `min(12)`) | unit | `npm run test:schemas -- signInSchema` | ❌ W0 | ⬜ pending |
-| 03-XX-XX | TBD  | 2    | F1 | T-03-* | TypeScript: `Session` type from `@supabase/supabase-js` flows through `auth-store.ts` without `any` | tsc | `cd app && npx tsc --noEmit` | ✅ | ⬜ pending |
-| 03-XX-XX | TBD  | 2    | F1 | T-03-* | Lint: `app/lib/auth-store.ts` registers `onAuthStateChange` exactly once at module scope | lint+grep | `grep -c "onAuthStateChange" app/lib/auth-store.ts` (expect 1) | ✅ | ⬜ pending |
-| 03-XX-XX | TBD  | 2    | F1 | T-03-* | `queryClient.clear()` is called inside `signOut` action, NOT inside the `onAuthStateChange` callback (deadlock risk per RESEARCH.md) | grep | `grep -A 5 "onAuthStateChange" app/lib/auth-store.ts \| grep -v "queryClient"` | ✅ | ⬜ pending |
-| 03-XX-XX | TBD  | 3    | F1 (SC#1) | T-03-* | Sign-up flow lands user in `(app)` group post-success | manual iPhone | (none — see Manual-Only) | — | ⬜ pending |
-| 03-XX-XX | TBD  | 3    | F1 (SC#2) | T-03-* | Sign-in inline-error: invalid email shows under field; bad credentials shows generic Swedish copy | manual iPhone | (none — see Manual-Only) | — | ⬜ pending |
-| 03-XX-XX | TBD  | 3    | F1 (SC#3) | T-03-* | LargeSecureStore round-trip: sign-in → kill app → reopen → land directly in `(app)` (no flicker) | manual iPhone | (none — see Manual-Only) | — | ⬜ pending |
-| 03-XX-XX | TBD  | 3    | F1 (SC#4) | T-03-* | Sign-out: returns to `(auth)/sign-in.tsx` AND `queryClient.clear()` runs (verify by grep + manual cache-state check) | manual iPhone | (none — see Manual-Only) | — | ⬜ pending |
-| 03-XX-XX | TBD  | 3    | F1 (SC#5) | T-03-* | `Stack.Protected guard={!!session}` + `(app)/_layout.tsx <Redirect>` defense-in-depth: no flicker on cold start, no flash of `(app)` content when session is null | manual iPhone | (none — see Manual-Only) | — | ⬜ pending |
+| 03-01-T1 | 03-01 | 1 | F1 | T-03-05 | `signUpSchema` enforces D-12 (`password.min(12)`) and D-14 (`refine` matches confirmPassword) and Zod 4 idiom (`z.email()`) | unit | `cd app && npm run test:auth-schemas` | ✅ (script created in 03-01-T3) | ⬜ pending |
+| 03-01-T2 | 03-01 | 1 | F1 | T-03-01, T-03-02, T-03-07 | `auth-store.ts` registers exactly one module-scope `onAuthStateChange` listener (Strict-Mode safe); `signOut` action calls `queryClient.clear()` BEFORE `supabase.auth.signOut()` (T-03-03 mitigation); listener callback contains no `await` (T-03-02 deadlock prevention) | grep + tsc | `grep -c "supabase.auth.onAuthStateChange(" app/lib/auth-store.ts` returns `1` AND `cd app && npx tsc --noEmit` exits 0 | ✅ | ⬜ pending |
+| 03-01-T3 | 03-01 | 1 | F1 | T-03-05 | Schema test exercises 8 cases: D-12 min(12), D-13 min(1), D-14 refine, Q3 empty-confirmPassword, Zod 4 idiom; exits 0 on pass | unit | `cd app && npm run test:auth-schemas` | ✅ | ⬜ pending |
+| 03-02-T1 | 03-02 | 2 | F1 (SC#5) | T-03-08, T-03-13 | Root layout: `SplashScreen.preventAutoHideAsync()` at module scope (Pitfall §3); `RootNavigator` returns `null` while `status === "loading"` (Pitfall §5); `Stack.Protected guard={!!session}` for (app); `Stack.Protected guard={!session}` for (auth) | grep + tsc | `grep -c "Stack.Protected" app/app/_layout.tsx` returns `2` AND `grep -c "preventAutoHideAsync" app/app/_layout.tsx` returns `1` AND `cd app && npx tsc --noEmit` exits 0 | ✅ | ⬜ pending |
+| 03-02-T2 | 03-02 | 2 | F1 | (none — pure structural) | (auth) group layout renders bare `<Stack screenOptions={{ headerShown: false }} />` (CLAUDE.md ## Conventions) | grep + tsc | `grep -q "headerShown: false" app/app/(auth)/_layout.tsx` AND `cd app && npx tsc --noEmit` exits 0 | ✅ | ⬜ pending |
+| 03-02-T3 | 03-02 | 2 | F1 (SC#2) | T-03-09, T-03-10, T-03-11 | Sign-in screen: `zodResolver(signInSchema)` + `mode: "onBlur"`; `supabase.auth.signInWithPassword`; ASVS V2.1.4 generic error mapping (`invalid_credentials` → "Fel email eller lösen" under password); rate-limit banner; no `placeholder:text-gray` (Pitfall §7) | grep + tsc | `grep -c "signInWithPassword" app/app/(auth)/sign-in.tsx` returns `1` AND `! grep -q "placeholder:text-gray" app/app/(auth)/sign-in.tsx` AND `cd app && npx tsc --noEmit` exits 0 | ✅ | ⬜ pending |
+| 03-03-T1 | 03-03 | 3 | F1 (SC#1, SC#2) | T-03-14, T-03-15, T-03-17 | Sign-up screen: 3-field form (email + password + confirmPassword); 7-case error mapping (`user_already_exists`, `email_exists`, `weak_password`, `over_request_rate_limit`, `over_email_send_rate_limit`, `signup_disabled`, `validation_failed`); Pitfall §6 documented near `signUp` call; helper text "Minst 12 tecken" branch | grep + tsc | `grep -c "<Controller" app/app/(auth)/sign-up.tsx` returns `3` AND `grep -c "case \"" app/app/(auth)/sign-up.tsx` returns `7` AND `cd app && npx tsc --noEmit` exits 0 | ✅ | ⬜ pending |
+| 03-03-T2 | 03-03 | 3 | F1 (SC#5) | T-03-18 | (app) group layout: `<Redirect href="/(auth)/sign-in" />` when `session === null`; defense-in-depth per success criterion #5; narrow selector `useAuthStore((s) => s.session)` per D-10 | grep + tsc | `grep -q "Redirect" app/app/(app)/_layout.tsx` AND `grep -q "useAuthStore((s) => s.session)" app/app/(app)/_layout.tsx` AND `cd app && npx tsc --noEmit` exits 0 | ✅ | ⬜ pending |
+| 03-03-T3 | 03-03 | 3 | F1 (SC#4) | T-03-16, T-03-20 | (app)/index.tsx: narrow selectors for `email` + `signOut`; sign-out via store action (NO imperative `router.replace` per D-16); `Logga ut` Swedish copy; only `email` rendered (no other PII per T-03-20) | grep + tsc | `grep -c "useAuthStore((s) =>" app/app/(app)/index.tsx` returns ≥`2` AND `! grep -q "router\." app/app/(app)/index.tsx` AND `cd app && npx tsc --noEmit` exits 0 | ✅ | ⬜ pending |
+| 03-03-T4 | 03-03 | 3 | F1 | (none — file deletion) | Phase 1 smoke-test `app/app/index.tsx` deleted; Stack.Protected has clean route children | shell test | `test ! -f app/app/index.tsx` exits 0 | ✅ | ⬜ pending |
+| 03-04-T1 | 03-04 | 4 | F1 (all) | (none — verification gate) | Pre-flight automated chain: TSC + schema test + RLS + lint + Doctor + security-audit + listener-count + smoke-test-deleted ALL pass | shell chain | `cd app && npx tsc --noEmit && npm run test:auth-schemas && npm run test:rls && npm run lint && npx expo-doctor` exits 0 AND service_role grep returns 0 matches | ✅ | ⬜ pending |
+| 03-04-T2 | 03-04 | 4 | F1 (SC#1) | T-03-17 | Studio "Confirm email" toggle confirmed OFF (Pitfall §6 mitigation; D-01 dependency) | manual (Studio UI) | (none — checkpoint:human-action; user-attested in 03-VERIFICATION.md frontmatter) | — | ⬜ pending |
+| 03-04-T3 | 03-04 | 4 | F1 (SC#1, SC#2, SC#3, SC#4, SC#5) | T-03-08, T-03-09, T-03-14, T-03-16, T-03-18 | All 5 ROADMAP success criteria + 2 edge cases (duplicate email, network failure) + dark-mode rendering pass on iPhone via Expo Go | manual iPhone | (none — checkpoint:human-verify; user-attested per criterion in 03-VERIFICATION.md) | — | ⬜ pending |
+| 03-04-T4 | 03-04 | 4 | F1 | (none) | 03-VERIFICATION.md written with frontmatter `status: complete` (or `blocked` with failure list); test account convention recorded (researcher Q5) | file-existence + grep | `test -f .planning/phases/03-auth-persistent-session/03-VERIFICATION.md` AND `grep -q "Success Criterion" .planning/phases/03-auth-persistent-session/03-VERIFICATION.md` | ✅ | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -61,46 +63,88 @@ created: 2026-05-09
 
 ## Wave 0 Requirements
 
-- [ ] **Test framework decision:** vitest 1.x (recommended — fastest cold-start; no native deps) OR jest 29.x. Planner picks; install via `npm install --save-dev` from `app/` cwd.
-- [ ] **`app/lib/schemas/auth.test.ts`** — schema unit tests for `signUpSchema` and `signInSchema`. Covers D-12 (min 12), D-13 (min 1), D-14 (refine matches), Zod 4 `z.email()` form per RESEARCH.md.
-- [ ] **`app/package.json` script:** add `"test"` and `"test:schemas"` entries pointing to chosen framework.
-- [ ] **`tsconfig.json` test config:** ensure test files are excluded from production build but type-checked under `npx tsc --noEmit`.
+**Phase 3 Wave 0 = Plan 01.** No separate Wave 0 needed because:
 
-*If planner determines schema-only tests are not worth a framework install for V1 personal use, replace with a `gsd-tools verify`-style runtime check or fold into manual iPhone checklist with a note in `nyquist_compliant: false`-rationale below.*
+- **Test framework decision:** No Vitest / Jest install. Plan 01 Task 3 ships `app/scripts/test-auth-schemas.ts` (Node-only via `tsx`) instead. Lighter footprint, consistent with Phase 1+2 conventions, ~30 lines of code, runs in <1s. The schema layer (the only Phase 3 surface that's testable without a runtime) is fully covered.
+- **Schema unit tests scaffolded:** Plan 01 Task 3 creates the test script + adds `npm run test:auth-schemas` to `app/package.json`. Covers D-12, D-13, D-14, Q3 (empty confirmPassword), and the Zod 4 idiom (`z.email()` + `error:`).
+- **TypeScript test config:** No changes needed — `app/tsconfig.json` already includes `**/*.ts` so the script is type-checked under `npx tsc --noEmit`.
+- **Runtime UI tests:** Deliberately deferred to manual iPhone verification (Plan 04). Phase 1+2 set this convention; Phase 3 inherits it. Five of six F1 manual criteria require iOS-specific behavior that can't be jsdom'd meaningfully.
+
+`nyquist_compliant: true` — every code-producing task has an automated `<verify>` (TSC + schema test where applicable). Manual-only tasks are the documented runtime-verification path consistent with V1 conventions.
 
 ---
 
 ## Manual-Only Verifications
 
-iOS / Expo Go behavior is the authoritative validation surface for Phase 3 — no integration framework exists in V1 (D-10 deferred test-folder convention to Phase 4 anyway). The kill-and-reopen success criterion (#3) has no automated counterpart in V1 because Expo Go re-launches are not driven by any test runner.
+iOS / Expo Go behavior is the authoritative validation surface for Phase 3 — no integration framework exists in V1. The kill-and-reopen success criterion (#3) has no automated counterpart in V1 because Expo Go re-launches are not driven by any test runner.
 
-| Behavior | Requirement | Why Manual | Test Instructions |
-|----------|-------------|------------|-------------------|
-| **Sign-up → land in (app)** | F1 (SC#1) | RHF + Zod runtime + Supabase API + Expo Router transition; no integration framework in V1 | 1. Open Expo Go on iPhone. 2. Navigate to sign-up. 3. Enter `test+phase3@example.com` + 12-char password (twice). 4. Submit. 5. Verify: lands on `(app)/index.tsx` with "Hello {email}" + sign-out button visible. |
-| **Sign-in inline errors** | F1 (SC#2) | RHF onBlur + Zod 4 error formatting; visual-only behavior | 1. Open sign-in. 2. Enter invalid email → blur. Expect: "Email måste vara giltigt" under email field. 3. Enter valid email + empty password → submit. Expect: "Lösen krävs". 4. Enter wrong password → submit. Expect: generic Swedish copy ("Fel email eller lösen") under password field. |
-| **Cold-start session restore** | F1 (SC#3) | `LargeSecureStore` round-trip + `getSession()`/`onAuthStateChange` race; only reproducible via real app restart | 1. Sign in successfully. 2. Force-close Expo Go (swipe up + dismiss card). 3. Reopen Expo Go. 4. Verify: native iOS splash held briefly → lands in `(app)` directly. NO flash of `(auth)/sign-in.tsx`. NO flicker between splash and content. |
-| **Sign-out cache invalidation** | F1 (SC#4) | `queryClient.clear()` + `onAuthStateChange` propagation; affects in-memory + AsyncStorage-persisted query cache | 1. Sign in as user A. 2. (Future Phase 4 setup not required — F1 only.) Tap sign-out. 3. Verify: redirect to `(auth)/sign-in.tsx` is atomic (no flash of empty `(app)`). 4. Sign in as user B. 5. Verify: no leaked react-query data from user A's session (inspect react-query devtools if installed; otherwise rely on grep gate above + behavioral check that `(app)/index.tsx` shows user B's email). |
-| **Stack.Protected + Redirect defense-in-depth** | F1 (SC#5) | Two-layer guard pattern; flicker prevention is the whole point | 1. Sign in. 2. Force-close. 3. Edit `app/lib/auth-store.ts` to inject a 2-second artificial delay before status flips (manual debug step, revert after). 4. Reopen. 5. Verify: native iOS splash holds for the 2 seconds; no white flash; no `(auth)/sign-in.tsx` peek. 6. Revert delay. |
-| **Duplicate-email signup** | F1 / D-03 | Supabase `AuthApiError.code === 'user_already_exists'` mapping per RESEARCH.md error table | 1. Sign up with an email already used. 2. Verify: "Detta email är redan registrerat — försök logga in" appears inline under email field. NOT a generic toast/alert. |
-| **Network-failure handling** | F1 / D-15 | `AuthRetryableFetchError` mapping per RESEARCH.md | 1. Toggle airplane mode. 2. Attempt sign-up. 3. Verify: "Något gick fel. Försök igen." (or planner-finalized Swedish copy) inline under submit button. NO uncaught promise rejection. |
+| Behavior | Requirement | Why Manual | Test Plan |
+|----------|-------------|------------|-----------|
+| **Sign-up → land in (app)** | F1 (SC#1) | RHF + Zod runtime + Supabase API + Expo Router transition | Plan 04 Task 3 step "Success Criterion #1" |
+| **Sign-in inline errors** | F1 (SC#2) | RHF onBlur + Zod 4 error formatting; visual-only behavior | Plan 04 Task 3 step "Success Criterion #2" |
+| **Cold-start session restore** | F1 (SC#3) | LargeSecureStore round-trip + onAuthStateChange race; only reproducible via real app restart | Plan 04 Task 3 step "Success Criterion #3" |
+| **Sign-out cache invalidation** | F1 (SC#4) | `queryClient.clear()` + `onAuthStateChange` propagation | Plan 04 Task 3 step "Success Criterion #4" — partial (full cross-user verification deferred to Phase 4) |
+| **Stack.Protected + Redirect defense-in-depth** | F1 (SC#5) | Two-layer guard pattern; flicker prevention is the whole point | Plan 04 Task 3 step "Success Criterion #5" |
+| **Duplicate-email signup** | F1 / D-03 | Supabase `error.code === 'user_already_exists'` mapping | Plan 04 Task 3 edge case |
+| **Network-failure handling** | F1 / D-15 | `default` branch banner mapping | Plan 04 Task 3 edge case |
+| **Dark mode (F15)** | F15 convention | NativeWind `dark:` class pairs visual coverage | Plan 04 Task 3 dark-mode block |
+| **Studio "Confirm email" = OFF** | D-01 + Pitfall §6 | Studio UI; no CLI exposure | Plan 04 Task 2 (checkpoint:human-action) |
 
 ---
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies (Wave 0 = test framework + schema unit tests; runtime is manual-only by design)
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify (planner enforces)
-- [ ] Wave 0 covers all MISSING references (test framework currently absent in V1)
-- [ ] No watch-mode flags (chosen framework runs once, exits 0/1)
-- [ ] Feedback latency < 30s (schema-test target) + 5min manual iPhone session per wave
-- [ ] `nyquist_compliant: true` set in frontmatter (after planner finalizes per-task IDs and threat-ref mapping)
+- [x] All tasks have `<automated>` verify or are explicit manual checkpoints (Plan 04 Task 2/Task 3)
+- [x] Sampling continuity: every code-producing task has TSC + grep gates; no 3 consecutive tasks without automated verify
+- [x] Wave 0 (= Plan 01) covers all MISSING references (test framework via Node-only `tsx` script)
+- [x] No watch-mode flags (schema test runs once, exits 0/1)
+- [x] Feedback latency < 30s (TSC + schema + RLS) + 5min manual iPhone session per phase gate
+- [x] `nyquist_compliant: true` — frontmatter set after planner finalized per-task IDs
 
-**Approval:** pending — planner to finalize Per-Task Verification Map IDs after PLAN.md files are written.
+**Approval:** finalized 2026-05-09 — ready for execute-phase 3.
 
 ---
 
-## Notes for Planner
+## Notes on D-06 vs RESEARCH.md Q1
 
-- **CONTEXT.md D-06 vs RESEARCH.md.** Researcher recommends dropping the explicit `getSession()` because `onAuthStateChange` auto-fires `INITIAL_SESSION`. If planner honors D-06 (locked), the validation map's "module-init flow" tasks need a verify gate that the explicit call still resolves before `status` flip. If planner adopts researcher recommendation, drop those gates and rely on the listener's `INITIAL_SESSION` fire.
-- **Threat-ref column is intentionally `T-03-*` placeholder.** `gsd-secure-phase 3` will assign concrete IDs after threat-model expansion in PLAN.md `<threat_model>` blocks.
-- **Skip framework option.** If planner decides Wave 0 schema-test framework install is overkill for V1 (single-developer, no CI in scope per CLAUDE.md), document in PLAN.md and update this VALIDATION.md to set `nyquist_compliant: true (manual-only path documented)` with explicit rationale.
+**Decision:** Honor CONTEXT.md D-06 (locked decision) — Plan 01 Task 2 keeps the explicit `supabase.auth.getSession()` call alongside the module-scope `onAuthStateChange` listener.
+
+**Rationale:** D-06 is a locked user decision; the planner has no authority to drop it. The redundancy with `INITIAL_SESSION` (auth-js master GoTrueClient.ts L2122) is documented in the auth-store.ts header comment so a future revision can drop it cleanly if D-06 is revised.
+
+**Validation impact:** The `getSession()` resolution and the `INITIAL_SESSION` listener fire produce identical setState calls — idempotent and harmless. SC#3 (cold-start session restore) is verified end-to-end in Plan 04; the test does not need to distinguish which code path provided the initial session because both run.
+
+If a future revision adopts the researcher's recommendation (drop D-06), update Plan 01 Task 2 acceptance criteria (`grep -c "getSession(" app/lib/auth-store.ts` returns 0 instead of 1) and remove the `void supabase.auth.getSession()...` block. Listener alone suffices.
+
+---
+
+## Threat-ID Cross-Reference
+
+Threat IDs T-03-* are defined in PLAN.md `<threat_model>` blocks per plan:
+
+| Threat ID | Defined In Plan | Manual Verify In Plan | Notes |
+|-----------|----------------|------------------------|-------|
+| T-03-01 | 03-01 | inherit (Phase 1 LargeSecureStore wiring) | LargeSecureStore session blob — AES-256-CTR + iOS Keychain key |
+| T-03-02 | 03-01 | grep gate (no `await` in listener) | onAuthStateChange callback deadlock prevention |
+| T-03-03 | 03-01 | 03-04 SC#4 | TanStack Query cache leak via signOut → queryClient.clear() |
+| T-03-04 | 03-01 | grep gate (no `console.log(session)`) | Console-log credential leak prevention |
+| T-03-05 | 03-01 | 03-01 schema tests | Schema-bypass via malformed input |
+| T-03-06 | 03-01 | accept (V1 personal app, no audit log) | Repudiation — sign-up/sign-in event logging |
+| T-03-07 | 03-01 | grep gate (listener count == 1) | Strict-Mode dual-mount duplicate-listener |
+| T-03-08 | 03-02 | 03-04 SC#3, SC#5 | Splash hide before status flip → blank flicker |
+| T-03-09 | 03-02 | 03-04 SC#2 | Sign-in error reveals which field is wrong (ASVS V2.1.4) |
+| T-03-10 | 03-02 | accept-transfer (Supabase platform) | Brute-force credential stuffing rate-limit |
+| T-03-11 | 03-02 | grep gate (no console.log of credentials) | Console-log credential leak in sign-in |
+| T-03-12 | 03-02 | inherit (Zod schemas as first-tier validator) | XSS/RCE via TextInput → SQL |
+| T-03-13 | 03-02 | 03-04 SC#5 | Stack.Protected guard staleness → race |
+| T-03-14 | 03-03 | 03-04 edge case (duplicate email) | Sign-up duplicate-email disclosure (accepted per D-03) |
+| T-03-15 | 03-03 | 03-04 (manual server-reject path) | Weak password client-bypass → server reject |
+| T-03-16 | 03-03 | 03-04 SC#4 + Phase 4 | TanStack Query cache leak (full verification deferred to Phase 4) |
+| T-03-17 | 03-03 | 03-04 Task 2 (Studio toggle) | Email-confirm Studio toggle silent breakage |
+| T-03-18 | 03-03 | 03-04 SC#5 | Stack.Protected staleness → defense-in-depth Redirect |
+| T-03-19 | 03-03 | accept (V1 personal app) | Sign-out side-channel timing |
+| T-03-20 | 03-03 | grep gate (only email rendered) | (app)/index.tsx PII leak prevention |
+| T-03-21 | 03-04 | accept (V1 solo workflow) | Verification record unfalsifiable / no audit log |
+| T-03-22 | 03-04 | accept (test email is non-sensitive) | 03-VERIFICATION.md commits test email to git |
+| T-03-23 | 03-04 | accept (solo-dev trust model) | User signs PASS but actual behavior failed |
+
+`/gsd-secure-phase 3` runs the full audit against this register and writes `03-SECURITY.md` with `threats_open: 0` requirement before phase advancement.

@@ -71,7 +71,11 @@ FitnessMaxxing levereras som en personlig iPhone gym-tracker via Expo Go. Resan 
   3. Sign-in → kill app → reopen → session är återställd och användaren ser `(app)`-gruppen direkt (LargeSecureStore round-trip funkar)
   4. Sign-out tar användaren tillbaka till `(auth)/sign-in.tsx` och `queryClient.clear()` körs (per-user cache rensad)
   5. `Stack.Protected guard={!!session}` i root + `<Redirect>` i `(app)/_layout.tsx` hindrar protected screens från att flicker-rendera när session saknas
-**Plans**: TBD
+**Plans**: 4 plans
+  - [ ] 03-01-schemas-store-PLAN.md — Zod 4 schemas + Zustand auth-store with module-scope onAuthStateChange listener + Node-only schema test
+  - [ ] 03-02-root-auth-signin-PLAN.md — Root layout splash hold + Stack.Protected; (auth) group layout; sign-in screen (RHF + Zod + Supabase + error map)
+  - [ ] 03-03-signup-app-group-PLAN.md — Sign-up screen (RHF + Zod + 7-case error map); (app) group layout (Redirect defense-in-depth); (app)/index.tsx post-login placeholder; delete Phase 1 smoke-test
+  - [ ] 03-04-manual-verify-PLAN.md — Manual iPhone verification of all 5 ROADMAP success criteria + Studio toggle confirmation + 03-VERIFICATION.md sign-off
 **UI hint**: yes
 
 ### Phase 4: Plans, Exercises & Offline-Queue Plumbing
@@ -161,7 +165,7 @@ Phases execute sequentially: 1 → 2 → 3 → 4 → 5 → 6 → 7. Phase 5 må*
 |-------|----------------|--------|-----------|
 | 1. Bootstrap & Infra Hardening | 3/3 | ✓ Complete | 2026-05-08 |
 | 2. Schema, RLS & Type Generation | 6/6 | ✓ Complete (27/27 SECURED, F17 validated) | 2026-05-09 |
-| 3. Auth & Persistent Session | 0/TBD | ○ Not started | — |
+| 3. Auth & Persistent Session | 0/4 | ○ Not started | — |
 | 4. Plans, Exercises & Offline-Queue Plumbing | 0/TBD | ○ Not started | — |
 | 5. Active Workout Hot Path | 0/TBD | ○ Not started | — |
 | 6. History & Read-Side Polish | 0/TBD | ○ Not started | — |
