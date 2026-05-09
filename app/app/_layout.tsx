@@ -1,5 +1,6 @@
 // app/app/_layout.tsx
 import "../global.css";
+import { useEffect } from "react";
 import { AppState, Platform } from "react-native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -24,7 +25,13 @@ import { useAuthStore } from "@/lib/auth-store";
 // module scope (BEFORE any render); useEffect would fire too late and the
 // splash would auto-hide before we get a chance to gate it. Per RESEARCH.md
 // Pitfall §3 + docs.expo.dev/versions/latest/sdk/splash-screen.
-SplashScreen.preventAutoHideAsync();
+//
+// WR-03: Promise rejection is handled. If the splash already auto-hid because
+// JS started slowly, preventAutoHideAsync rejects — safe to swallow because
+// SplashScreenController will still call hideAsync() once auth resolves.
+SplashScreen.preventAutoHideAsync().catch(() => {
+  // Splash may have already auto-hidden if JS started slowly; safe to ignore.
+});
 
 focusManager.setEventListener((setFocused) => {
   const sub = AppState.addEventListener("change", (s) => {
@@ -46,14 +53,19 @@ onlineManager.setEventListener((setOnline) => {
 
 /**
  * Render-side splash hide controller. When status flips out of 'loading',
- * synchronously calls SplashScreen.hide() — idempotent (no-op after first
- * call), so Strict-Mode dual-render is safe. Per RESEARCH.md Pattern 2.
+ * fires SplashScreen.hideAsync() in an effect (post-commit) so React 19
+ * concurrent renders that get thrown away don't leave the splash hidden
+ * over no content. WR-02: native bridge call moved out of render.
  */
 function SplashScreenController() {
   const status = useAuthStore((s) => s.status);
-  if (status !== "loading") {
-    SplashScreen.hide();
-  }
+  useEffect(() => {
+    if (status !== "loading") {
+      SplashScreen.hideAsync().catch(() => {
+        // Already hidden / not visible — safe to ignore.
+      });
+    }
+  }, [status]);
   return null;
 }
 
