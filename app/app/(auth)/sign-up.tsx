@@ -116,8 +116,15 @@ export default function SignUpScreen() {
         break;
       default:
         // Network errors (no .code), unexpected_failure, etc.
+        // WR-04: log the full error shape so future unmapped codes are
+        // diagnosable from the Metro log without needing to repro.
         setBannerError("Något gick fel. Försök igen.");
-        console.error("[sign-up] unexpected error:", error);
+        console.error("[sign-up] unexpected error:", {
+          code: error.code,
+          message: error.message,
+          status: (error as { status?: number }).status,
+          name: error.name,
+        });
     }
   };
 
