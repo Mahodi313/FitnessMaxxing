@@ -68,17 +68,26 @@ supabase.auth.onAuthStateChange((_event, session) => {
 // CONTEXT.md D-06 (locked): explicit getSession() at module init. Result is
 // written into the store; listener will subsequently overwrite with the same
 // value when INITIAL_SESSION fires. Redundant but locked — see header comment.
+//
+// Race-safety (CR-01): both branches read-modify-write so they only take effect
+// while status === "loading". If the listener already won (INITIAL_SESSION fired
+// first and flipped status to authenticated/anonymous), bootstrap is a no-op.
+// Without this guard, the .catch arm could clobber a valid authenticated state
+// when getSession() rejects after a successful INITIAL_SESSION.
 void supabase.auth
   .getSession()
   .then(({ data: { session } }) => {
-    useAuthStore.setState({
-      session,
-      status: session ? "authenticated" : "anonymous",
-    });
+    useAuthStore.setState((prev) =>
+      prev.status === "loading"
+        ? { session, status: session ? "authenticated" : "anonymous" }
+        : prev,
+    );
   })
   .catch((err) => {
     // Corrupt LargeSecureStore decrypt or other IO failure (D-07): treat as
-    // anonymous; listener's INITIAL_SESSION will also fire null. Splash hides.
+    // anonymous ONLY if listener hasn't already resolved. Splash hides.
     console.warn("[auth-store] getSession init failed:", err);
-    useAuthStore.setState({ session: null, status: "anonymous" });
+    useAuthStore.setState((prev) =>
+      prev.status === "loading" ? { session: null, status: "anonymous" } : prev,
+    );
   });
