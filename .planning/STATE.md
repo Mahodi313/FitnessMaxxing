@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 3 UI-SPEC approved
-last_updated: "2026-05-09T12:23:59.150Z"
-last_activity: 2026-05-09 -- Phase 03 planning complete
+stopped_at: Phase 3 verified-complete (2 gaps accepted-deferred to V1.1)
+last_updated: "2026-05-09T16:30:00Z"
+last_activity: 2026-05-09 -- Phase 03 UAT complete (9/11 pass, 2 gaps accepted-deferred to V1.1)
 progress:
   total_phases: 7
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 13
-  completed_plans: 9
-  percent: 69
+  completed_plans: 13
+  percent: 43
 ---
 
 # Project State
@@ -21,24 +21,24 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-07)
 
 **Core value:** Logga ett set och omedelbart se vad jag tog senast på samma övning — utan att tappa data, någonsin.
-**Current focus:** Phase 03 — auth-persistent-session (ready to discuss)
+**Current focus:** Phase 04 — plans-exercises-offline-queue (ready to discuss)
 
 ## Current Position
 
-Phase: 3
+Phase: 4
 Plan: Not started
-Status: Ready to execute
-Last activity: 2026-05-09 -- Phase 03 planning complete
+Status: Ready to plan
+Last activity: 2026-05-09 -- Phase 03 UAT complete (9/11 pass, 2 V1.1-deferred gaps)
 
-Progress: [██░░░░░░░░] 29%  (2/7 phases complete; Phase 3-7 plan counts TBD)
+Progress: [████░░░░░░] 43%  (3/7 phases complete; Phase 4-7 plan counts TBD)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 9 (3 in Phase 1, 6 in Phase 2)
-- Phases complete: 2 of 7
-- Total execution time: ~2 active days (2026-05-07 → 2026-05-09)
+- Total plans completed: 13 (3 in Phase 1, 6 in Phase 2, 4 in Phase 3)
+- Phases complete: 3 of 7
+- Total execution time: ~3 active days (2026-05-07 → 2026-05-09)
 
 **By Phase:**
 
@@ -46,7 +46,7 @@ Progress: [██░░░░░░░░] 29%  (2/7 phases complete; Phase 3-7 
 |-------|-------|--------|-----------|
 | 1. Bootstrap & Infra Hardening | 3/3 | ✓ Complete | 2026-05-08 |
 | 2. Schema, RLS & Type Generation | 6/6 | ✓ Complete (27/27 SECURED) | 2026-05-09 |
-| 3. Auth & Persistent Session | 0/TBD | ○ Not started | — |
+| 3. Auth & Persistent Session | 4/4 | ✓ Complete (UAT 9/11 pass; 2 gaps V1.1-deferred) | 2026-05-09 |
 | 4. Plans, Exercises & Offline-Queue | 0/TBD | ○ Not started | — |
 | 5. Active Workout Hot Path | 0/TBD | ○ Not started | — |
 | 6. History & Read-Side Polish | 0/TBD | ○ Not started | — |
@@ -85,6 +85,7 @@ Items acknowledged for later:
 | Category | Item | Status | Deferred At |
 |----------|------|--------|-------------|
 | Auth | F14 Apple Sign-In | V1.1 | 2026-05-07 |
+| Auth | F1.1 Email-confirmation deep-link handler (Expo Linking + Supabase verifyOtp/exchangeCodeForSession) — carry-over from Phase 3 UAT 2026-05-09; closes UAT.md gap-1 + gap-2 | V1.1 (Phase 8) | 2026-05-09 |
 | UI | F17 set-typ-toggling | V1.1 | 2026-05-07 |
 | UI | F15 dark-mode-toggle (konvention finns från Phase 1) | V1 Phase 7 eller V1.1 | 2026-05-07 |
 | Features | F18 PR-detection, F19 vilo-timer | V1.1 | 2026-05-07 |
@@ -92,7 +93,7 @@ Items acknowledged for later:
 
 ## Session Continuity
 
-Last session: 2026-05-09T11:31:14.695Z
-Stopped at: Phase 3 UI-SPEC approved
-Resume file: .planning/phases/03-auth-persistent-session/03-UI-SPEC.md
-Next: kör `/gsd-plan-phase 1` för att skapa PLAN.md
+Last session: 2026-05-09T16:30:00Z
+Stopped at: Phase 3 verified-complete (UAT 9/11 pass; 2 gaps accepted-deferred to V1.1)
+Resume file: .planning/phases/03-auth-persistent-session/03-VERIFICATION.md
+Next: `/gsd-secure-phase 3` (threat-register audit) → `/gsd-plan-phase 4` (Plans/Exercises/Offline-Queue)

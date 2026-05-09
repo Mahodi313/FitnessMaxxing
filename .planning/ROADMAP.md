@@ -17,7 +17,7 @@ FitnessMaxxing levereras som en personlig iPhone gym-tracker via Expo Go. Resan 
 
 - [x] **Phase 1: Bootstrap & Infra Hardening** - Locked stack installerad med rätt pins, NativeWind-smoke-test renderar på iPhone, dark-mode-konvention etablerad *(2026-05-08)*
 - [x] **Phase 2: Schema, RLS & Type Generation** - Korrigerat schema applicerat i Supabase med både `using` och `with check`, cross-user-fixturer passerar (22/22), TS-typer genererade, 27/27 SECURED *(2026-05-09)*
-- [ ] **Phase 3: Auth & Persistent Session** - Användare kan registrera, logga in, och sessioner överlever app-restart via LargeSecureStore
+- [x] **Phase 3: Auth & Persistent Session** - Användare kan registrera, logga in, och sessioner överlever app-restart via LargeSecureStore
 - [ ] **Phase 4: Plans, Exercises & Offline-Queue Plumbing** - Användare kan skapa planer och övningar offline; airplane-mode-test bekräftar att kön persisterar och replayas korrekt
 - [ ] **Phase 5: Active Workout Hot Path (F13 lives or dies)** - Användare loggar set under pass; varje set överlever airplane mode + force-quit + battery-pull
 - [ ] **Phase 6: History & Read-Side Polish** - Användare ser passhistorik och progressionsgraf per övning
@@ -66,8 +66,8 @@ FitnessMaxxing levereras som en personlig iPhone gym-tracker via Expo Go. Resan 
 **Depends on**: Phase 2
 **Requirements**: F1
 **Success Criteria** (what must be TRUE):
-  1. Användare kan registrera nytt konto med email + lösen från `(auth)/sign-up.tsx` och hamnar inloggad i `(app)`-gruppen
-  2. Användare kan logga in från `(auth)/sign-in.tsx`; fel-validering via Zod visar fältfel inline (RHF + Zod 4)
+  1. Användare kan registrera nytt konto med email + lösen från `(auth)/sign-up.tsx`. **Email-bekräftelse krävs** i nuvarande Supabase-konfiguration (Studio-toggle ON; config.toml `enable_confirmations=false` ej pushad pga localhost-värden i `site_url`/redirects). Användaren får bekräftelsemail, klickar länken (öppnas i webbläsare i V1), och loggar sedan in från `(auth)/sign-in.tsx` → hamnar i `(app)`-gruppen. **Deferred till V1.1 (Phase 8):** deep-link-handler för bekräftelselänken så att flödet stannar i appen. Se `.planning/phases/03-auth-persistent-session/03-UAT.md` Gaps-sektion för full kontext.
+  2. Användare kan logga in från `(auth)/sign-in.tsx`; fel-validering via Zod visar fältfel inline (RHF + Zod 4) **vid submit** (mode ändrades från `onBlur` till submit-only under verification — se 03-UAT.md Test 3 note).
   3. Sign-in → kill app → reopen → session är återställd och användaren ser `(app)`-gruppen direkt (LargeSecureStore round-trip funkar)
   4. Sign-out tar användaren tillbaka till `(auth)/sign-in.tsx` och `queryClient.clear()` körs (per-user cache rensad)
   5. `Stack.Protected guard={!!session}` i root + `<Redirect>` i `(app)/_layout.tsx` hindrar protected screens från att flicker-rendera när session saknas
@@ -142,8 +142,8 @@ Skjuts till nästa release efter V1 är personligt validerat 4 veckor. Skissas h
 **Goal**: V1.1-features som möjliggör App Store-launch
 **Mode:** mvp
 **Depends on**: V1 complete (Phase 7) + 4-veckors soak
-**Requirements (V1.1)**: F14 (Apple Sign-In), F15-toggle (om inte i V1 Phase 7), F17-UI (set-typ-toggling), F18 (PR-detection), F19 (vilo-timer)
-**Research flag**: F19 vilo-timer (`expo-notifications` + `expo-keep-awake`, JS-suspension-trap)
+**Requirements (V1.1)**: F14 (Apple Sign-In), F15-toggle (om inte i V1 Phase 7), F17-UI (set-typ-toggling), F18 (PR-detection), F19 (vilo-timer), **F1.1 Email-confirmation deep-link handler** (carry-over från Phase 3 — accepted-deferred 2026-05-09; bekräftelselänk öppnas i webbläsare i V1, ska öppna appen direkt i V1.1; se `.planning/phases/03-auth-persistent-session/03-UAT.md` gaps)
+**Research flag**: F19 vilo-timer (`expo-notifications` + `expo-keep-awake`, JS-suspension-trap); F1.1 deep-link (Expo `Linking` API + Supabase `verifyOtp`/`exchangeCodeForSession`, Universal Links vs custom scheme `fitnessmaxxing://`)
 **Plans**: TBD
 
 ## V2 (Future — App Store Launch Path)
@@ -165,13 +165,13 @@ Phases execute sequentially: 1 → 2 → 3 → 4 → 5 → 6 → 7. Phase 5 må*
 |-------|----------------|--------|-----------|
 | 1. Bootstrap & Infra Hardening | 3/3 | ✓ Complete | 2026-05-08 |
 | 2. Schema, RLS & Type Generation | 6/6 | ✓ Complete (27/27 SECURED, F17 validated) | 2026-05-09 |
-| 3. Auth & Persistent Session | 4/4 plans, ◆ verification pending | ◆ Code complete; manual iPhone verification deferred (Supabase rate-limit) | — |
+| 3. Auth & Persistent Session | 4/4 | ✓ Complete (UAT 9/11 pass; 2 gaps accepted-deferred to V1.1 — email-confirmation deep-link) | 2026-05-09 |
 | 4. Plans, Exercises & Offline-Queue Plumbing | 0/TBD | ○ Not started | — |
 | 5. Active Workout Hot Path | 0/TBD | ○ Not started | — |
 | 6. History & Read-Side Polish | 0/TBD | ○ Not started | — |
 | 7. V1 Polish Cut | 0/TBD | ○ Not started | — |
 
-**Project progress:** 2 of 7 phases complete (~29%); 13 of 13 known plans summarised (Phase 3 verification pending; Phases 4-7 plan counts pending discuss/plan).
+**Project progress:** 3 of 7 phases complete (~43%); 13 of 13 known plans summarised. Phase 3 closed 2026-05-09 with 2 accepted-deferred V1.1 gaps (email-confirmation deep-link handler — code path already maps the relevant Supabase error codes; deferral is environmental). Phases 4-7 plan counts pending discuss/plan.
 
 ## Phase Ordering Rationale
 

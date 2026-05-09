@@ -3,7 +3,9 @@ status: complete
 phase: 03-auth-persistent-session
 source: [03-01-schemas-store-SUMMARY.md, 03-02-root-auth-signin-SUMMARY.md, 03-03-signup-app-group-SUMMARY.md, 03-04-manual-verify-SUMMARY.md]
 started: 2026-05-09T15:46:57Z
-updated: 2026-05-09T16:18:00Z
+updated: 2026-05-09T16:30:00Z
+gaps_status: accepted-deferred
+gaps_target: V1.1 (Phase 8)
 ---
 
 ## Current Test
@@ -77,17 +79,27 @@ blocked: 0
 ## Gaps
 
 - truth: "Sign-up creates account and routes directly to (app) home with email/password (no email confirmation step) per ROADMAP F1 SC#1 + locked decision D-01 (enable_confirmations = false)."
-  status: failed
+  status: accepted-deferred
+  acceptance_decision: "User chose 2026-05-09 to accept the email-confirmation flow as the actual designed behavior for V1; deferred deep-link callback handler to V1.1 (Phase 8). SC#1 reframed in ROADMAP.md to include the confirmation step."
   reason: "User reported: Yes, but we have email confirmation on. so that message comes then I confirm in email then i sign in"
   severity: major
   test: 2
-  artifacts: []
+  root_cause: "Supabase Studio dashboard has 'Confirm email' toggle ON despite app/supabase/config.toml:221 declaring enable_confirmations=false. Studio is authoritative for the live project until config.toml is pushed via `supabase config push` (currently blocked because config.toml has localhost site_url + low email rate-limits that would clobber production)."
+  artifacts:
+    - path: "Supabase Studio → Authentication → email-confirmation toggle (live state)"
+      issue: "Studio toggle ON; not aligned with config.toml ground truth"
+    - path: "app/supabase/config.toml:154"
+      issue: "site_url=http://127.0.0.1:3000 — would clobber production redirect base if config.toml were pushed"
   missing: []
+  resolution: "Manual: user toggles 'Confirm email' OFF in Supabase Studio dashboard. Re-run UAT Tests 2 + 7 to verify."
 - truth: "Duplicate-email sign-up shows inline error 'Detta email är redan registrerat — försök logga in' under email field (D-03, ROADMAP edge-case)."
-  status: failed
+  status: accepted-deferred
+  acceptance_decision: "User chose 2026-05-09 to accept current behavior. Downstream of gap-1; resolves automatically when email confirmation is OFF or when V1.1 deep-link handler is added. Code path in app/app/(auth)/sign-up.tsx already maps user_already_exists/email_exists — will fire once Supabase stops suppressing them."
   reason: "User reported: Jag fick bekräftelse meddelande med samma email så nej det fungerade inte."
   severity: major
   test: 7
+  root_cause: "Downstream of gap-1: with email confirmation ON, Supabase's anti-enumeration policy suppresses user_already_exists/email_exists error codes for unconfirmed signups and silently resends the confirmation email instead. Once enable_confirmations is OFF, the duplicate-email error code will fire and the existing switch arm in app/app/(auth)/sign-up.tsx (user_already_exists | email_exists) will map it inline."
   artifacts: []
   missing: []
-  related_to: "Likely same root cause as Test 2 — Supabase anti-enumeration suppresses user_already_exists/email_exists when email confirmation is ON; resends confirmation instead. Fix on Test 2's root cause may resolve this automatically."
+  resolution: "Same as gap-1 — flipping Studio toggle should auto-resolve. Re-run UAT Test 7 to verify."
+  related_to: "test 2 — same root cause"
