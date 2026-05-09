@@ -80,8 +80,18 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
 });
 
 // Foreground/background handling — auto-refresh bara när appen är aktiv (per Recipe §A).
-AppState.addEventListener("change", (state) => {
+//
+// WR-05: keep a ref to the subscription so Fast Refresh can dispose the previous
+// listener before this module re-evaluates. Without the dispose hook, every
+// save during dev registers a new AppState listener and the previous ones leak,
+// firing startAutoRefresh/stopAutoRefresh N times per state change.
+const appStateSub = AppState.addEventListener("change", (state) => {
   if (Platform.OS === "web") return; // SecureStore finns inte på web; vi är iOS-only ändå
   if (state === "active") supabase.auth.startAutoRefresh();
   else supabase.auth.stopAutoRefresh();
 });
+
+if (__DEV__) {
+  const hot = (module as { hot?: { dispose: (cb: () => void) => void } }).hot;
+  hot?.dispose(() => appStateSub.remove());
+}
