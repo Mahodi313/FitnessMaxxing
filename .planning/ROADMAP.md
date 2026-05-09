@@ -74,7 +74,7 @@ FitnessMaxxing levereras som en personlig iPhone gym-tracker via Expo Go. Resan 
 **Plans**: 4 plans
   - [x] 03-01-schemas-store-PLAN.md — Zod 4 schemas + Zustand auth-store with module-scope onAuthStateChange listener + Node-only schema test
   - [x] 03-02-root-auth-signin-PLAN.md — Root layout splash hold + Stack.Protected; (auth) group layout; sign-in screen (RHF + Zod + Supabase + error map)
-  - [ ] 03-03-signup-app-group-PLAN.md — Sign-up screen (RHF + Zod + 7-case error map); (app) group layout (Redirect defense-in-depth); (app)/index.tsx post-login placeholder; delete Phase 1 smoke-test
+  - [x] 03-03-signup-app-group-PLAN.md — Sign-up screen (RHF + Zod + 7-case error map); (app) group layout (Redirect defense-in-depth); (app)/index.tsx post-login placeholder; delete Phase 1 smoke-test
   - [ ] 03-04-manual-verify-PLAN.md — Manual iPhone verification of all 5 ROADMAP success criteria + Studio toggle confirmation + 03-VERIFICATION.md sign-off
 **UI hint**: yes
 
