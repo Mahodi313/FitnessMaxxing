@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Phase 3 verified-complete (2 gaps accepted-deferred to V1.1)
-last_updated: "2026-05-09T19:35:00Z"
-last_activity: 2026-05-09 -- Completed quick task 260509-001 (Phase 3 UI-REVIEW priority fixes: a11y, copy reconciliation, offline-error arm, banner close)
+status: planning
+stopped_at: Phase 4 context gathered (4 areas, 18 decisions, ready for /gsd-plan-phase 4)
+last_updated: "2026-05-09T20:15:00Z"
+last_activity: 2026-05-09 -- Phase 04 discuss-phase complete; CONTEXT.md committed on gsd/phase-04-plans-exercises-offline-queue-plumbing
 progress:
   total_phases: 7
   completed_phases: 3
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-05-07)
 
 Phase: 4
 Plan: Not started
-Status: Ready to plan
-Last activity: 2026-05-09 -- Phase 03 UAT complete (9/11 pass, 2 V1.1-deferred gaps)
+Status: Context gathered — ready to plan
+Last activity: 2026-05-09 -- Phase 04 discuss-phase complete (4 areas, 18 decisions captured)
 
 Progress: [████░░░░░░] 43%  (3/7 phases complete; Phase 4-7 plan counts TBD)
 
@@ -99,7 +99,7 @@ Items acknowledged for later:
 
 ## Session Continuity
 
-Last session: 2026-05-09T16:30:00Z
-Stopped at: Phase 3 verified-complete (UAT 9/11 pass; 2 gaps accepted-deferred to V1.1)
-Resume file: .planning/phases/03-auth-persistent-session/03-VERIFICATION.md
-Next: `/gsd-secure-phase 3` (threat-register audit) → `/gsd-plan-phase 4` (Plans/Exercises/Offline-Queue)
+Last session: 2026-05-09T20:15:00Z
+Stopped at: Phase 4 context gathered (CONTEXT.md committed on gsd/phase-04 branch)
+Resume file: .planning/phases/04-plans-exercises-offline-queue-plumbing/04-CONTEXT.md
+Next: `/gsd-plan-phase 4` (research → PLAN.md per ROADMAP success criteria #1–#5)
