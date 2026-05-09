@@ -119,8 +119,15 @@ export default function SignInScreen() {
 
             {/* Banner error (network / rate-limit / unknown) */}
             {bannerError && (
-              <Pressable onPress={() => setBannerError(null)}>
-                <Text className="text-base text-red-600 dark:text-red-400">
+              <Pressable
+                onPress={() => setBannerError(null)}
+                accessibilityRole="button"
+                accessibilityLabel={bannerError}
+              >
+                <Text
+                  className="text-base text-red-600 dark:text-red-400"
+                  accessibilityLiveRegion="polite"
+                >
                   {bannerError}
                 </Text>
               </Pressable>
@@ -147,6 +154,7 @@ export default function SignInScreen() {
                       autoCapitalize="none"
                       autoComplete="email"
                       textContentType="emailAddress"
+                      accessibilityLabel="Email"
                       className={`w-full rounded-lg bg-gray-100 dark:bg-gray-800 px-4 py-3 text-base text-gray-900 dark:text-gray-50 border ${
                         errors.email
                           ? "border-red-600 dark:border-red-400"
@@ -154,7 +162,10 @@ export default function SignInScreen() {
                       } focus:border-blue-600 dark:focus:border-blue-500`}
                     />
                     {errors.email && (
-                      <Text className="text-base text-red-600 dark:text-red-400">
+                      <Text
+                        className="text-base text-red-600 dark:text-red-400"
+                        accessibilityLiveRegion="polite"
+                      >
                         {errors.email.message}
                       </Text>
                     )}
@@ -180,6 +191,7 @@ export default function SignInScreen() {
                       autoCapitalize="none"
                       autoComplete="password"
                       textContentType="password"
+                      accessibilityLabel="Lösenord"
                       className={`w-full rounded-lg bg-gray-100 dark:bg-gray-800 px-4 py-3 text-base text-gray-900 dark:text-gray-50 border ${
                         errors.password
                           ? "border-red-600 dark:border-red-400"
@@ -187,7 +199,10 @@ export default function SignInScreen() {
                       } focus:border-blue-600 dark:focus:border-blue-500`}
                     />
                     {errors.password && (
-                      <Text className="text-base text-red-600 dark:text-red-400">
+                      <Text
+                        className="text-base text-red-600 dark:text-red-400"
+                        accessibilityLiveRegion="polite"
+                      >
                         {errors.password.message}
                       </Text>
                     )}
@@ -200,6 +215,8 @@ export default function SignInScreen() {
             <Pressable
               onPress={handleSubmit(onSubmit)}
               disabled={isSubmitting}
+              accessibilityRole="button"
+              accessibilityLabel={isSubmitting ? "Loggar in" : "Logga in"}
               className="w-full rounded-lg bg-blue-600 dark:bg-blue-500 py-4 items-center justify-center disabled:opacity-60 active:opacity-80"
             >
               <Text className="text-base font-semibold text-white">
@@ -214,6 +231,8 @@ export default function SignInScreen() {
               </Text>
               <Pressable
                 onPress={() => router.replace("/(auth)/sign-up")}
+                accessibilityRole="link"
+                accessibilityLabel="Registrera"
                 className="py-3 px-2"
               >
                 <Text className="text-base font-semibold text-blue-600 dark:text-blue-400">

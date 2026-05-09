@@ -37,6 +37,8 @@ export default function AppHome() {
         </Text>
         <Pressable
           onPress={signOut}
+          accessibilityRole="button"
+          accessibilityLabel="Logga ut"
           className="w-full rounded-lg bg-blue-600 dark:bg-blue-500 py-4 items-center justify-center active:opacity-80"
         >
           <Text className="text-base font-semibold text-white">Logga ut</Text>
