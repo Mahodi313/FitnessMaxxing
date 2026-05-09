@@ -4,8 +4,8 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Phase 3 verified-complete (2 gaps accepted-deferred to V1.1)
-last_updated: "2026-05-09T16:30:00Z"
-last_activity: 2026-05-09 -- Phase 03 UAT complete (9/11 pass, 2 gaps accepted-deferred to V1.1)
+last_updated: "2026-05-09T19:35:00Z"
+last_activity: 2026-05-09 -- Completed quick task 260509-001 (Phase 3 UI-REVIEW priority fixes: a11y, copy reconciliation, offline-error arm, banner close)
 progress:
   total_phases: 7
   completed_phases: 3
@@ -77,6 +77,12 @@ None yet.
 ### Blockers/Concerns
 
 None yet — Phase 1 ready to plan.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260509-001 | Fix 5 priority items from 03-UI-REVIEW (a11y props + Lösen→Lösenord drift + RHF mode=onSubmit spec amendment + offline-error arm + banner ✕ close) | 2026-05-09 | 4af7462 | [260509-001-phase3-ui-fixes](./quick/260509-001-phase3-ui-fixes/) |
 
 ## Deferred Items
 
