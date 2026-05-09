@@ -6,6 +6,8 @@ shadcn_initialized: false
 preset: none
 created: 2026-05-09
 reviewed_at: 2026-05-09
+amended_at: 2026-05-09
+amendment: "UR-02 (Lösen→Lösenord vocabulary), UR-03 (mode: onBlur→onSubmit) — both ratify shipped behaviour per UI-REVIEW.md priority findings #2 and #3"
 ---
 
 # Phase 3 — UI Design Contract
@@ -66,7 +68,7 @@ Tailwind v3 default `fontSize` scale, restricted to four roles for Phase 3:
 **Per-screen role mapping:**
 - `(auth)/sign-up.tsx` heading: "Skapa konto" → Display (`text-3xl font-semibold`)
 - `(auth)/sign-in.tsx` heading: "Logga in" → Display (`text-3xl font-semibold`)
-- Form field labels ("Email", "Lösen", "Bekräfta lösen") → Label (`text-sm font-semibold`)
+- Form field labels ("Email", "Lösenord", "Bekräfta lösenord") → Label (`text-sm font-semibold`)
 - Form field input text + error messages + nav-link copy → Body (`text-base font-normal`); error messages add color override `text-red-600 dark:text-red-400` only (size and weight unchanged)
 - Primary CTA button label ("Skapa konto" / "Logga in") → Body size with semibold (`text-base font-semibold`)
 - Heading reserved for future per-section headings inside `(app)` surface (not exercised in Phase 3)
@@ -115,8 +117,8 @@ All copy is in Swedish per PROJECT.md (svensk användare, svensk app) and CONTEX
 | Heading | sign-up | `Skapa konto` |
 | Heading | sign-in | `Logga in` |
 | Field label — email | both | `Email` |
-| Field label — password | both | `Lösen` |
-| Field label — confirm password | sign-up | `Bekräfta lösen` |
+| Field label — password | both | `Lösenord` |
+| Field label — confirm password | sign-up | `Bekräfta lösenord` |
 | Field placeholder — email | both | `du@example.com` |
 | Field placeholder — password | both | (empty — `secureTextEntry` masks input; no placeholder needed) |
 | Helper text — password | sign-up | `Minst 12 tecken` (rendered below the password field as muted Body text **before** validation fires; replaced by inline error if Zod fails) |
@@ -133,11 +135,12 @@ All copy is in Swedish per PROJECT.md (svensk användare, svensk app) and CONTEX
 | Email format invalid (Zod `z.string().email()`) | `Email måste vara giltigt` |
 | Email empty (Zod `.min(1)`) | `Email krävs` |
 | Password too short on sign-up (Zod `.min(12)`) | `Minst 12 tecken` |
-| Password empty on sign-in (Zod `.min(1)`) | `Lösen krävs` |
-| Confirm-password mismatch (Zod `.refine`) | `Lösen matchar inte` |
+| Password empty on sign-in (Zod `.min(1)`) | `Lösenord krävs` |
+| Confirm-password mismatch (Zod `.refine`) | `Lösenord matchar inte` |
 | Supabase error: duplicate email on sign-up | `Detta email är redan registrerat — försök logga in` (rendered under the email field per CONTEXT.md D-03) |
-| Supabase error: invalid credentials on sign-in | `Fel email eller lösen` (rendered under the password field — generic per ASVS V2.1.4 to avoid revealing which field is wrong) |
+| Supabase error: invalid credentials on sign-in | `Fel email eller lösenord` (rendered under the password field — generic per ASVS V2.1.4 to avoid revealing which field is wrong) |
 | Supabase error: network failure (any other thrown error) | `Något gick fel. Försök igen.` (rendered as a screen-level banner above the form, dismissible by tapping) |
+| Supabase error: weak_password on sign-up | `Lösenord för svagt — minst 12 tecken` (rendered inline under the password field — server-side rejection in addition to client D-12 min(12)) |
 
 ### Empty state
 
@@ -158,7 +161,7 @@ Phase 3 has **no destructive actions**. Sign-out is non-destructive (reversible 
 
 ### Error states — additional rules
 
-- Error text appears only after the field has been blurred at least once (RHF `mode: 'onBlur'` per CONTEXT.md Discretion). Errors do not fire on every keystroke.
+- Error text appears only after submit (RHF `mode: 'onSubmit'`, the RHF default — per UR-03 amendment ratifying user feedback in UAT Test 3 ["vi har fixat så felhanteringen behandlas efter submit"]). After the first submit attempt, RHF's default `reValidateMode: 'onChange'` kicks in, so errors clear as the user corrects the field. Per-field on-blur validation is intentionally not used; the user's preference (matches submit-once iOS auth-form muscle memory) overrides the original CONTEXT.md Discretion.
 - Submitting the form via the primary CTA when validation has not yet fired forces all errors to render simultaneously (RHF default behavior — `handleSubmit` triggers `trigger()` first).
 - Errors clear automatically as the user corrects the field (RHF + Zod re-validation on change after first submit attempt).
 
@@ -245,7 +248,7 @@ Per CONTEXT.md Discretion: Phase 3 does **not** wire a NetInfo banner. If `supab
 | `(auth)/sign-in.tsx` nav link | Tap on "Registrera" | `router.replace('/(auth)/sign-up')` |
 | `(app)/index.tsx` sign-out button | Tap | `useAuthStore.getState().signOut()` → `supabase.auth.signOut()` → `queryClient.clear()` → `onAuthStateChange` flips `status` to `'anonymous'` → `Stack.Protected` re-evaluates → user sees `(auth)/sign-in.tsx`. No confirm dialog (non-destructive). |
 | Cold start | App launch | Native iOS splash held by `SplashScreen.preventAutoHideAsync()`; `useEffect` in `RootLayout` calls `SplashScreen.hideAsync()` when `status !== 'loading'`. Authenticated users land directly in `(app)/index.tsx` with zero flicker. |
-| Field blur | User leaves a field with invalid input | RHF `mode: 'onBlur'` fires Zod resolver → fieldState.error set → red border + inline error text render. |
+| Form submit | User taps the primary CTA | RHF `mode: 'onSubmit'` (RHF default, ratified per UR-03) fires Zod resolver on all fields → fieldState.error set → red border + inline error text render simultaneously. After first submit, default `reValidateMode: 'onChange'` clears errors as user types. |
 | Field re-edit after error | Keystroke after first error shown | RHF re-runs validation on change after first submit attempt → error clears as soon as input becomes valid. |
 
 ---
@@ -269,7 +272,7 @@ All UI in Phase 3 is composed from `react-native` core primitives (`View`, `Text
 | Form labels | Every TextInput has a sibling `<Text>` label visually associated above it (gap-2 column) and `accessibilityLabel` matching the visible label string |
 | Error association | Each field's error `<Text>` has `accessibilityLiveRegion="polite"` (Android) — iOS VoiceOver picks up the error via re-render announcement |
 | Keyboard semantics | Email field uses `keyboardType="email-address"` + `autoCapitalize="none"`; password fields use `secureTextEntry` + `autoComplete` and `textContentType` set so iOS Password Manager and AutoFill work |
-| Focus management | After Zod fails on submit, RHF `setFocus(firstErrorField)` runs (RHF default) so VoiceOver lands on the first invalid field |
+| Focus management | After Zod fails on submit, RHF `setFocus(firstErrorField)` runs (RHF default) so VoiceOver lands on the first invalid field. **Note:** Phase 3 ships Controllers without ref forwarding — `setFocus` is currently a no-op. Closing this gap is V1.1 polish (priority finding #4 from UI-REVIEW.md, deferred from this fix-set). |
 
 ---
 
@@ -314,4 +317,4 @@ Manual test: simulator → Settings → Developer → Dark Appearance toggle. Bo
 - [ ] Dimension 5 Spacing: PASS
 - [ ] Dimension 6 Registry Safety: PASS
 
-**Approval:** pending
+**Approval:** approved (initial 2026-05-09); amended 2026-05-09 per UR-02 + UR-03 (shipped-reality ratification, no code change). Re-approval by user implicit via /gsd-quick acceptance of this plan.
