@@ -48,7 +48,7 @@ const cases: Case[] = [
     schema: signUpSchema,
     input: { email: "x@y.com", password: "twelve-chars", confirmPassword: "different-12c" },
     expectSuccess: false,
-    expectErrorIncludes: "Lösen matchar inte",
+    expectErrorIncludes: "Lösenord matchar inte",
     expectErrorPath: ["confirmPassword"],
   },
   // Sign-up — empty confirmPassword (Q3 Claude's Discretion)
@@ -57,7 +57,7 @@ const cases: Case[] = [
     schema: signUpSchema,
     input: { email: "x@y.com", password: "twelve-chars", confirmPassword: "" },
     expectSuccess: false,
-    expectErrorIncludes: "Bekräfta ditt lösen",
+    expectErrorIncludes: "Bekräfta ditt lösenord",
     expectErrorPath: ["confirmPassword"],
   },
   // Sign-in — accepts any non-empty password (D-13)
@@ -73,7 +73,7 @@ const cases: Case[] = [
     schema: signInSchema,
     input: { email: "x@y.com", password: "" },
     expectSuccess: false,
-    expectErrorIncludes: "Lösen krävs",
+    expectErrorIncludes: "Lösenord krävs",
     expectErrorPath: ["password"],
   },
   // Sign-in — invalid email

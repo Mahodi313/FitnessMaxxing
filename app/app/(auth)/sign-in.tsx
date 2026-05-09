@@ -44,7 +44,11 @@ export default function SignInScreen() {
     formState: { errors, isSubmitting },
   } = useForm<SignInInput>({
     resolver: zodResolver(signInSchema),
-    mode: "onBlur",
+    // mode: "onSubmit" (RHF default) — errors surface only after the user
+    // presses the CTA, not when they tab between empty fields. After first
+    // submit, RHF auto-revalidates onChange (default reValidateMode), so the
+    // error clears as the user types a fix.
+    mode: "onSubmit",
     defaultValues: { email: "", password: "" },
   });
 
@@ -61,7 +65,7 @@ export default function SignInScreen() {
     switch (error.code) {
       case "invalid_credentials":
         // ASVS V2.1.4: do NOT distinguish wrong-email vs wrong-password.
-        setError("password", { message: "Fel email eller lösen" });
+        setError("password", { message: "Fel email eller lösenord" });
         break;
       case "email_not_confirmed":
         // Surfaced when the project has email confirmation enabled server-side
@@ -158,7 +162,7 @@ export default function SignInScreen() {
                 render={({ field: { onChange, onBlur, value } }) => (
                   <View className="gap-2">
                     <Text className="text-sm font-semibold text-gray-900 dark:text-gray-50">
-                      Lösen
+                      Lösenord
                     </Text>
                     <TextInput
                       value={value}

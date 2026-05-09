@@ -18,10 +18,10 @@ export const signUpSchema = z
   .object({
     email: z.email({ error: "Email måste vara giltigt" }),
     password: z.string().min(12, { error: "Minst 12 tecken" }),
-    confirmPassword: z.string().min(1, { error: "Bekräfta ditt lösen" }),
+    confirmPassword: z.string().min(1, { error: "Bekräfta ditt lösenord" }),
   })
   .refine((data) => data.password === data.confirmPassword, {
-    error: "Lösen matchar inte",
+    error: "Lösenord matchar inte",
     path: ["confirmPassword"],
   });
 
@@ -30,7 +30,7 @@ export type SignUpInput = z.infer<typeof signUpSchema>;
 export const signInSchema = z.object({
   // No min(12) on sign-in per CONTEXT.md D-13 — server validates final.
   email: z.email({ error: "Email måste vara giltigt" }),
-  password: z.string().min(1, { error: "Lösen krävs" }),
+  password: z.string().min(1, { error: "Lösenord krävs" }),
 });
 
 export type SignInInput = z.infer<typeof signInSchema>;

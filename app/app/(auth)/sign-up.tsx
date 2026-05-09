@@ -52,10 +52,14 @@ export default function SignUpScreen() {
     control,
     handleSubmit,
     setError,
+    reset,
     formState: { errors, isSubmitting },
   } = useForm<SignUpInput>({
     resolver: zodResolver(signUpSchema),
-    mode: "onBlur",
+    // mode: "onSubmit" (RHF default) — errors surface only after the user
+    // presses the CTA, not when they tab between empty fields. After first
+    // submit, RHF auto-revalidates onChange (default reValidateMode).
+    mode: "onSubmit",
     defaultValues: { email: "", password: "", confirmPassword: "" },
   });
 
@@ -74,6 +78,10 @@ export default function SignUpScreen() {
         setInfoBanner(
           `Vi har skickat ett bekräftelsemail till ${email}. Klicka på länken i mailet och logga sedan in.`,
         );
+        // Clear the form so the user doesn't see stale credentials behind the
+        // info banner — the next interaction is "go to inbox", not "edit and
+        // resubmit".
+        reset();
         return;
       }
       // Happy path: session present → listener fires SIGNED_IN; root
@@ -94,7 +102,7 @@ export default function SignUpScreen() {
         break;
       case "weak_password":
         // Server-side rejection (in addition to client-side D-12 min(12)).
-        setError("password", { message: "Lösen för svagt — minst 12 tecken" });
+        setError("password", { message: "Lösenord för svagt — minst 12 tecken" });
         break;
       case "over_request_rate_limit":
       case "over_email_send_rate_limit":
@@ -197,7 +205,7 @@ export default function SignUpScreen() {
                 render={({ field: { onChange, onBlur, value } }) => (
                   <View className="gap-2">
                     <Text className="text-sm font-semibold text-gray-900 dark:text-gray-50">
-                      Lösen
+                      Lösenord
                     </Text>
                     <TextInput
                       value={value}
@@ -235,7 +243,7 @@ export default function SignUpScreen() {
                 render={({ field: { onChange, onBlur, value } }) => (
                   <View className="gap-2">
                     <Text className="text-sm font-semibold text-gray-900 dark:text-gray-50">
-                      Bekräfta lösen
+                      Bekräfta lösenord
                     </Text>
                     <TextInput
                       value={value}
