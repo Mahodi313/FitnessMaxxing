@@ -115,9 +115,18 @@ export default function SignUpScreen() {
         setBannerError("Email eller lösen ogiltigt format.");
         break;
       default:
-        // Network errors (no .code), unexpected_failure, etc.
-        // WR-04: log the full error shape so future unmapped codes are
-        // diagnosable from the Metro log without needing to repro.
+        // UR-04: detect AuthRetryableFetchError (offline / network failure) BEFORE
+        // the truly-unmapped fall-through. Network failure is expected — not
+        // diagnostic-worthy — so we surface a helpful copy and skip the WR-04
+        // console.error to avoid Metro-log noise. UAT Test 8 reported the original
+        // generic mapping created friction.
+        if (error.name === "AuthRetryableFetchError") {
+          setBannerError("Du verkar vara offline. Kontrollera din anslutning.");
+          break;
+        }
+        // True unmapped error path. WR-04: log the full error shape so future
+        // unmapped codes are diagnosable from the Metro log without needing to
+        // repro.
         setBannerError("Något gick fel. Försök igen.");
         console.error("[sign-up] unexpected error:", {
           code: error.code,
@@ -156,13 +165,27 @@ export default function SignUpScreen() {
                 onPress={() => setBannerError(null)}
                 accessibilityRole="button"
                 accessibilityLabel={bannerError}
+                accessibilityHint="Tryck för att stänga"
               >
-                <Text
-                  className="text-base text-red-600 dark:text-red-400"
-                  accessibilityLiveRegion="polite"
-                >
-                  {bannerError}
-                </Text>
+                <View className="flex-row items-start justify-between gap-2">
+                  <Text
+                    className="flex-1 text-base text-red-600 dark:text-red-400"
+                    accessibilityLiveRegion="polite"
+                  >
+                    {bannerError}
+                  </Text>
+                  <Pressable
+                    onPress={() => setBannerError(null)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Stäng"
+                    className="px-2 py-1"
+                    hitSlop={8}
+                  >
+                    <Text className="text-base font-semibold text-red-600 dark:text-red-400">
+                      ✕
+                    </Text>
+                  </Pressable>
+                </View>
               </Pressable>
             )}
 
@@ -173,13 +196,27 @@ export default function SignUpScreen() {
                 onPress={() => setInfoBanner(null)}
                 accessibilityRole="button"
                 accessibilityLabel={infoBanner}
+                accessibilityHint="Tryck för att stänga"
               >
-                <Text
-                  className="text-base text-blue-700 dark:text-blue-300"
-                  accessibilityLiveRegion="polite"
-                >
-                  {infoBanner}
-                </Text>
+                <View className="flex-row items-start justify-between gap-2">
+                  <Text
+                    className="flex-1 text-base text-blue-700 dark:text-blue-300"
+                    accessibilityLiveRegion="polite"
+                  >
+                    {infoBanner}
+                  </Text>
+                  <Pressable
+                    onPress={() => setInfoBanner(null)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Stäng"
+                    className="px-2 py-1"
+                    hitSlop={8}
+                  >
+                    <Text className="text-base font-semibold text-blue-700 dark:text-blue-300">
+                      ✕
+                    </Text>
+                  </Pressable>
+                </View>
               </Pressable>
             )}
 
