@@ -37,12 +37,15 @@ export const useAuthStore = create<AuthState>((set) => ({
   session: null,
   status: "loading",
   signOut: async () => {
-    // Order: clear query cache FIRST, then signOut. If signOut errors mid-flow,
-    // we don't leave the previous user's data visible. queryClient.clear()
-    // syncs both in-memory cache AND persisted AsyncStorage cache (TanStack
-    // discussion #3782 verified in RESEARCH.md).
-    queryClient.clear();
+    // WR-06: signOut FIRST, then clear cache. Reversing the previous order
+    // closes a window where in-flight queries (mounted on protected screens)
+    // could refetch with the still-valid session token and repopulate the
+    // cache between queryClient.clear() and signOut() returning. By the time
+    // we reach the clear() call below, the listener has fired SIGNED_OUT,
+    // protected screens have unmounted, and any in-flight queries are
+    // cancelled — so clear() runs against an empty active set.
     const { error } = await supabase.auth.signOut();
+    queryClient.clear();
     if (error) {
       // Network or token-already-invalid. Listener won't fire SIGNED_OUT in
       // that case; force-clear so the user lands in (auth) regardless.
