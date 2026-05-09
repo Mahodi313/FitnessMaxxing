@@ -47,6 +47,7 @@ import { supabase } from "@/lib/supabase";
 export default function SignUpScreen() {
   const router = useRouter();
   const [bannerError, setBannerError] = useState<string | null>(null);
+  const [infoBanner, setInfoBanner] = useState<string | null>(null);
   const {
     control,
     handleSubmit,
@@ -60,13 +61,24 @@ export default function SignUpScreen() {
 
   const onSubmit = async ({ email, password }: SignUpInput) => {
     setBannerError(null);
-    // V1 ASSUMPTION (D-01 + Pitfall §6): Studio "Confirm email" is OFF, so signUp
-    // returns a session synchronously. If V1.1 flips it on, add a session-null
-    // branch here to navigate to a "Check your email" screen.
-    const { error } = await supabase.auth.signUp({ email, password });
+    setInfoBanner(null);
+    const { data, error } = await supabase.auth.signUp({ email, password });
     if (!error) {
-      // Listener fires SIGNED_IN; root Stack.Protected re-evaluates; user lands
-      // in (app) without an imperative router.replace (D-16).
+      // Pitfall §6 (debug session signup-silent-no-ui-feedback): if the project
+      // has email confirmation enabled server-side, signUp returns
+      // { error: null, data: { session: null, user: {...} } }. The auth-state
+      // listener will NOT fire SIGNED_IN (session is null), so the user would
+      // be stuck on this screen with no feedback. Detect it and show an info
+      // banner directing them to the inbox.
+      if (!data.session) {
+        setInfoBanner(
+          `Vi har skickat ett bekräftelsemail till ${email}. Klicka på länken i mailet och logga sedan in.`,
+        );
+        return;
+      }
+      // Happy path: session present → listener fires SIGNED_IN; root
+      // Stack.Protected re-evaluates; user lands in (app) without an imperative
+      // router.replace (D-16).
       return;
     }
     // Map AuthApiError.code → field-level or banner error.
@@ -128,6 +140,16 @@ export default function SignUpScreen() {
               <Pressable onPress={() => setBannerError(null)}>
                 <Text className="text-base text-red-600 dark:text-red-400">
                   {bannerError}
+                </Text>
+              </Pressable>
+            )}
+
+            {/* Info banner — shown when signup succeeded but session is null
+                (email confirmation required server-side). Pitfall §6 path. */}
+            {infoBanner && (
+              <Pressable onPress={() => setInfoBanner(null)}>
+                <Text className="text-base text-blue-700 dark:text-blue-300">
+                  {infoBanner}
                 </Text>
               </Pressable>
             )}

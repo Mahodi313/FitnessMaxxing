@@ -63,6 +63,14 @@ export default function SignInScreen() {
         // ASVS V2.1.4: do NOT distinguish wrong-email vs wrong-password.
         setError("password", { message: "Fel email eller lösen" });
         break;
+      case "email_not_confirmed":
+        // Surfaced when the project has email confirmation enabled server-side
+        // and the user has registered but not yet clicked the confirmation link.
+        // Debug session: signup-silent-no-ui-feedback.
+        setBannerError(
+          "Bekräfta ditt email först. Kolla din inkorg för bekräftelselänken.",
+        );
+        break;
       case "over_request_rate_limit":
         setBannerError("För många försök. Försök igen om en stund.");
         break;
