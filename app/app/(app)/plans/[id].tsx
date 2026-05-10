@@ -48,7 +48,6 @@ import {
   Pressable,
   KeyboardAvoidingView,
   Platform,
-  Modal,
   useColorScheme,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -533,50 +532,85 @@ export default function PlanDetailScreen() {
         </Pressable>
       )}
 
-      {/* Themed archive-confirmation dialog (UI-SPEC §Destructive confirmation).
-          transparent + animationType="fade" keeps the underlying plan-detail
-          visible behind the scrim so the user retains context. Tapping the
-          scrim cancels (same affordance as the Avbryt button). */}
-      <Modal
-        visible={showArchiveConfirm}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowArchiveConfirm(false)}
-      >
+      {/* Themed archive-confirm dialog. Inline absolute-positioned overlay
+          (not a Modal) — same pattern as the overflow popover, for the same
+          reason: NativeWind/flex layout inside the Modal portal silently
+          collapsed (UAT 2026-05-10 — no scrim, dialog rendered at top-left).
+          Explicit RN styles on the layout primitives; NativeWind retained
+          for the inner card content where it works reliably. */}
+      {showArchiveConfirm && (
         <Pressable
           style={{
-            flex: 1,
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
             alignItems: "center",
             justifyContent: "center",
             backgroundColor: "rgba(0,0,0,0.5)",
             paddingHorizontal: 32,
+            zIndex: 2000,
           }}
           onPress={() => setShowArchiveConfirm(false)}
           accessibilityRole="button"
           accessibilityLabel="Stäng dialog"
         >
           <Pressable
-            className="w-full bg-white dark:bg-gray-900 rounded-lg p-6 gap-3"
+            style={{
+              width: "100%",
+              maxWidth: 400,
+              backgroundColor: isDark ? "#111827" : "#FFFFFF",
+              borderRadius: 12,
+              padding: 24,
+              gap: 12,
+            }}
             onPress={(e) => e.stopPropagation()}
           >
             <Text
-              className="text-lg font-semibold text-gray-900 dark:text-gray-50"
+              style={{
+                fontSize: 18,
+                fontWeight: "600",
+                color: isDark ? "#F9FAFB" : "#111827",
+              }}
               accessibilityRole="header"
             >
               Arkivera &ldquo;{plan.name}&rdquo;?
             </Text>
-            <Text className="text-base text-gray-500 dark:text-gray-400">
+            <Text
+              style={{
+                fontSize: 16,
+                color: isDark ? "#9CA3AF" : "#6B7280",
+              }}
+            >
               Planen tas bort från listan. Pass som använt planen behåller sin
               historik.
             </Text>
-            <View className="flex-row gap-2 justify-end mt-2">
+            <View
+              style={{
+                flexDirection: "row",
+                gap: 8,
+                justifyContent: "flex-end",
+                marginTop: 8,
+              }}
+            >
               <Pressable
                 onPress={() => setShowArchiveConfirm(false)}
                 accessibilityRole="button"
                 accessibilityLabel="Avbryt"
-                className="px-4 py-3 rounded-lg active:opacity-80"
+                style={{
+                  paddingHorizontal: 16,
+                  paddingVertical: 12,
+                  borderRadius: 8,
+                }}
               >
-                <Text className="text-base font-semibold text-gray-900 dark:text-gray-50">
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: "600",
+                    color: isDark ? "#F9FAFB" : "#111827",
+                  }}
+                >
                   Avbryt
                 </Text>
               </Pressable>
@@ -584,16 +618,27 @@ export default function PlanDetailScreen() {
                 onPress={onArchiveConfirm}
                 accessibilityRole="button"
                 accessibilityLabel="Arkivera plan"
-                className="bg-red-600 dark:bg-red-500 px-4 py-3 rounded-lg active:opacity-80"
+                style={{
+                  paddingHorizontal: 16,
+                  paddingVertical: 12,
+                  borderRadius: 8,
+                  backgroundColor: isDark ? "#EF4444" : "#DC2626",
+                }}
               >
-                <Text className="text-base font-semibold text-white">
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: "600",
+                    color: "#FFFFFF",
+                  }}
+                >
                   Arkivera
                 </Text>
               </Pressable>
             </View>
           </Pressable>
         </Pressable>
-      </Modal>
+      )}
     </SafeAreaView>
   );
 }
