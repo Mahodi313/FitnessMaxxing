@@ -4,6 +4,12 @@ import { useEffect } from "react";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
+// react-native-gesture-handler must be imported in the entry file so its
+// native modules register before any GestureDetector descendant renders. The
+// named import below triggers the module load — separately importing it for
+// side-effects only is no longer required in v2.x.
+// See https://docs.swmansion.com/react-native-gesture-handler/docs/fundamentals/installation.
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { QueryClientProvider } from "@tanstack/react-query";
 
 // LOAD-BEARING import order — see 04-RESEARCH.md §"Module-load order" + Pitfall 8.2.
@@ -82,11 +88,17 @@ function RootNavigator() {
 }
 
 export default function RootLayout() {
+  // GestureHandlerRootView wraps the entire app so descendants of any screen
+  // (e.g., DraggableFlatList in plans/[id].tsx) can use GestureDetector without
+  // triggering the "must be a descendant of GestureHandlerRootView" runtime
+  // error. flex: 1 is required — without it children collapse to zero size.
   return (
-    <QueryClientProvider client={queryClient}>
-      <SplashScreenController />
-      <RootNavigator />
-      <StatusBar style="auto" />
-    </QueryClientProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <QueryClientProvider client={queryClient}>
+        <SplashScreenController />
+        <RootNavigator />
+        <StatusBar style="auto" />
+      </QueryClientProvider>
+    </GestureHandlerRootView>
   );
 }
