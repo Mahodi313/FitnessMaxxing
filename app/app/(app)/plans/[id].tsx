@@ -49,7 +49,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActionSheetIOS,
-  Alert,
+  Modal,
   useColorScheme,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -136,6 +136,7 @@ export default function PlanDetailScreen() {
   };
 
   const [bannerError, setBannerError] = useState<string | null>(null);
+  const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
 
   const {
     control,
@@ -179,31 +180,24 @@ export default function PlanDetailScreen() {
     reset({ name: input.name, description: input.description ?? "" });
   };
 
+  // Archive uses an in-app themed Modal instead of Alert.alert because the
+  // iOS native UIAlertController can't honour UI-SPEC §"Destructive
+  // confirmation" (which mandates bg-red-600 dark:bg-red-500 on the
+  // destructive button). UAT 2026-05-10: native alert looked out of place.
   const onArchivePress = () => {
     if (!plan) return;
-    Alert.alert(
-      `Arkivera "${plan.name}"?`,
-      "Planen tas bort från listan. Pass som använt planen behåller sin historik.",
-      [
-        { text: "Avbryt", style: "cancel" },
-        {
-          text: "Arkivera",
-          style: "destructive",
-          onPress: () => {
-            archivePlan.mutate(
-              { id: plan.id },
-              {
-                onError: () =>
-                  setBannerError("Kunde inte arkivera. Försök igen."),
-              },
-            );
-            // Navigate immediately — optimistic onMutate already removed the
-            // row from the active-plans cache. Works offline (queued).
-            router.back();
-          },
-        },
-      ],
+    setShowArchiveConfirm(true);
+  };
+  const onArchiveConfirm = () => {
+    if (!plan) return;
+    setShowArchiveConfirm(false);
+    archivePlan.mutate(
+      { id: plan.id },
+      { onError: () => setBannerError("Kunde inte arkivera. Försök igen.") },
     );
+    // Navigate immediately — optimistic onMutate already removed the row from
+    // the active-plans cache. Works offline (queued).
+    router.back();
   };
 
   const onOverflowPress = () => {
@@ -453,6 +447,63 @@ export default function PlanDetailScreen() {
           )}
         />
       </KeyboardAvoidingView>
+
+      {/* Themed archive-confirmation dialog (UI-SPEC §Destructive confirmation).
+          transparent + animationType="fade" keeps the underlying plan-detail
+          visible behind the scrim so the user retains context. Tapping the
+          scrim cancels (same affordance as the Avbryt button). */}
+      <Modal
+        visible={showArchiveConfirm}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowArchiveConfirm(false)}
+        statusBarTranslucent
+      >
+        <Pressable
+          className="flex-1 items-center justify-center bg-black/50 px-8"
+          onPress={() => setShowArchiveConfirm(false)}
+          accessibilityRole="button"
+          accessibilityLabel="Stäng dialog"
+        >
+          <Pressable
+            className="w-full bg-white dark:bg-gray-900 rounded-lg p-6 gap-3"
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text
+              className="text-lg font-semibold text-gray-900 dark:text-gray-50"
+              accessibilityRole="header"
+            >
+              Arkivera &ldquo;{plan.name}&rdquo;?
+            </Text>
+            <Text className="text-base text-gray-500 dark:text-gray-400">
+              Planen tas bort från listan. Pass som använt planen behåller sin
+              historik.
+            </Text>
+            <View className="flex-row gap-2 justify-end mt-2">
+              <Pressable
+                onPress={() => setShowArchiveConfirm(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Avbryt"
+                className="px-4 py-3 rounded-lg active:opacity-80"
+              >
+                <Text className="text-base font-semibold text-gray-900 dark:text-gray-50">
+                  Avbryt
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={onArchiveConfirm}
+                accessibilityRole="button"
+                accessibilityLabel="Arkivera plan"
+                className="bg-red-600 dark:bg-red-500 px-4 py-3 rounded-lg active:opacity-80"
+              >
+                <Text className="text-base font-semibold text-white">
+                  Arkivera
+                </Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
