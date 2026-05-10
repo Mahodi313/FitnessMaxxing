@@ -433,6 +433,174 @@ async function main() {
     "A cannot DELETE B's exercise_set",
     await clientA.from("exercise_sets").delete().eq("id", setB.id).select(),
   );
+
+  // =========================================================================
+  // Phase 4 extension — explicit cross-user assertions for the new mutation
+  // paths Phase 4 introduces (CLAUDE.md "Cross-user verification is a gate").
+  //
+  // Phase 4 ships F2 (workout_plans archive — UPDATE archived_at), F3
+  // (exercises insert — already covered above as a generic INSERT block, but
+  // we re-state the intent here for traceability), and F4 (plan_exercises
+  // CRUD on plans not owned by the caller — the generic update block above
+  // patches `name`/`order_index`; the archive block below patches the exact
+  // column the F2 mutation hits).
+  //
+  // These assertions reuse the same harness clients as the Phase 2 block —
+  // clientA is signed-in as userA, clientB as userB. We attempt to mutate
+  // userB's data from clientA and verify the write is blocked.
+  // =========================================================================
+  console.log(
+    "[test-rls] Phase 4 extension — workout_plans archive cross-user gate…",
+  );
+
+  // ---- workout_plans archive (UPDATE archived_at) ----
+  // F2 archive path mutates the archived_at column specifically. The generic
+  // UPDATE block above (line ~340) patches `name`; this asserts the same RLS
+  // policy also blocks the archive-shaped payload.
+  assertWriteBlocked(
+    "Phase 4 extension: A cannot UPDATE archived_at on B's workout_plan (F2 archive cross-user)",
+    await clientA
+      .from("workout_plans")
+      .update({ archived_at: new Date().toISOString() })
+      .eq("id", planB.id)
+      .select(),
+  );
+
+  // ---- plan_exercises insert cross-user (F4 add-exercise-to-plan) ----
+  // The generic INSERT block above (line ~360) covers this with order_index=99.
+  // We re-state the F4 shape here — plan_id pointing at B's plan, exercise_id
+  // owned by A — to make the F4-coverage explicit. Insert with a user-owned
+  // exercise_id is the realistic attack vector (you'd never have B's
+  // exercise_id at all).
+  assertWriteBlocked(
+    "Phase 4 extension: A cannot INSERT plan_exercises into B's plan (F4 add cross-user)",
+    await clientA
+      .from("plan_exercises")
+      .insert({
+        plan_id: planB.id,
+        exercise_id: exA.id,
+        order_index: 0,
+        target_sets: 3,
+        target_reps_min: 8,
+        target_reps_max: 12,
+      })
+      .select(),
+  );
+
+  // ---- plan_exercises update cross-user with target fields (F4 targets-edit) ----
+  // The generic UPDATE block above patches order_index; F4's targets-editor
+  // touches target_sets/reps_min/reps_max. Re-state with that payload shape.
+  assertWriteBlocked(
+    "Phase 4 extension: A cannot UPDATE B's plan_exercise targets (F4 targets cross-user)",
+    await clientA
+      .from("plan_exercises")
+      .update({
+        target_sets: 99,
+        target_reps_min: 99,
+        target_reps_max: 99,
+        notes: "hacked",
+      })
+      .eq("id", peB.id)
+      .select(),
+  );
+
+  // ---- exercises insert cross-user (F3 create-own-exercise) ----
+  // Already covered at line ~314 ("A cannot INSERT exercise owned by B") but
+  // the original payload uses name="fake-b". Re-state with the F3 shape:
+  // a realistic muscle_group + equipment + notes payload that matches what
+  // Phase 4's exercise-picker inline-create form sends. RLS still blocks.
+  assertWriteBlocked(
+    "Phase 4 extension: A cannot INSERT exercise with B's user_id (F3 create-own cross-user)",
+    await clientA
+      .from("exercises")
+      .insert({
+        user_id: userB.id,
+        name: "Phase 4 attack — bench",
+        muscle_group: "Bröst",
+        equipment: "Skivstång",
+        notes: "should never land",
+      })
+      .select(),
+  );
+
+  // ---- Defense-in-depth: confirm User B's rows are intact ----
+  // The above assertWriteBlocked() helpers pass on (a) error OR (b) empty
+  // returned rows. An adversary that somehow bypassed RLS in a future
+  // regression could in principle land the write while RLS still empty-
+  // filtered the .select() suffix — the assertion would false-pass.
+  // Explicitly verify via admin (RLS-bypass) that B's rows are unchanged.
+  console.log(
+    "[test-rls] Phase 4 extension — defense-in-depth: B's rows survive…",
+  );
+
+  const { data: planBAfter, error: planBAfterErr } = await admin
+    .from("workout_plans")
+    .select("id, name, archived_at")
+    .eq("id", planB.id)
+    .single();
+  if (planBAfterErr || !planBAfter) {
+    fail("Phase 4 extension: B's workout_plan still exists after A's attempts", {
+      error: planBAfterErr,
+    });
+  } else if (planBAfter.archived_at !== null) {
+    fail(
+      "Phase 4 extension: B's workout_plan archived_at is still null after A's archive attempt",
+      { archived_at: planBAfter.archived_at },
+    );
+  } else {
+    pass(
+      "Phase 4 extension: B's workout_plan still exists with archived_at = null",
+    );
+  }
+
+  const { data: peBAfter, error: peBAfterErr } = await admin
+    .from("plan_exercises")
+    .select("id, order_index, target_sets, target_reps_min, target_reps_max, notes")
+    .eq("id", peB.id)
+    .single();
+  if (peBAfterErr || !peBAfter) {
+    fail(
+      "Phase 4 extension: B's plan_exercise still exists after A's attempts",
+      { error: peBAfterErr },
+    );
+  } else if (
+    peBAfter.target_sets !== null ||
+    peBAfter.target_reps_min !== null ||
+    peBAfter.target_reps_max !== null ||
+    peBAfter.notes !== null
+  ) {
+    fail(
+      "Phase 4 extension: B's plan_exercise targets were mutated by A's attempt",
+      { peBAfter },
+    );
+  } else {
+    pass(
+      "Phase 4 extension: B's plan_exercise survived A's targets/insert/update/delete attempts unchanged",
+    );
+  }
+
+  // Confirm no rogue plan_exercises rows landed on B's plan from A's INSERT
+  // attempt. plan_exercises rows on planB.id should be exactly 1 (the seed
+  // row peB).
+  const { data: peListAfter, error: peListAfterErr } = await admin
+    .from("plan_exercises")
+    .select("id")
+    .eq("plan_id", planB.id);
+  if (peListAfterErr || !peListAfter) {
+    fail(
+      "Phase 4 extension: count plan_exercises on B's plan after A's INSERT attempt",
+      { error: peListAfterErr },
+    );
+  } else if (peListAfter.length !== 1) {
+    fail(
+      "Phase 4 extension: B's plan has unexpected plan_exercises count (rogue insert?)",
+      { count: peListAfter.length },
+    );
+  } else {
+    pass(
+      "Phase 4 extension: B's plan still has exactly 1 plan_exercise (no rogue insert)",
+    );
+  }
 }
 
 (async () => {
