@@ -464,64 +464,71 @@ export default function PlanDetailScreen() {
         />
       </KeyboardAvoidingView>
 
-      {/* Themed overflow-menu bottom sheet. Replaces ActionSheetIOS which
-          rendered as a malformed floating pill in iOS dark mode (UAT
-          2026-05-10). Tap scrim or "Avbryt" to dismiss. Currently only one
-          meaningful action — extension point for future per-plan actions.
+      {/* Overflow menu — iOS-style popover anchored top-right under the
+          ellipsis. Replaces a bottom-sheet Modal whose NativeWind layout
+          classes wouldn't apply reliably inside the Modal portal (UAT
+          2026-05-10). No Modal here, just an absolute-positioned overlay
+          rendered inline — the styling pipeline is the same as the rest of
+          the screen so it can't silently break.
 
-          Layout uses explicit `style` (not NativeWind className) on the outer
-          Pressable because a prior iteration with className="flex-1 justify-end
-          bg-black/50" + animationType="slide" + statusBarTranslucent rendered
-          unstyled: outer Pressable collapsed to intrinsic size at top-left,
-          card had no background. Inline style for layout primitives works
-          consistently across animationType values; NativeWind is kept for the
-          inner card styling where it works reliably. */}
-      <Modal
-        visible={showOverflowMenu}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowOverflowMenu(false)}
-      >
+          Tap outside the popover (anywhere on the transparent backdrop) to
+          dismiss. Explicit React Native StyleSheet values for visual props
+          (shadows, popover background) so dark-mode is bound to the
+          useColorScheme() value already in scope. */}
+      {showOverflowMenu && (
         <Pressable
           style={{
-            flex: 1,
-            justifyContent: "flex-end",
-            backgroundColor: "rgba(0,0,0,0.5)",
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 1000,
           }}
           onPress={() => setShowOverflowMenu(false)}
           accessibilityRole="button"
           accessibilityLabel="Stäng meny"
         >
-          <Pressable
-            className="bg-white dark:bg-gray-900 rounded-t-3xl pb-8"
-            onPress={(e) => e.stopPropagation()}
+          <View
+            style={{
+              position: "absolute",
+              top: 100,
+              right: 16,
+              minWidth: 200,
+              backgroundColor: isDark ? "#1F2937" : "#FFFFFF",
+              borderRadius: 12,
+              paddingVertical: 4,
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.25,
+              shadowRadius: 8,
+              elevation: 8,
+              borderWidth: isDark ? 1 : 0,
+              borderColor: isDark ? "#374151" : "transparent",
+            }}
           >
-            <View className="items-center pt-3 pb-2">
-              <View className="w-10 h-1 rounded-full bg-gray-300 dark:bg-gray-700" />
-            </View>
             <Pressable
               onPress={onOverflowArchivePress}
               accessibilityRole="button"
               accessibilityLabel="Arkivera plan"
-              className="px-6 py-5 active:opacity-80 border-t border-gray-200 dark:border-gray-700"
+              style={{
+                paddingHorizontal: 16,
+                paddingVertical: 12,
+              }}
             >
-              <Text className="text-base font-semibold text-red-600 dark:text-red-400">
+              <Text
+                style={{
+                  color: isDark ? "#F87171" : "#DC2626",
+                  fontSize: 16,
+                  fontWeight: "600",
+                }}
+              >
                 Arkivera plan
               </Text>
             </Pressable>
-            <Pressable
-              onPress={() => setShowOverflowMenu(false)}
-              accessibilityRole="button"
-              accessibilityLabel="Avbryt"
-              className="px-6 py-5 active:opacity-80 border-t border-gray-200 dark:border-gray-700"
-            >
-              <Text className="text-base font-semibold text-gray-900 dark:text-gray-50">
-                Avbryt
-              </Text>
-            </Pressable>
-          </Pressable>
+          </View>
         </Pressable>
-      </Modal>
+      )}
 
       {/* Themed archive-confirmation dialog (UI-SPEC §Destructive confirmation).
           transparent + animationType="fade" keeps the underlying plan-detail
