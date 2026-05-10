@@ -492,7 +492,10 @@ export default function PlanDetailScreen() {
           <View
             style={{
               position: "absolute",
-              top: 100,
+              // The popover lives inside the Stack.Screen content container, so
+              // top: 0 = just below the navigation header. A small 4pt gap
+              // makes it feel like it dropped down from the ellipsis button.
+              top: 4,
               right: 16,
               minWidth: 200,
               backgroundColor: isDark ? "#1F2937" : "#FFFFFF",
