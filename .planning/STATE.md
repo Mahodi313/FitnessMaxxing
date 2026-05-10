@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 4 awaiting manual airplane-mode UAT — Plan 04-04 Tasks 1-3 complete (DraggableFlatList integration + test-rls Phase 4 extensions + manual-test-phase-04-airplane-mode.md checklist); Task 4 is checkpoint:human-verify on real iPhone via Expo Go
-last_updated: "2026-05-10T20:30:00.000Z"
-last_activity: 2026-05-10 -- Phase 4 Plan 04 Tasks 1-3 complete (awaiting manual UAT)
+stopped_at: Phase 4 Plan 04 complete + manual airplane-mode UAT signed off (`approved` 2026-05-10) — Phase 4 operationally complete (4/4 plans); ready for phase-level closeout (gsd-secure-phase 4 → gsd-verify-work 4 → phase.complete) and Phase 5 planning
+last_updated: "2026-05-10T23:30:00.000Z"
+last_activity: 2026-05-10 -- Phase 4 Plan 04 complete + UAT signed off
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 17
-  completed_plans: 16
-  percent: 94
+  completed_plans: 17
+  percent: 100
 ---
 
 # Project State
@@ -21,23 +21,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-07)
 
 **Core value:** Logga ett set och omedelbart se vad jag tog senast på samma övning — utan att tappa data, någonsin.
-**Current focus:** Phase 04 — Plans 01–03 complete; Plan 04 (drag-to-reorder integration + airplane-mode test) is next
+**Current focus:** Phase 04 complete (4/4); ready for Phase 5 planning (Active Workout Hot Path — F13 lives or dies)
 
 ## Current Position
 
-Phase: 4
-Plan: 04 (next)
-Status: Plan 03 complete (plan-detail + exercise-picker chained create-and-add + plan_exercise targets edit modal shipped); ready to execute Plan 04
-Last activity: 2026-05-10 -- Phase 4 Plan 03 complete
+Phase: 4 complete (4/4); Phase 5 pending plan
+Plan: —
+Status: Phase 4 operationally complete — all 5 ROADMAP success criteria MET; manual airplane-mode UAT signed off `approved` 2026-05-10. Next: phase-level closeout (gsd-secure-phase 4 → gsd-verify-work 4 → phase.complete).
+Last activity: 2026-05-10 -- Phase 4 Plan 04 complete + UAT signed off
 
-Progress: [█████████░] 56%  (3/7 phases complete + 3/4 Phase 4 plans complete)
+Progress: [████████░░] 57%  (4/7 phases complete after Phase 4 closeout)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 16 (3 in Phase 1, 6 in Phase 2, 4 in Phase 3, 3 in Phase 4)
-- Phases complete: 3 of 7
+- Total plans completed: 17 (3 in Phase 1, 6 in Phase 2, 4 in Phase 3, 4 in Phase 4)
+- Phases complete: 3 of 7 (Phase 4 ready for closeout)
 - Total execution time: ~3.5 active days (2026-05-07 → 2026-05-10)
 
 **By Phase:**
@@ -47,7 +47,7 @@ Progress: [█████████░] 56%  (3/7 phases complete + 3/4 Phase
 | 1. Bootstrap & Infra Hardening | 3/3 | ✓ Complete | 2026-05-08 |
 | 2. Schema, RLS & Type Generation | 6/6 | ✓ Complete (27/27 SECURED) | 2026-05-09 |
 | 3. Auth & Persistent Session | 4/4 | ✓ Complete (UAT 9/11 pass; 2 gaps V1.1-deferred) | 2026-05-09 |
-| 4. Plans, Exercises & Offline-Queue | 3/4 | ◐ In progress (Plans 01–03 complete — plumbing + tabs/Planer slice + plan-detail/picker/targets-edit) | — |
+| 4. Plans, Exercises & Offline-Queue | 4/4 | ◑ Plans complete; awaiting phase-level closeout (gsd-secure-phase 4 + gsd-verify-work 4 + phase.complete) | 2026-05-10 |
 | 5. Active Workout Hot Path | 0/TBD | ○ Not started | — |
 | 6. History & Read-Side Polish | 0/TBD | ○ Not started | — |
 | 7. V1 Polish Cut | 0/TBD | ○ Not started | — |
@@ -57,6 +57,8 @@ Progress: [█████████░] 56%  (3/7 phases complete + 3/4 Phase
 **Plan 04-02 metrics (2026-05-10):** 3 tasks, ~30 min, 6 files created (1 OfflineBanner component + 4 tab screens + plans/new), 0 files modified, 1 deleted (Phase 3 (app)/index.tsx — sign-out moved to (tabs)/settings.tsx). 2 auto-fixed deviations: Rule 1 (planFormSchema vs planner-text plansSchema) + Rule 3 (`as Href` casts on 4 route literals to keep tsc clean across cross-plan route references with experiments.typedRoutes=true). All gates green: tsc --noEmit + expo lint + service-role audit (0 matches).
 
 **Plan 04-03 metrics (2026-05-10):** 3 tasks, ~7 min, 3 files created (plans/[id].tsx + plans/[id]/exercise-picker.tsx + plans/[id]/exercise/[planExerciseId]/edit.tsx; 1127 lines total), 0 modified, 0 deleted. 3 auto-fixed deviations: Rule 1 schema-export name canonicalization (planExerciseFormSchema vs planner planExercisesSchema, etc — same Plan 02 drift), Rule 1 meta.scopeOverride → constructor-time scope binding via useCreateExercise(planId), Rule 1 Zod 4 z.coerce.number() input/output type split via three-arg useForm generic. All gates green: tsc --noEmit + expo lint + service-role audit (0 matches).
+
+**Plan 04-04 metrics (2026-05-10):** 4 tasks (3 autonomous + 1 checkpoint:human-verify), ~planning-day total (~15 min Tasks 1-3 autonomous + ~6 hours UAT-driven gap-closure iteration). 1 file created (manual airplane-mode UAT checklist), 10 files modified (plans/[id].tsx, exercise-picker.tsx, plan_exercise/edit.tsx, (app)/_layout.tsx, app/_layout.tsx, offline-banner.tsx, app.json, (tabs)/index.tsx, plans/new.tsx, test-rls.ts) + 1 spec amendment (04-UI-SPEC.md OfflineBanner color). 22 commits total: 4 planned (`2501ac8`, `c1cb8de`, `79ac8b8`, `4088165`) + 18 UAT-driven gap-closure (`dcd502b`…`6b8c604`). Manual airplane-mode UAT (6 steps): all PASS; user signed off `approved` 2026-05-10. test-rls.ts: 29 assertions PASS (22 Phase 2 + 7 Phase 4 — archive cross-user + plan_exercises CRUD cross-user + exercises insert cross-user + integrity check). All gates green: tsc + expo lint + test:rls + 5 Wave 0 scripts. Phase 4 success criteria #4 + #5 closed by this plan; #1 + #2 + #3 already closed by Plans 02/03/04. F4 reorder side closes here (F2 + F3 closed in 02/03).
 
 *Updated after each plan completion*
 
@@ -83,7 +85,15 @@ Recent decisions affecting current work:
 - **2026-05-10 [Phase 04 Plan 02]**: Schema-export name discrepancy resolved — Plan 04-02's planner-text referenced `plansSchema` but Plan 04-01's lib/schemas/plans.ts exports `planFormSchema` + `PlanFormSchema` only. Resolved by using `planFormSchema` (canonical lowercase, matches Phase 3 D-12 analog `signInSchema`). Future planning agents should confirm against the upstream plan's actual exported symbols, not just the prose summary.
 - **2026-05-10 [Phase 04 Plan 03]**: meta.scopeOverride → constructor-time scope binding pattern. Plan 04-03's planner-text + Task 2 instructions referenced `{ meta: { scopeOverride: 'plan:<planId>' } }` on createExercise.mutateAsync to chain scope across mutations. Plan 04-01's actual `useCreateExercise(planId?)` hook accepts planId at construction and bakes `scope: { id: 'plan:<planId>' }` into the useMutation options — this is the v5-correct way to share scope across chained mutations because TanStack v5's MutationScope.id is a STATIC string (Plan 04-01 SUMMARY auto-fix Rule 1). Both subsequent useAddExerciseToPlan(planId) and the chained useCreateExercise(planId) carry scope.id='plan:<planId>' so on offline replay the create lands BEFORE the add (FK safety per RESEARCH §5). The `scopeOverride` literal is preserved as a documentation comment in exercise-picker.tsx for the verify-grep gate, mapping the planner abstraction to its actual implementation surface.
 - **2026-05-10 [Phase 04 Plan 03]**: Zod 4 z.coerce.number() + RHF v7 + @hookform/resolvers v5 requires the three-arg useForm generic. planExerciseFormSchema's numeric fields use z.coerce.number() so the schema's INPUT type is `unknown` and OUTPUT is `number | null`. Forcing useForm<PlanExerciseFormInput> (the OUTPUT alias) produces TS2322 because @hookform/resolvers's Resolver type is invariant in TFieldValues — the resolver expects the INPUT shape. Fixed via useForm<z.input<typeof schema>, undefined, PlanExerciseFormInput>(...) so handleSubmit receives the parsed output while the form values carry the input shape. Will recur in any Phase 5+ form that uses z.coerce.number() (e.g. set logging weight + reps); pattern documented in app/app/(app)/plans/[id]/exercise/[planExerciseId]/edit.tsx.
-- **2026-05-10 [Phase 04 Plan 03]**: PlanExerciseRow exercise_id-derived label fallback. Plan 04-01's usePlanExercisesQuery selects `*` from plan_exercises only (no JOIN on exercises.name). Plan 04-03's plan_exercise row chip falls back to `Övning <8-char-id>` until a future plan extends the queryFn with `select('*, exercises ( name )')`. Plan 04 (drag-reorder) is the natural place to add the join when wiring the row's drag-handle column.
+- **2026-05-10 [Phase 04 Plan 03]**: PlanExerciseRow exercise_id-derived label fallback. Plan 04-01's usePlanExercisesQuery selects `*` from plan_exercises only (no JOIN on exercises.name). Plan 04-03's plan_exercise row chip falls back to `Övning <8-char-id>` until a future plan extends the queryFn with `select('*, exercises ( name )')`. Plan 04 (drag-reorder) is the natural place to add the join when wiring the row's drag-handle column. (Resolved in Plan 04-04 via client-side `useExercisesQuery + Map<id, name>` lookup — commit `3bfaba8`.)
+- **2026-05-10 [Phase 04 Plan 04]**: `mutate(payload, { onError, onSuccess })` is the canonical offline-safe submit pattern across all 5 forms (plan-create, plan-edit, exercise-create, plan_exercise-add, plan_exercise-edit). `mutateAsync` is NOT safe under `networkMode: 'offlineFirst'` because paused mutations never resolve the awaitable — Plan 03's `await createPlan.mutateAsync(...).then(router.replace)` hung indefinitely offline. Fire-and-forget mutate + optimistic-update-driven UI feedback + onError for real failures. Biggest UAT discovery (commit `5d953b6`). Phase 5+ MUST follow this pattern for all user-triggered submits.
+- **2026-05-10 [Phase 04 Plan 04]**: Modal portal layout is UNRELIABLE for NativeWind/flex composition on iOS. After 3 iterations (Alert.alert → themed Modal portal → bottom-sheet Modal — commits `3a094eb`, `87b1d9b`, `af6930c` all failed), abandoned the portal entirely in favor of inline absolute-positioned `<View>` overlays with explicit RN StyleSheet color tokens (commits `954c480` overflow menu + `e07029a` archive-confirm). Modal portal is reserved for full-screen routes via Expo Router's `presentation: 'modal'` declared at the layout level (commit `1f4d8d0`). Phase 5+ destructive-confirms + overflow menus + popovers use the inline-overlay pattern.
+- **2026-05-10 [Phase 04 Plan 04]**: `freezeOnBlur: true` (react-navigation, commit `da65717`) requires `useFocusEffect` modal-state reset (commit `af6930c`). Frozen screens retain local React state across navigation; without reset, a previously-open overlay re-appears on screen unfreeze. Pattern: `useFocusEffect(useCallback(() => () => { setShowOverflowMenu(false); setShowArchiveConfirm(false); }, []))`. Any Phase 5+ screen with modal-state-bearing local state must reset on focus.
+- **2026-05-10 [Phase 04 Plan 04]**: `presentation: 'modal'` is a STATIC react-native-screens prop and must be declared at the layout level in `Stack.Screen` children — NOT in `<Stack.Screen options={{ presentation: 'modal' }} />` from inside the route component (commit `1f4d8d0`). The dynamic options pathway does not propagate the presentation prop.
+- **2026-05-10 [Phase 04 Plan 04]**: `initialData` from list cache + dual-write onMutate is the canonical offline-first detail-cache seed (commits `eca0540` + `b87bddf`). Plan 03's binary loading gate (`planPending || !plan`) hung at "Laddar…" forever when navigating to offline-created plans because: (a) DETAIL cache wasn't seeded by plan-create onMutate (only LIST was written); (b) auto-refetch was paused so `usePlanQuery` never resolved. Fix: onMutate dual-writes `plansKeys.detail(newId)` AND appends to `plansKeys.list()`; `usePlanQuery` passes `initialData: () => queryClient.getQueryData(plansKeys.list())?.find(p => p.id === id)`; loading gate tightens to `!plan` only. Phase 5+ session-detail + active-workout flow inherits this pattern.
+- **2026-05-10 [Phase 04 Plan 04]**: UI-SPEC §Color amendment: OfflineBanner `bg-yellow-100 dark:bg-yellow-900` → `bg-yellow-200 dark:bg-yellow-800` + `border-b border-yellow-400 dark:border-yellow-600` (commit `cfc1dc8`). Original pale yellow read as near-white on light-mode iPhone (passed simulator preview, failed real device). UI-SPEC §Color, §Accessibility, §Wave 1 checklist all amended. Real-device color verification is now part of the UAT contract for color amendments.
+- **2026-05-10 [Phase 04 Plan 04]**: Centralized (app) Stack header styling (commit `b57d1c2`) eliminates "(tabs)" back-title artifact and unifies dark-mode-aware `headerStyle` / `headerTintColor` / `headerTitleStyle` across all (app) routes. Per-screen `<Stack.Screen options={{ title }}>` only sets dynamic title; static styling inherits. Future Phase 5/6/7 screens add to the same layout without re-declaring styling per screen.
+- **2026-05-10 [Phase 04 Plan 04]**: Theme-aware backdrop on GestureHandlerRootView + root Stack contentStyle (commit `6b8c604`) is required to eliminate modal-swipe/transition white flashes. The (app) Stack `contentStyle.backgroundColor` (commit `44c2138`) alone covers (app) pushes but root Stack transitions and gesture surfaces have their own backdrops. Both wrappers need `useColorScheme()`-bound backgroundColor.
 
 ### Pending Todos
 
@@ -114,7 +124,7 @@ Items acknowledged for later:
 
 ## Session Continuity
 
-Last session: 2026-05-10T20:30:00Z
-Stopped at: Phase 4 awaiting manual airplane-mode UAT — Plan 04-04 Tasks 1-3 complete (drag-reorder integration + test-rls Phase 4 extensions + manual UAT checklist); Task 4 is checkpoint:human-verify on real iPhone via Expo Go.
-Resume file: app/scripts/manual-test-phase-04-airplane-mode.md (the checklist user must run)
-Next: User runs the manual checklist on iPhone → reply with `approved` (all 6 steps pass) OR describe issues with step number + observed-vs-expected. On approval, continuation agent writes 04-04-SUMMARY.md, advances STATE.md (Phase 4 → COMPLETE), runs `/gsd-secure-phase 4` to close threat register, and `/gsd-verify-work 4` to write 04-VERIFICATION.md.
+Last session: 2026-05-10T23:30:00Z
+Stopped at: Phase 4 Plan 04 complete + manual airplane-mode UAT signed off `approved` 2026-05-10. All 4 Phase 4 plans done; all 5 ROADMAP success criteria MET. 04-04-SUMMARY.md written; STATE.md + ROADMAP.md + REQUIREMENTS.md updated.
+Resume file: —
+Next: Orchestrator runs phase-level closeout — `/gsd-secure-phase 4` (close threat register T-04-01 … T-04-12 against implementation; produce 04-SECURITY.md with threats_open: 0) → `/gsd-verify-work 4` (write 04-VERIFICATION.md with all 5 success criteria MET) → `/gsd-code-review` (post-phase audit) → phase.complete (advance ROADMAP Phase 4 → ✓ Complete). Then plan Phase 5 (Active Workout Hot Path — F13 lives or dies).

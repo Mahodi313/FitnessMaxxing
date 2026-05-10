@@ -92,8 +92,8 @@ FitnessMaxxing levereras som en personlig iPhone gym-tracker via Expo Go. Resan 
 **Plans**: 4 plans
   - [x] 04-01-PLAN.md — Offline-first queue infrastructure: lib/query/* split (D-01), 8 setMutationDefaults (D-04), resumePausedMutations on reconnect (closes Pitfall 8.12), expo-crypto UUID util (D-06), Zod schemas, resource hooks, two-phase reorder algorithm (D-09 + RESEARCH §3 unique-constraint trap), 7 Wave 0 test scripts (8/8 green incl. test-rls regression) — completed 2026-05-10 (~20 min)
   - [x] 04-02-PLAN.md — (tabs) skeleton with Swedish labels (D-15/D-17/D-18) + Planer list with empty-state CTA (D-14) + plans/new create form + OfflineBanner with ✕ close-affordance (D-05); deletes Phase 3 (app)/index.tsx; sign-out moved to settings (D-16) — completed 2026-05-10 (~30 min; 6 files created, 1 deleted; 0 modified)
-  - [ ] 04-03-PLAN.md — Plan-detail screen (read + meta-edit + archive via D-12) + exercise-picker modal with chained create-and-add (D-13 + scope.id chaining) + plan_exercise targets edit modal (D-11 — full target_sets/reps_min/reps_max/notes)
-  - [ ] 04-04-PLAN.md — Drag-to-reorder integration (D-08 react-native-draggable-flatlist + D-10 dense order_index); extends test-rls.ts with cross-user assertions; ships manual airplane-mode test checklist; final task is human-verify on iPhone
+  - [x] 04-03-PLAN.md — Plan-detail screen (read + meta-edit + archive via D-12) + exercise-picker modal with chained create-and-add (D-13 + scope.id chaining) + plan_exercise targets edit modal (D-11 — full target_sets/reps_min/reps_max/notes) — completed 2026-05-10 (~7 min; 3 files created, 1127 lines total)
+  - [x] 04-04-PLAN.md — Drag-to-reorder integration (D-08 react-native-draggable-flatlist + D-10 dense order_index); extends test-rls.ts with cross-user assertions (29 PASS); ships manual airplane-mode test checklist; final task is human-verify on iPhone — completed 2026-05-10 (4 tasks; 22 commits = 4 planned + 18 UAT-driven gap-closure; user signed off `approved`; established mutate vs mutateAsync canonical pattern + inline-overlay convention)
 **UI hint**: yes
 
 ### Phase 5: Active Workout Hot Path (F13 lives or dies)
@@ -170,12 +170,12 @@ Phases execute sequentially: 1 → 2 → 3 → 4 → 5 → 6 → 7. Phase 5 må*
 | 1. Bootstrap & Infra Hardening | 3/3 | ✓ Complete | 2026-05-08 |
 | 2. Schema, RLS & Type Generation | 6/6 | ✓ Complete (27/27 SECURED, F17 validated) | 2026-05-09 |
 | 3. Auth & Persistent Session | 4/4 | ✓ Complete (UAT 9/11 pass; 2 gaps accepted-deferred to V1.1 — email-confirmation deep-link) | 2026-05-09 |
-| 4. Plans, Exercises & Offline-Queue Plumbing | 3/4 | ◐ In progress (Plans 01–03 complete: offline-queue plumbing + Wave 0 harness, tabs skeleton + Planer list + plans/new + OfflineBanner, plan-detail + exercise-picker chained create-and-add + plan_exercise targets edit modal) | — |
+| 4. Plans, Exercises & Offline-Queue Plumbing | 4/4 | ◑ Plans complete (UAT signed off `approved` 2026-05-10; awaiting phase-level closeout — gsd-secure-phase 4 + gsd-verify-work 4 + phase.complete) | — |
 | 5. Active Workout Hot Path | 0/TBD | ○ Not started | — |
 | 6. History & Read-Side Polish | 0/TBD | ○ Not started | — |
 | 7. V1 Polish Cut | 0/TBD | ○ Not started | — |
 
-**Project progress:** 3 of 7 phases complete (~43%); 16 of 17 known plans summarised. Phase 3 closed 2026-05-09 with 2 accepted-deferred V1.1 gaps (email-confirmation deep-link handler — code path already maps the relevant Supabase error codes; deferral is environmental). Phase 4 Plan 01 complete 2026-05-10 (offline-queue plumbing + 7 Wave 0 verification scripts; 8/8 tests green). Phase 4 Plan 02 complete 2026-05-10 (tabs skeleton + Planer list + plans/new + OfflineBanner; F2 CREATE-side closed end-to-end). Phase 4 Plan 03 complete 2026-05-10 (plan-detail + exercise-picker with chained create-and-add scope binding + plan_exercise targets edit modal; F2 EDIT/ARCHIVE + F3 + F4 ADD-side closed end-to-end). Phases 5-7 plan counts pending discuss/plan.
+**Project progress:** 3 of 7 phases complete (~43%); Phase 4 plans 4/4 complete and awaiting phase-level closeout (gsd-secure-phase 4 → gsd-verify-work 4 → phase.complete). 17 of 17 known plans summarised. Phase 3 closed 2026-05-09 with 2 accepted-deferred V1.1 gaps (email-confirmation deep-link handler — code path already maps the relevant Supabase error codes; deferral is environmental). Phase 4 Plan 01 complete 2026-05-10 (offline-queue plumbing + 7 Wave 0 verification scripts; 8/8 tests green). Phase 4 Plan 02 complete 2026-05-10 (tabs skeleton + Planer list + plans/new + OfflineBanner; F2 CREATE-side closed end-to-end). Phase 4 Plan 03 complete 2026-05-10 (plan-detail + exercise-picker with chained create-and-add scope binding + plan_exercise targets edit modal; F2 EDIT/ARCHIVE + F3 + F4 ADD-side closed end-to-end). Phase 4 Plan 04 complete 2026-05-10 (drag-reorder via DraggableFlatList + Phase 4 cross-user RLS gate — 29 assertions PASS — + manual airplane-mode UAT signed off `approved`; F4 reorder-side closes; all 5 ROADMAP Phase 4 success criteria MET). Phases 5-7 plan counts pending discuss/plan.
 
 ## Phase Ordering Rationale
 
