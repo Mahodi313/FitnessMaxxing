@@ -1,18 +1,21 @@
 // app/app/_layout.tsx
 import "../global.css";
 import { useEffect } from "react";
-import { AppState, Platform } from "react-native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
-import {
-  QueryClientProvider,
-  focusManager,
-  onlineManager,
-} from "@tanstack/react-query";
-import NetInfo from "@react-native-community/netinfo";
+import { QueryClientProvider } from "@tanstack/react-query";
 
-import { queryClient } from "@/lib/query-client";
+// LOAD-BEARING import order — see 04-RESEARCH.md §"Module-load order" + Pitfall 8.2.
+// client.ts MUST execute first (registers all 8 setMutationDefaults), THEN
+// persister.ts (hydrates the cache from AsyncStorage — paused mutations rehydrate
+// against already-registered defaults), THEN network.ts (wires NetInfo +
+// AppState + the onlineManager.subscribe(resumePausedMutations) block that closes
+// Pitfall 8.12). Reordering these breaks the offline-queue replay contract.
+import { queryClient } from "@/lib/query/client";
+import "@/lib/query/persister";
+import "@/lib/query/network";
+
 // Importing useAuthStore here triggers the module-scope onAuthStateChange listener
 // + getSession() init flow registered in app/lib/auth-store.ts. Order does not
 // matter for correctness (listener registers exactly once on first import) but
@@ -33,23 +36,8 @@ SplashScreen.preventAutoHideAsync().catch(() => {
   // Splash may have already auto-hidden if JS started slowly; safe to ignore.
 });
 
-focusManager.setEventListener((setFocused) => {
-  const sub = AppState.addEventListener("change", (s) => {
-    if (Platform.OS !== "web") setFocused(s === "active");
-  });
-  return () => sub.remove();
-});
-
-onlineManager.setEventListener((setOnline) => {
-  const unsubscribe = NetInfo.addEventListener((state) => {
-    // NetInfo's isConnected is boolean | null; null = unknown (cold start
-    // before first probe). Treat unknown as online so TanStack Query doesn't
-    // mark mutations offline before we know — only an explicit `false` flips
-    // us offline.
-    setOnline(state.isConnected !== false);
-  });
-  return unsubscribe;
-});
+// focusManager + onlineManager + onlineManager.subscribe(resumePausedMutations)
+// are wired in @/lib/query/network.ts (imported above for side-effects).
 
 /**
  * Render-side splash hide controller. When status flips out of 'loading',
