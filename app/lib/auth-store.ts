@@ -23,7 +23,7 @@
 import { create } from "zustand";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
-import { queryClient } from "@/lib/query-client";
+import { queryClient } from "@/lib/query/client";
 
 export type AuthStatus = "loading" | "authenticated" | "anonymous";
 
