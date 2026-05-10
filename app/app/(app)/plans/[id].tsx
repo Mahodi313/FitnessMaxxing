@@ -100,7 +100,7 @@ export default function PlanDetailScreen() {
   const muted = isDark ? "#9CA3AF" : "#6B7280";
   const accent = isDark ? "#60A5FA" : "#2563EB";
 
-  const { data: plan, isPending: planPending } = usePlanQuery(id!);
+  const { data: plan } = usePlanQuery(id!);
   const { data: planExercises, isPending: pxPending } = usePlanExercisesQuery(
     id!,
   );
@@ -220,7 +220,13 @@ export default function PlanDetailScreen() {
     );
   };
 
-  if (planPending || !plan) {
+  // Loading state intentionally gates on `!plan` only (not isPending). With
+  // initialData seeding usePlanQuery from the list cache + the dual-write
+  // optimistic onMutate in setMutationDefaults['plan','create'], `plan` is
+  // populated from millisecond zero for any plan visible in Planer. Tying
+  // the loading branch to isPending would re-blank the screen on every
+  // background refetch (UAT 2026-05-10).
+  if (!plan) {
     return (
       <SafeAreaView className="flex-1 bg-white dark:bg-gray-900">
         <View className="flex-1 items-center justify-center">

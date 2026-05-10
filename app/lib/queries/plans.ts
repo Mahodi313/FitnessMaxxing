@@ -25,6 +25,7 @@
 
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { queryClient } from "@/lib/query/client";
 import { plansKeys } from "@/lib/query/keys";
 import { PlanRowSchema, type PlanRow } from "@/lib/schemas/plans";
 
@@ -48,6 +49,21 @@ export function usePlansQuery() {
 }
 
 // usePlanQuery — single plan detail (Plan 03 plan-detail screen consumes).
+//
+// initialData seeds the detail cache from the list cache on first read.
+// UAT 2026-05-10: an offline-created plan rendered "Laddar…" forever the
+// first time the user navigated into it because:
+//   1. mutate()'s onMutate is awaited asynchronously inside execute() — by
+//      the time router.replace runs, the dual-write to plansKeys.detail may
+//      not have landed yet. (Race window is small but real.)
+//   2. Even after setQueryData populates the detail cache, the query's
+//      queryFn is already mid-flight and paused under offlineFirst — status
+//      stays 'pending' and isPending is true, so the loading branch of
+//      plans/[id].tsx kept rendering even though data was defined.
+//
+// initialData closes both: TanStack v5 starts the query at status='success'
+// when initialData returns a value, regardless of any background fetch.
+// (paired with the plans/[id].tsx loading-gate change to `!plan` only.)
 export function usePlanQuery(id: string) {
   return useQuery<PlanRow>({
     queryKey: plansKeys.detail(id),
@@ -61,6 +77,10 @@ export function usePlanQuery(id: string) {
       return PlanRowSchema.parse(data);
     },
     enabled: !!id,
+    initialData: () => {
+      const list = queryClient.getQueryData<PlanRow[]>(plansKeys.list());
+      return list?.find((p) => p.id === id);
+    },
   });
 }
 
