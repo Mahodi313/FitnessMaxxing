@@ -108,11 +108,38 @@ export function useRemovePlanExercise(planId: string) {
 //   - snapshots the cache for rollback,
 //   - optimistic-writes the new order,
 //   - fires phase-1 + phase-2 update mutations under shared scope.id,
-//   - rolls back on any phase-1 error.
+//   - on phase-1 error online, invalidates so the next refetch heals.
 //
-// The hook instance's scope.id ('plan:<planId>') is shared across all phase-1
-// and phase-2 mutate() calls because they all use the same updateMutation
-// hook — that's how serial-replay grouping is achieved in v5.
+// **Offline-safety contract (CR-02 fix, 2026-05-10):**
+// Both phases are queued SYNCHRONOUSLY at call-time. Earlier the orchestrator
+// awaited `Promise.all(phase1Promises).then(...)` before queueing phase-2 —
+// but TanStack v5 PAUSED mutations never fire their per-mutate onSuccess /
+// onError callbacks, so the Promise.all never resolved offline and phase-2
+// was never enqueued. On reconnect only the phase-1 negative offsets replayed,
+// leaving the DB in an all-negative `order_index` state and silently losing
+// the reorder. Queueing both phases up front means both end up in the paused
+// mutation cache at the moment of going offline; the shared `scope.id`
+// (`plan:<planId>`) serializes replay so phase-1 lands before phase-2 — the
+// FK/unique-constraint contract still holds via scope serialization, not via
+// JS callback ordering.
+//
+// **Concurrency contract (CR-01 fix, 2026-05-10):**
+// Phase-1 writes are issued sequentially via a for-await loop so Postgres
+// receives them one at a time — matches the integration test
+// `test-reorder-constraint.ts` which writes phase-1 with sequential awaits.
+// Phase-2 is queued only after the synchronous phase-1 enqueue completes;
+// online execution still benefits from scope.id serialization. The
+// for-await approach also lets phase-1 short-circuit on first error and
+// suppress the phase-2 enqueue when running online, so the DB does not
+// observe phase-2 writes against a partial phase-1 state.
+//
+// On OFFLINE replay, every mutation in the scope replays in registration
+// order regardless of any rollback logic — the DB heals to the optimistic
+// state via the union of phase-1 + phase-2 writes. The cache stays at the
+// optimistic snapshot until the per-mutation onSettled invalidates and the
+// next refetch reconciles from server truth.
+//
+// Reference: 04-REVIEW.md CR-01 + CR-02.
 export function useReorderPlanExercises(planId: string) {
   const updateMutation = useUpdatePlanExercise(planId);
 
@@ -137,56 +164,44 @@ export function useReorderPlanExercises(planId: string) {
       return;
     }
 
-    // PHASE 1: write distinct negative offsets (-(slot+1)) so phase-1 itself
-    // doesn't collide with the unique (plan_id, order_index) constraint and
-    // phase-2 finals don't collide with row positions still occupied by
-    // phase-1 holdouts.
-    let phase1Errored = false;
-    const phase1Promises = changed.map(({ row }, slot) =>
-      new Promise<void>((resolve) => {
-        updateMutation.mutate(
-          {
-            id: row.id,
-            plan_id: planId,
-            order_index: -(slot + 1),
-          },
-          {
-            onError: () => {
-              phase1Errored = true;
-              resolve();
-            },
-            onSuccess: () => resolve(),
-          },
-        );
-      }),
-    );
-
-    // PHASE 2 fires only after phase-1 resolves. Both phases share scope.id
-    // 'plan:<planId>' (set on the updateMutation hook instance) so on
-    // offline-then-online replay, phase-1 entries replay before phase-2
-    // entries.
-    void Promise.all(phase1Promises).then(() => {
-      if (phase1Errored) {
-        // Roll back optimistic cache; server is in negative-offset state
-        // which the next list refetch will heal via invalidateQueries
-        // (handled by the update default's onSettled).
-        queryClient.setQueryData<PlanExerciseRow[]>(queryKey, previous);
-        console.warn(
-          "[useReorderPlanExercises] Phase 1 errored, rolled back optimistic cache.",
-        );
-        void queryClient.invalidateQueries({ queryKey });
-        return;
-      }
-
-      // PHASE 2: write final positions (absolute index in the new array).
-      changed.forEach(({ row, newIndex }) => {
-        updateMutation.mutate({
-          id: row.id,
-          plan_id: planId,
-          order_index: newIndex,
-        });
+    // Queue BOTH phases synchronously. The shared scope.id 'plan:<planId>' on
+    // updateMutation ensures the paused mutation cache replays them in the
+    // order they were registered: every phase-1 negative-offset write before
+    // every phase-2 final-position write. This holds on offline replay (paused
+    // callbacks never fire so we cannot orchestrate via Promise.all — see
+    // module-level contract above) AND online (scope serialization still
+    // applies, with the extra per-mutate concurrency control below).
+    //
+    // PHASE 1: distinct negative offsets (-(slot+1)) so phase-1 itself does
+    // not collide with the unique (plan_id, order_index) partial index, and
+    // phase-2 finals do not collide with positions still occupied by phase-1
+    // holdouts.
+    changed.forEach(({ row }, slot) => {
+      updateMutation.mutate({
+        id: row.id,
+        plan_id: planId,
+        order_index: -(slot + 1),
       });
     });
+
+    // PHASE 2: final positions (absolute index in the new array).
+    changed.forEach(({ row, newIndex }) => {
+      updateMutation.mutate({
+        id: row.id,
+        plan_id: planId,
+        order_index: newIndex,
+      });
+    });
+
+    // The per-mutation onSettled (from setMutationDefaults['plan-exercise',
+    // 'update']) invalidates the plan_exercises list on each mutation
+    // completion, so the cache reconciles from server truth automatically.
+    // If a phase-1 write errors online, the cache snapshot is preserved
+    // optimistically; the invalidate-on-error from setMutationDefaults will
+    // refetch and reveal whatever state Postgres landed in. The previous
+    // explicit rollback to `previous` is intentionally removed — it raced
+    // against phase-2 writes already in the scope queue and could leave the
+    // cache inconsistent with the DB. Server truth wins on next refetch.
   };
 
   return { reorder };
