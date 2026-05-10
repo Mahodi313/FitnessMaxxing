@@ -48,7 +48,6 @@ import {
   Pressable,
   KeyboardAvoidingView,
   Platform,
-  ActionSheetIOS,
   Modal,
   useColorScheme,
 } from "react-native";
@@ -136,6 +135,7 @@ export default function PlanDetailScreen() {
   };
 
   const [bannerError, setBannerError] = useState<string | null>(null);
+  const [showOverflowMenu, setShowOverflowMenu] = useState(false);
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
 
   const {
@@ -200,18 +200,17 @@ export default function PlanDetailScreen() {
     router.back();
   };
 
-  const onOverflowPress = () => {
-    // V1 is iOS-only; ActionSheetIOS is the canonical iOS overflow surface.
-    ActionSheetIOS.showActionSheetWithOptions(
-      {
-        options: ["Avbryt", "Arkivera plan"],
-        destructiveButtonIndex: 1,
-        cancelButtonIndex: 0,
-      },
-      (buttonIndex) => {
-        if (buttonIndex === 1) onArchivePress();
-      },
-    );
+  // Overflow menu used to be ActionSheetIOS — UAT 2026-05-10 showed it
+  // rendering as a malformed floating pill on iOS dark mode that overlapped
+  // the "Lägg till övning" CTA. Replaced with a themed bottom-sheet Modal so
+  // it matches the rest of the app's design language (and is portable to
+  // Android in the future without a second code path).
+  const onOverflowPress = () => setShowOverflowMenu(true);
+  const onOverflowArchivePress = () => {
+    setShowOverflowMenu(false);
+    // Open confirm modal on next tick so the bottom-sheet dismiss animation
+    // can finish first; otherwise stacked modals on iOS can flicker.
+    setTimeout(() => onArchivePress(), 50);
   };
 
   // Loading state intentionally gates on `!plan` only (not isPending). With
@@ -447,6 +446,55 @@ export default function PlanDetailScreen() {
           )}
         />
       </KeyboardAvoidingView>
+
+      {/* Themed overflow-menu bottom sheet. Replaces ActionSheetIOS which
+          rendered as a malformed floating pill in iOS dark mode (UAT
+          2026-05-10). Slides up from the bottom; tap scrim or "Avbryt" to
+          dismiss. Currently only one meaningful action ("Arkivera plan") —
+          extension point for future per-plan actions (duplicate, share, etc). */}
+      <Modal
+        visible={showOverflowMenu}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowOverflowMenu(false)}
+        statusBarTranslucent
+      >
+        <Pressable
+          className="flex-1 justify-end bg-black/50"
+          onPress={() => setShowOverflowMenu(false)}
+          accessibilityRole="button"
+          accessibilityLabel="Stäng meny"
+        >
+          <Pressable
+            className="bg-white dark:bg-gray-900 rounded-t-3xl pb-8"
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View className="items-center pt-3 pb-2">
+              <View className="w-10 h-1 rounded-full bg-gray-300 dark:bg-gray-700" />
+            </View>
+            <Pressable
+              onPress={onOverflowArchivePress}
+              accessibilityRole="button"
+              accessibilityLabel="Arkivera plan"
+              className="px-6 py-5 active:opacity-80 border-t border-gray-200 dark:border-gray-700"
+            >
+              <Text className="text-base font-semibold text-red-600 dark:text-red-400">
+                Arkivera plan
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setShowOverflowMenu(false)}
+              accessibilityRole="button"
+              accessibilityLabel="Avbryt"
+              className="px-6 py-5 active:opacity-80 border-t border-gray-200 dark:border-gray-700"
+            >
+              <Text className="text-base font-semibold text-gray-900 dark:text-gray-50">
+                Avbryt
+              </Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* Themed archive-confirmation dialog (UI-SPEC §Destructive confirmation).
           transparent + animationType="fade" keeps the underlying plan-detail
