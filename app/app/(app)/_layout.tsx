@@ -47,6 +47,14 @@ export default function AppLayout() {
         // default white. UAT 2026-05-10: noticed a white flash on swipe-back
         // from the picker modal to plan-detail.
         contentStyle: { backgroundColor: isDark ? "#111827" : "#FFFFFF" },
+        // freezeOnBlur unmounts the JS subscriptions of off-screen stack
+        // siblings, freeing the JS thread during transitions. UAT 2026-05-10:
+        // navigation felt "60Hz" on a ProMotion iPhone — the underlying
+        // native animation IS 120Hz capable (Expo Go has
+        // CADisableMinimumFrameDurationOnPhone enabled) but background-screen
+        // useEffect/query-subscription work was stealing frames. Pairs with
+        // the same Info.plist key now set in app.json for production builds.
+        freezeOnBlur: true,
       }}
     />
   );
