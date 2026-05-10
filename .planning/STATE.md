@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Phase 4 context gathered (4 areas, 18 decisions, ready for /gsd-plan-phase 4)
-last_updated: "2026-05-09T20:15:00Z"
-last_activity: 2026-05-09 -- Phase 04 discuss-phase complete; CONTEXT.md committed on gsd/phase-04-plans-exercises-offline-queue-plumbing
+stopped_at: Phase 4 UI-SPEC approved (6/6 dimensions PASS, ready for /gsd-plan-phase 4)
+last_updated: "2026-05-10T00:00:00Z"
+last_activity: 2026-05-10 -- Phase 04 UI-SPEC approved by gsd-ui-checker; 04-UI-SPEC.md committed on gsd/phase-04-plans-exercises-offline-queue-plumbing
 progress:
   total_phases: 7
   completed_phases: 3
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-05-07)
 
 Phase: 4
 Plan: Not started
-Status: Context gathered — ready to plan
-Last activity: 2026-05-09 -- Phase 04 discuss-phase complete (4 areas, 18 decisions captured)
+Status: UI-SPEC approved — ready to plan
+Last activity: 2026-05-10 -- Phase 04 UI-SPEC approved (6/6 dimensions PASS, 18 CONTEXT decisions reflected)
 
 Progress: [████░░░░░░] 43%  (3/7 phases complete; Phase 4-7 plan counts TBD)
 
@@ -99,7 +99,7 @@ Items acknowledged for later:
 
 ## Session Continuity
 
-Last session: 2026-05-09T20:15:00Z
-Stopped at: Phase 4 context gathered (CONTEXT.md committed on gsd/phase-04 branch)
-Resume file: .planning/phases/04-plans-exercises-offline-queue-plumbing/04-CONTEXT.md
-Next: `/gsd-plan-phase 4` (research → PLAN.md per ROADMAP success criteria #1–#5)
+Last session: 2026-05-10T00:00:00Z
+Stopped at: Phase 4 UI-SPEC approved (04-UI-SPEC.md committed on gsd/phase-04 branch)
+Resume file: .planning/phases/04-plans-exercises-offline-queue-plumbing/04-UI-SPEC.md
+Next: `/gsd-plan-phase 4` (research → PLAN.md per ROADMAP success criteria #1–#5; planner consumes 04-CONTEXT.md + 04-UI-SPEC.md as design context)
