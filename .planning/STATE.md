@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 4 Plan 03 complete — plan-detail + exercise-picker (chained create-and-add) + plan_exercise targets edit modal; F2 EDIT/ARCHIVE + F3 + F4 ADD-side closed
-last_updated: "2026-05-10T18:18:16.000Z"
-last_activity: 2026-05-10 -- Phase 4 Plan 03 complete
+stopped_at: Phase 4 awaiting manual airplane-mode UAT — Plan 04-04 Tasks 1-3 complete (DraggableFlatList integration + test-rls Phase 4 extensions + manual-test-phase-04-airplane-mode.md checklist); Task 4 is checkpoint:human-verify on real iPhone via Expo Go
+last_updated: "2026-05-10T20:30:00.000Z"
+last_activity: 2026-05-10 -- Phase 4 Plan 04 Tasks 1-3 complete (awaiting manual UAT)
 progress:
   total_phases: 7
   completed_phases: 3
@@ -114,7 +114,7 @@ Items acknowledged for later:
 
 ## Session Continuity
 
-Last session: 2026-05-10T18:18:16Z
-Stopped at: Phase 4 Plan 03 complete (plan-detail + exercise-picker chained create-and-add + plan_exercise targets edit modal — F2 EDIT/ARCHIVE + F3 + F4 ADD-side closed)
-Resume file: .planning/phases/04-plans-exercises-offline-queue-plumbing/04-03-SUMMARY.md
-Next: Execute Plan 04-04 (drag-to-reorder integration in plans/[id].tsx — swap FlatList for DraggableFlatList from `react-native-draggable-flatlist`, add drag-handle column to PlanExerciseRow, wire useReorderPlanExercises(planId).reorder in onDragEnd; manual airplane-mode-test checklist for Phase 4 success #4). Plan 04-04 may also drop the now-inert `as Href` casts in (tabs)/index.tsx + plans/new.tsx (Expo Router typed-routes regenerator picks up the now-shipped plans/[id].tsx route on next `expo start`) and optionally extend usePlanExercisesQuery's queryFn with `select('*, exercises ( name )')` so PlanExerciseRow renders the joined exercise.name instead of the V1 exercise_id-derived fallback label.
+Last session: 2026-05-10T20:30:00Z
+Stopped at: Phase 4 awaiting manual airplane-mode UAT — Plan 04-04 Tasks 1-3 complete (drag-reorder integration + test-rls Phase 4 extensions + manual UAT checklist); Task 4 is checkpoint:human-verify on real iPhone via Expo Go.
+Resume file: app/scripts/manual-test-phase-04-airplane-mode.md (the checklist user must run)
+Next: User runs the manual checklist on iPhone → reply with `approved` (all 6 steps pass) OR describe issues with step number + observed-vs-expected. On approval, continuation agent writes 04-04-SUMMARY.md, advances STATE.md (Phase 4 → COMPLETE), runs `/gsd-secure-phase 4` to close threat register, and `/gsd-verify-work 4` to write 04-VERIFICATION.md.
