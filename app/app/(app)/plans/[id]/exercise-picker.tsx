@@ -48,6 +48,7 @@ import {
   ScrollView,
   useColorScheme,
 } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -123,48 +124,56 @@ export default function ExercisePicker() {
     defaultValues: { name: "", muscle_group: "", equipment: "", notes: "" },
   });
 
-  const onCreateAndAdd = async (input: ExerciseFormInput) => {
+  const onCreateAndAdd = (input: ExerciseFormInput) => {
     if (!userId || !planId) {
       setBannerError("Du måste vara inloggad.");
       return;
     }
     setBannerError(null);
     const exerciseId = randomUUID();
-    try {
-      // Both mutations share scope.id='plan:<planId>' (set on the hook
-      // instance — see file header). On offline replay, TanStack v5
-      // serializes mutations within a scope so this create lands BEFORE
-      // the chained add-to-plan (FK safety per RESEARCH §5).
-      await createExercise.mutateAsync({
+    // Both mutations share scope.id='plan:<planId>' (set on hook instances).
+    // TanStack v5 serializes mutations within a scope, so on offline replay
+    // create lands BEFORE add (FK safety per RESEARCH §5). Firing both with
+    // mutate (not mutateAsync) returns immediately so we can router.back()
+    // even when offline — UAT 2026-05-10 regression: mutateAsync stalled
+    // "Skapa & lägg till" forever in airplane mode.
+    createExercise.mutate(
+      {
         id: exerciseId,
         user_id: userId,
         name: input.name,
         muscle_group: input.muscle_group ?? null,
         equipment: input.equipment ?? null,
         notes: input.notes ?? null,
-      });
-      addExerciseToPlan.mutate({
-        id: randomUUID(),
-        plan_id: planId,
-        exercise_id: exerciseId,
-        order_index: maxOrderIndex + 1,
-      });
-      reset();
-      router.back();
-    } catch {
-      setBannerError("Något gick fel. Försök igen.");
-    }
+      },
+      { onError: () => setBannerError("Något gick fel. Försök igen.") },
+    );
+    addExerciseToPlan.mutate({
+      id: randomUUID(),
+      plan_id: planId,
+      exercise_id: exerciseId,
+      order_index: maxOrderIndex + 1,
+    });
+    reset();
+    router.back();
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white dark:bg-gray-900">
-      <Stack.Screen
-        options={{
-          presentation: "modal",
-          title: "Lägg till övning",
-          headerShown: true,
-        }}
-      />
+    // Modal screens are presented in a separate native UIViewController on
+    // iOS, which does NOT inherit the root <GestureHandlerRootView> from
+    // app/_layout.tsx. Each modal must wrap its own content. UAT 2026-05-10:
+    // tapping "Lägg till övning" threw "GestureDetector must be used as a
+    // descendant of GestureHandlerRootView" until this wrapper landed.
+    // https://docs.swmansion.com/react-native-gesture-handler/docs/fundamentals/installation
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaView className="flex-1 bg-white dark:bg-gray-900">
+        <Stack.Screen
+          options={{
+            presentation: "modal",
+            title: "Lägg till övning",
+            headerShown: true,
+          }}
+        />
       <KeyboardAvoidingView
         className="flex-1"
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -384,7 +393,8 @@ export default function ExercisePicker() {
             />
           </View>
         )}
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </GestureHandlerRootView>
   );
 }

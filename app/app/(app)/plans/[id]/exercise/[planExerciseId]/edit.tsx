@@ -40,6 +40,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useForm, Controller } from "react-hook-form";
@@ -106,9 +107,14 @@ export default function PlanExerciseEditScreen() {
     }
   }, [planExercise, reset]);
 
-  const onSave = async (input: PlanExerciseFormInput) => {
+  const onSave = (input: PlanExerciseFormInput) => {
     if (!planId || !planExerciseId) return;
-    await updatePlanExercise.mutateAsync({
+    // mutate (not mutateAsync) — paused offline mutations don't resolve
+    // mutateAsync, leaving "Sparar…" stuck forever in airplane mode (UAT
+    // regression 2026-05-10). The optimistic onMutate in Plan 01's
+    // setMutationDefaults updates the cache instantly so router.back() lands
+    // on plan-detail with the new targets already visible.
+    updatePlanExercise.mutate({
       id: planExerciseId,
       // plan_id is REQUIRED for scope.id='plan:<planId>' on the mutationFn
       // (Plan 04-01 setMutationDefaults throws when missing). The default's
@@ -124,14 +130,18 @@ export default function PlanExerciseEditScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white dark:bg-gray-900">
-      <Stack.Screen
-        options={{
-          presentation: "modal",
-          title: "Redigera mål",
-          headerShown: true,
-        }}
-      />
+    // Modal screens require their own GestureHandlerRootView — root wrapper in
+    // app/_layout.tsx does not propagate into iOS modal UIViewControllers.
+    // UAT 2026-05-10 (paired fix with exercise-picker.tsx).
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaView className="flex-1 bg-white dark:bg-gray-900">
+        <Stack.Screen
+          options={{
+            presentation: "modal",
+            title: "Redigera mål",
+            headerShown: true,
+          }}
+        />
       <KeyboardAvoidingView
         className="flex-1"
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -247,7 +257,8 @@ export default function PlanExerciseEditScreen() {
             </Text>
           </Pressable>
         </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </GestureHandlerRootView>
   );
 }

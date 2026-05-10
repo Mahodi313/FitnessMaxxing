@@ -148,19 +148,23 @@ export default function PlanDetailScreen() {
 
   const planNameTruncated = (plan?.name ?? "").slice(0, 24);
 
-  const onSaveMeta = async (input: PlanFormInput) => {
+  const onSaveMeta = (input: PlanFormInput) => {
     if (!plan) return;
     setBannerError(null);
-    try {
-      await updatePlan.mutateAsync({
+    // mutate (not mutateAsync) so the call returns synchronously even when
+    // the mutation is paused under networkMode: 'offlineFirst'. The optimistic
+    // onMutate in Plan 01's setMutationDefaults updates the cache so the form
+    // is instantly correct. UAT 2026-05-10 regression: mutateAsync left
+    // "Sparar…" stuck forever in airplane mode.
+    updatePlan.mutate(
+      {
         id: plan.id,
         name: input.name,
         description: input.description ?? null,
-      });
-      reset({ name: input.name, description: input.description ?? "" });
-    } catch {
-      setBannerError("Något gick fel. Försök igen.");
-    }
+      },
+      { onError: () => setBannerError("Något gick fel. Försök igen.") },
+    );
+    reset({ name: input.name, description: input.description ?? "" });
   };
 
   const onArchivePress = () => {
@@ -173,13 +177,17 @@ export default function PlanDetailScreen() {
         {
           text: "Arkivera",
           style: "destructive",
-          onPress: async () => {
-            try {
-              await archivePlan.mutateAsync({ id: plan.id });
-              router.back();
-            } catch {
-              setBannerError("Kunde inte arkivera. Försök igen.");
-            }
+          onPress: () => {
+            archivePlan.mutate(
+              { id: plan.id },
+              {
+                onError: () =>
+                  setBannerError("Kunde inte arkivera. Försök igen."),
+              },
+            );
+            // Navigate immediately — optimistic onMutate already removed the
+            // row from the active-plans cache. Works offline (queued).
+            router.back();
           },
         },
       ],
@@ -218,8 +226,8 @@ export default function PlanDetailScreen() {
         options={{
           headerShown: true,
           title: planNameTruncated,
-          headerStyle: { backgroundColor: isDark ? "#111827" : "#FFFFFF" },
-          headerTintColor: isDark ? "#F9FAFB" : "#111827",
+          // headerStyle / headerTintColor / headerBackButtonDisplayMode are
+          // inherited from (app)/_layout.tsx screenOptions (UAT 2026-05-10).
           headerRight: () => (
             <Pressable
               onPress={onOverflowPress}

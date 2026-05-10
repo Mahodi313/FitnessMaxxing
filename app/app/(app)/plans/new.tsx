@@ -23,18 +23,20 @@
 // per-screen header opt-in (CLAUDE.md ## Conventions). Back-arrow is
 // auto-rendered; no in-screen "Avbryt" button per UI-SPEC §"Cancel/back link".
 //
-// Submit flow:
-//   - On valid submit, generate UUID client-side, call createPlan.mutateAsync
-//     with id + user_id (from auth-store) + name + (description ?? null).
-//   - On success: router.replace(`/plans/${id}`) — Plan 04-03 owns that
-//     route. Until Plan 04-03 ships the navigation 404s, but the row is
-//     already in the cache via optimistic update so no data is lost.
-//   - On offline: setMutationDefaults pauses the mutation (networkMode:
-//     'offlineFirst'); mutateAsync resolves once optimistic-update fires
-//     so we still navigate. The OfflineBanner up the tree communicates
-//     queue state.
-//   - On online error: setMutationDefaults onError rolls back; we surface
-//     a banner with "Något gick fel. Försök igen."
+// Submit flow (offline-safe — Phase 4 manual UAT 2026-05-10):
+//   - On valid submit, generate UUID client-side, call createPlan.mutate (NOT
+//     mutateAsync) with id + user_id + name + (description ?? null).
+//   - mutate returns synchronously; the optimistic onMutate inside Plan 01's
+//     setMutationDefaults has already written the row to the cache, so we
+//     navigate immediately to /plans/[id]. Works identically online and
+//     offline — under networkMode: 'offlineFirst' the mutation is paused and
+//     queued, but the cache is correct from the first ms so the user sees
+//     their plan instantly.
+//   - mutateAsync was used originally but it does NOT resolve while a
+//     mutation is paused — pressing "Skapa plan" in airplane mode left the
+//     button stuck on "Skapar plan…" forever (UAT regression). mutate +
+//     onError surfaces server-side errors when online; offline rollback is
+//     not needed because paused mutations don't error.
 //
 // References:
 //   - 04-CONTEXT.md D-05, D-06, D-07
@@ -81,30 +83,26 @@ export default function NewPlanScreen() {
     defaultValues: { name: "", description: "" },
   });
 
-  const onSubmit = async (input: PlanFormInput) => {
+  const onSubmit = (input: PlanFormInput) => {
     if (!userId) {
       setBannerError("Du måste vara inloggad för att skapa en plan.");
       return;
     }
     setBannerError(null);
     const id = randomUUID();
-    try {
-      await createPlan.mutateAsync({
+    createPlan.mutate(
+      {
         id,
         user_id: userId,
         name: input.name,
         description: input.description ?? null,
-      });
-      // Navigate even when offline — optimistic insert already populated
-      // the cache so /plans/[id] (Plan 04-03) renders the row immediately.
-      router.replace(`/plans/${id}` as Href);
-    } catch {
-      // Online error: setMutationDefaults onError already rolled back the
-      // optimistic state. Offline mutations are paused (networkMode:
-      // 'offlineFirst') and don't throw — they queue and replay on
-      // reconnect. So this catch only fires on actual server-side errors.
-      setBannerError("Något gick fel. Försök igen.");
-    }
+      },
+      { onError: () => setBannerError("Något gick fel. Försök igen.") },
+    );
+    // Optimistic onMutate in Plan 01's setMutationDefaults has already written
+    // the row to the cache — navigate immediately. Works online (mutation
+    // runs in bg) and offline (paused & queued; replays on reconnect).
+    router.replace(`/plans/${id}` as Href);
   };
 
   return (
