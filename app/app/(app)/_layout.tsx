@@ -1,6 +1,7 @@
 // app/app/(app)/_layout.tsx
 //
 // Phase 3: route-group layout for the authenticated surface.
+// Phase 4 (UAT 2026-05-10): centralised header styling + minimal back-button.
 //
 // Defense-in-depth (RESEARCH.md Pattern 4 + ROADMAP success criterion #5):
 // even with root <Stack.Protected guard={!!session}>, this layer ALSO checks
@@ -11,16 +12,36 @@
 // Selector usage (CONTEXT.md D-10): narrow useAuthStore selector limits this
 // component's re-renders to session changes only — not status changes.
 //
-// Header convention (CLAUDE.md ## Conventions → Navigation): bare Stack with
-// headerShown:false. Real (app) screens opt headers in per-screen via
-// <Stack.Screen options={{ headerShown: true, ... }} /> as they're built.
+// Header convention (CLAUDE.md ## Conventions → Navigation):
+//   - headerShown defaults to false. Real (app) screens opt in per-screen via
+//     <Stack.Screen options={{ headerShown: true, title: "..." }} />.
+//   - When a screen opts in, it inherits headerStyle/headerTintColor/title
+//     style from this layout's screenOptions so light/dark surfaces stay
+//     consistent (UAT 2026-05-10: plans/new.tsx had a system-default white
+//     header while plans/[id].tsx had a dark-aware one — visible mismatch).
+//   - headerBackButtonDisplayMode: 'minimal' hides the auto-prepended route
+//     name on iOS so navigating from (tabs)/index → plans/[id] no longer
+//     shows "(tabs)" as the back-button label (UAT 2026-05-10).
+import { useColorScheme } from "react-native";
 import { Redirect, Stack } from "expo-router";
 import { useAuthStore } from "@/lib/auth-store";
 
 export default function AppLayout() {
   const session = useAuthStore((s) => s.session);
+  const scheme = useColorScheme();
+  const isDark = scheme === "dark";
   if (!session) {
     return <Redirect href="/(auth)/sign-in" />;
   }
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return (
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        headerStyle: { backgroundColor: isDark ? "#111827" : "#FFFFFF" },
+        headerTintColor: isDark ? "#F9FAFB" : "#111827",
+        headerTitleStyle: { color: isDark ? "#F9FAFB" : "#111827" },
+        headerBackButtonDisplayMode: "minimal",
+      }}
+    />
+  );
 }
