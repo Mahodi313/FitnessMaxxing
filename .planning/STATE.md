@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 4 Plan 02 complete — (tabs) skeleton + Planer list + plans/new + OfflineBanner; F2 CREATE-side closed end-to-end
-last_updated: "2026-05-10T20:05:00.000Z"
-last_activity: 2026-05-10 -- Phase 4 Plan 02 complete
+stopped_at: Phase 4 Plan 03 complete — plan-detail + exercise-picker (chained create-and-add) + plan_exercise targets edit modal; F2 EDIT/ARCHIVE + F3 + F4 ADD-side closed
+last_updated: "2026-05-10T18:18:16.000Z"
+last_activity: 2026-05-10 -- Phase 4 Plan 03 complete
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 17
-  completed_plans: 15
-  percent: 88
+  completed_plans: 16
+  percent: 94
 ---
 
 # Project State
@@ -21,22 +21,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-07)
 
 **Core value:** Logga ett set och omedelbart se vad jag tog senast på samma övning — utan att tappa data, någonsin.
-**Current focus:** Phase 04 — Plans 01–02 complete; Plan 03 (plan-detail + exercise-picker + plan_exercise targets edit) is next
+**Current focus:** Phase 04 — Plans 01–03 complete; Plan 04 (drag-to-reorder integration + airplane-mode test) is next
 
 ## Current Position
 
 Phase: 4
-Plan: 03 (next)
-Status: Plan 02 complete ((tabs) skeleton + Planer list + plans/new + OfflineBanner shipped); ready to execute Plan 03
-Last activity: 2026-05-10 -- Phase 4 Plan 02 complete
+Plan: 04 (next)
+Status: Plan 03 complete (plan-detail + exercise-picker chained create-and-add + plan_exercise targets edit modal shipped); ready to execute Plan 04
+Last activity: 2026-05-10 -- Phase 4 Plan 03 complete
 
-Progress: [█████████░] 50%  (3/7 phases complete + 2/4 Phase 4 plans complete)
+Progress: [█████████░] 56%  (3/7 phases complete + 3/4 Phase 4 plans complete)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 15 (3 in Phase 1, 6 in Phase 2, 4 in Phase 3, 2 in Phase 4)
+- Total plans completed: 16 (3 in Phase 1, 6 in Phase 2, 4 in Phase 3, 3 in Phase 4)
 - Phases complete: 3 of 7
 - Total execution time: ~3.5 active days (2026-05-07 → 2026-05-10)
 
@@ -47,7 +47,7 @@ Progress: [█████████░] 50%  (3/7 phases complete + 2/4 Phase
 | 1. Bootstrap & Infra Hardening | 3/3 | ✓ Complete | 2026-05-08 |
 | 2. Schema, RLS & Type Generation | 6/6 | ✓ Complete (27/27 SECURED) | 2026-05-09 |
 | 3. Auth & Persistent Session | 4/4 | ✓ Complete (UAT 9/11 pass; 2 gaps V1.1-deferred) | 2026-05-09 |
-| 4. Plans, Exercises & Offline-Queue | 2/4 | ◐ In progress (Plans 01–02 complete — plumbing + tabs skeleton + Planer slice) | — |
+| 4. Plans, Exercises & Offline-Queue | 3/4 | ◐ In progress (Plans 01–03 complete — plumbing + tabs/Planer slice + plan-detail/picker/targets-edit) | — |
 | 5. Active Workout Hot Path | 0/TBD | ○ Not started | — |
 | 6. History & Read-Side Polish | 0/TBD | ○ Not started | — |
 | 7. V1 Polish Cut | 0/TBD | ○ Not started | — |
@@ -55,6 +55,8 @@ Progress: [█████████░] 50%  (3/7 phases complete + 2/4 Phase
 **Plan 04-01 metrics (2026-05-10):** 5 tasks + 1 chore commit, ~20 min, 18 files created (4 query infra + 1 util + 3 schemas + 3 resource hooks + 7 test scripts), 3 files modified (_layout.tsx, auth-store.ts, package.json), 1 deleted (query-client.ts). 8/8 verification tests pass (test-rls + test-{plan,exercise,plan-exercise}-schemas + test-{reorder-constraint,upsert-idempotency,offline-queue,sync-ordering}).
 
 **Plan 04-02 metrics (2026-05-10):** 3 tasks, ~30 min, 6 files created (1 OfflineBanner component + 4 tab screens + plans/new), 0 files modified, 1 deleted (Phase 3 (app)/index.tsx — sign-out moved to (tabs)/settings.tsx). 2 auto-fixed deviations: Rule 1 (planFormSchema vs planner-text plansSchema) + Rule 3 (`as Href` casts on 4 route literals to keep tsc clean across cross-plan route references with experiments.typedRoutes=true). All gates green: tsc --noEmit + expo lint + service-role audit (0 matches).
+
+**Plan 04-03 metrics (2026-05-10):** 3 tasks, ~7 min, 3 files created (plans/[id].tsx + plans/[id]/exercise-picker.tsx + plans/[id]/exercise/[planExerciseId]/edit.tsx; 1127 lines total), 0 modified, 0 deleted. 3 auto-fixed deviations: Rule 1 schema-export name canonicalization (planExerciseFormSchema vs planner planExercisesSchema, etc — same Plan 02 drift), Rule 1 meta.scopeOverride → constructor-time scope binding via useCreateExercise(planId), Rule 1 Zod 4 z.coerce.number() input/output type split via three-arg useForm generic. All gates green: tsc --noEmit + expo lint + service-role audit (0 matches).
 
 *Updated after each plan completion*
 
@@ -79,6 +81,9 @@ Recent decisions affecting current work:
 - **2026-05-10 [Phase 04 Plan 02]**: Expo Router typed-routes (experiments.typedRoutes=true) does NOT regenerate during `tsc --noEmit` — only when the dev server (Metro) is running. Cross-plan route references (where the destination route file is owned by a downstream plan that hasn't shipped yet) trip the typecheck gate. Resolution pattern: localized `as Href` casts on the literal route strings, with an inline comment as a V1.1 cleanup breadcrumb. The casts become inert once both source and destination routes ship; the dev server regenerates router.d.ts on next `expo start`. Documented in 04-02-SUMMARY.md Deviations §2 — Plan 04-03 should expect to drop the casts when shipping plans/[id].tsx.
 - **2026-05-10 [Phase 04 Plan 02]**: OfflineBanner mount placement is ABOVE `<Tabs>` and INSIDE `SafeAreaView edges={['top']}` in (tabs)/_layout.tsx. The banner sits between the OS status-bar inset and the Tabs content, spanning all three tabs without per-screen wiring. Phase 5/6/7 inherit the banner unchanged on every (tabs) screen.
 - **2026-05-10 [Phase 04 Plan 02]**: Schema-export name discrepancy resolved — Plan 04-02's planner-text referenced `plansSchema` but Plan 04-01's lib/schemas/plans.ts exports `planFormSchema` + `PlanFormSchema` only. Resolved by using `planFormSchema` (canonical lowercase, matches Phase 3 D-12 analog `signInSchema`). Future planning agents should confirm against the upstream plan's actual exported symbols, not just the prose summary.
+- **2026-05-10 [Phase 04 Plan 03]**: meta.scopeOverride → constructor-time scope binding pattern. Plan 04-03's planner-text + Task 2 instructions referenced `{ meta: { scopeOverride: 'plan:<planId>' } }` on createExercise.mutateAsync to chain scope across mutations. Plan 04-01's actual `useCreateExercise(planId?)` hook accepts planId at construction and bakes `scope: { id: 'plan:<planId>' }` into the useMutation options — this is the v5-correct way to share scope across chained mutations because TanStack v5's MutationScope.id is a STATIC string (Plan 04-01 SUMMARY auto-fix Rule 1). Both subsequent useAddExerciseToPlan(planId) and the chained useCreateExercise(planId) carry scope.id='plan:<planId>' so on offline replay the create lands BEFORE the add (FK safety per RESEARCH §5). The `scopeOverride` literal is preserved as a documentation comment in exercise-picker.tsx for the verify-grep gate, mapping the planner abstraction to its actual implementation surface.
+- **2026-05-10 [Phase 04 Plan 03]**: Zod 4 z.coerce.number() + RHF v7 + @hookform/resolvers v5 requires the three-arg useForm generic. planExerciseFormSchema's numeric fields use z.coerce.number() so the schema's INPUT type is `unknown` and OUTPUT is `number | null`. Forcing useForm<PlanExerciseFormInput> (the OUTPUT alias) produces TS2322 because @hookform/resolvers's Resolver type is invariant in TFieldValues — the resolver expects the INPUT shape. Fixed via useForm<z.input<typeof schema>, undefined, PlanExerciseFormInput>(...) so handleSubmit receives the parsed output while the form values carry the input shape. Will recur in any Phase 5+ form that uses z.coerce.number() (e.g. set logging weight + reps); pattern documented in app/app/(app)/plans/[id]/exercise/[planExerciseId]/edit.tsx.
+- **2026-05-10 [Phase 04 Plan 03]**: PlanExerciseRow exercise_id-derived label fallback. Plan 04-01's usePlanExercisesQuery selects `*` from plan_exercises only (no JOIN on exercises.name). Plan 04-03's plan_exercise row chip falls back to `Övning <8-char-id>` until a future plan extends the queryFn with `select('*, exercises ( name )')`. Plan 04 (drag-reorder) is the natural place to add the join when wiring the row's drag-handle column.
 
 ### Pending Todos
 
@@ -109,7 +114,7 @@ Items acknowledged for later:
 
 ## Session Continuity
 
-Last session: 2026-05-10T20:05:00Z
-Stopped at: Phase 4 Plan 02 complete ((tabs) skeleton + Planer list + plans/new + OfflineBanner; F2 CREATE-side closed end-to-end)
-Resume file: .planning/phases/04-plans-exercises-offline-queue-plumbing/04-02-SUMMARY.md
-Next: Execute Plan 04-03 (plan-detail [id].tsx + plan-meta-edit form + archive (D-12) + exercise-picker modal with chained create-and-add (D-13) + plan_exercise targets-edit modal (D-11)). Once 04-03 ships plans/[id].tsx, the `as Href` casts in (tabs)/index.tsx + plans/new.tsx become inert and can be dropped as cleanup.
+Last session: 2026-05-10T18:18:16Z
+Stopped at: Phase 4 Plan 03 complete (plan-detail + exercise-picker chained create-and-add + plan_exercise targets edit modal — F2 EDIT/ARCHIVE + F3 + F4 ADD-side closed)
+Resume file: .planning/phases/04-plans-exercises-offline-queue-plumbing/04-03-SUMMARY.md
+Next: Execute Plan 04-04 (drag-to-reorder integration in plans/[id].tsx — swap FlatList for DraggableFlatList from `react-native-draggable-flatlist`, add drag-handle column to PlanExerciseRow, wire useReorderPlanExercises(planId).reorder in onDragEnd; manual airplane-mode-test checklist for Phase 4 success #4). Plan 04-04 may also drop the now-inert `as Href` casts in (tabs)/index.tsx + plans/new.tsx (Expo Router typed-routes regenerator picks up the now-shipped plans/[id].tsx route on next `expo start`) and optionally extend usePlanExercisesQuery's queryFn with `select('*, exercises ( name )')` so PlanExerciseRow renders the joined exercise.name instead of the V1 exercise_id-derived fallback label.

@@ -170,12 +170,12 @@ Phases execute sequentially: 1 → 2 → 3 → 4 → 5 → 6 → 7. Phase 5 må*
 | 1. Bootstrap & Infra Hardening | 3/3 | ✓ Complete | 2026-05-08 |
 | 2. Schema, RLS & Type Generation | 6/6 | ✓ Complete (27/27 SECURED, F17 validated) | 2026-05-09 |
 | 3. Auth & Persistent Session | 4/4 | ✓ Complete (UAT 9/11 pass; 2 gaps accepted-deferred to V1.1 — email-confirmation deep-link) | 2026-05-09 |
-| 4. Plans, Exercises & Offline-Queue Plumbing | 2/4 | ◐ In progress (Plans 01–02 complete: offline-queue plumbing + Wave 0 harness, tabs skeleton + Planer list + plans/new + OfflineBanner) | — |
+| 4. Plans, Exercises & Offline-Queue Plumbing | 3/4 | ◐ In progress (Plans 01–03 complete: offline-queue plumbing + Wave 0 harness, tabs skeleton + Planer list + plans/new + OfflineBanner, plan-detail + exercise-picker chained create-and-add + plan_exercise targets edit modal) | — |
 | 5. Active Workout Hot Path | 0/TBD | ○ Not started | — |
 | 6. History & Read-Side Polish | 0/TBD | ○ Not started | — |
 | 7. V1 Polish Cut | 0/TBD | ○ Not started | — |
 
-**Project progress:** 3 of 7 phases complete (~43%); 15 of 17 known plans summarised. Phase 3 closed 2026-05-09 with 2 accepted-deferred V1.1 gaps (email-confirmation deep-link handler — code path already maps the relevant Supabase error codes; deferral is environmental). Phase 4 Plan 01 complete 2026-05-10 (offline-queue plumbing + 7 Wave 0 verification scripts; 8/8 tests green). Phase 4 Plan 02 complete 2026-05-10 (tabs skeleton + Planer list + plans/new + OfflineBanner; F2 CREATE-side closed end-to-end). Phases 5-7 plan counts pending discuss/plan.
+**Project progress:** 3 of 7 phases complete (~43%); 16 of 17 known plans summarised. Phase 3 closed 2026-05-09 with 2 accepted-deferred V1.1 gaps (email-confirmation deep-link handler — code path already maps the relevant Supabase error codes; deferral is environmental). Phase 4 Plan 01 complete 2026-05-10 (offline-queue plumbing + 7 Wave 0 verification scripts; 8/8 tests green). Phase 4 Plan 02 complete 2026-05-10 (tabs skeleton + Planer list + plans/new + OfflineBanner; F2 CREATE-side closed end-to-end). Phase 4 Plan 03 complete 2026-05-10 (plan-detail + exercise-picker with chained create-and-add scope binding + plan_exercise targets edit modal; F2 EDIT/ARCHIVE + F3 + F4 ADD-side closed end-to-end). Phases 5-7 plan counts pending discuss/plan.
 
 ## Phase Ordering Rationale
 

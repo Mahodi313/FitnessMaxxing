@@ -16,13 +16,14 @@ Krav för initial release. Mappade till roadmap-faser i Traceability-sektionen.
 
 ### Workout Plans
 
-- [ ] **F2**: Användare kan skapa, redigera och ta bort träningsplaner
+- [x] **F2**: Användare kan skapa, redigera och ta bort träningsplaner — Phase 4 Plans 02–03: CREATE side via plans/new (Plan 02), EDIT via plan-detail meta-form (Plan 03), DELETE via archive flow (ActionSheetIOS → Alert.alert destructive confirm → useArchivePlan; usePlansQuery filters archived_at IS NULL).
 - [ ] **F4**: Användare kan lägga till och ordna om övningar i en plan
   - Acceptans: drag-att-ordna; ändringar persisterar offline och synkar vid återanslutning
+  - **Status:** ADD side complete (Phase 4 Plan 03 — exercise-picker chained create-and-add); reorder side pending Plan 04-04
 
 ### Exercise Library
 
-- [ ] **F3**: Användare kan skapa egna övningar (ingen förladdad seed i V1)
+- [x] **F3**: Användare kan skapa egna övningar (ingen förladdad seed i V1) — Phase 4 Plan 03: exercise-picker inline create-form (namn + muskelgrupp + utrustning + anteckningar) chained to add-to-plan under shared scope.id='plan:<planId>' for FK-safe offline replay (RESEARCH §5).
   - Acceptans: namn, muskelgrupp, utrustning, anteckningar; visas i bibliotek vid plan-edit
 
 ### Active Workout (kärnflöde)
@@ -129,9 +130,9 @@ Vilka faser täcker vilka krav. Mappad av roadmap-skapandet 2026-05-07.
 | Krav | Fas | Status |
 |------|-----|--------|
 | F1 (registrering + login) | Phase 3 — Auth & Persistent Session | Pending |
-| F2 (planer CRUD) | Phase 4 — Plans, Exercises & Offline-Queue Plumbing | Pending |
-| F3 (egna övningar) | Phase 4 — Plans, Exercises & Offline-Queue Plumbing | Pending |
-| F4 (ordna övningar i plan) | Phase 4 — Plans, Exercises & Offline-Queue Plumbing | Pending |
+| F2 (planer CRUD) | Phase 4 — Plans, Exercises & Offline-Queue Plumbing | Complete 2026-05-10 (Plans 02–03) |
+| F3 (egna övningar) | Phase 4 — Plans, Exercises & Offline-Queue Plumbing | Complete 2026-05-10 (Plan 03 picker chained create-and-add) |
+| F4 (ordna övningar i plan) | Phase 4 — Plans, Exercises & Offline-Queue Plumbing | Partial — ADD side Complete (Plan 03); reorder side Pending Plan 04 |
 | F5 (starta pass) | Phase 5 — Active Workout Hot Path | Pending |
 | F6 (logga set) | Phase 5 — Active Workout Hot Path | Pending |
 | F7 (senaste värdet) | Phase 5 — Active Workout Hot Path | Pending |
