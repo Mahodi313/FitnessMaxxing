@@ -1,15 +1,19 @@
 // app/app/(app)/plans/[id].tsx
 //
 // Phase 4 Plan 03 Task 1: Plan-detail screen.
+// Phase 4 Plan 04 Task 1: Drag-to-reorder integration.
 //
 // Three responsibilities composed on one screen:
 //   1. Plan-meta read + edit (RHF + planFormSchema; explicit Spara button only
 //      when isDirty per UI-SPEC §"Plan-edit form mode decision").
-//   2. plan_exercises listed in a plain FlatList. Each row: name + optional
-//      target chip + edit chevron + remove ✕. Plan 04 will swap the FlatList
-//      for DraggableFlatList and add a drag-handle column to PlanExerciseRow
-//      as a focused diff (intentionally deferred — keeps this plan within
-//      context budget).
+//   2. plan_exercises listed in a DraggableFlatList (Plan 04). Each row:
+//      drag-handle column + name + optional target chip + edit chevron +
+//      remove ✕. onDragEnd calls useReorderPlanExercises(planId).reorder()
+//      which runs Plan 01's two-phase write (negative offsets first, then
+//      final positions, all under shared scope.id='plan:<planId>'). The
+//      DraggableFlatList is the screen-level scroller — NOT wrapped in a
+//      <ScrollView> per RESEARCH §8.5 (gestures bubble and break in nested
+//      scrollers).
 //   3. Header overflow menu (ActionSheetIOS — iOS-only V1) → "Arkivera plan"
 //      → Alert.alert destructive confirm → useArchivePlan(planId) →
 //      router.back() (CONTEXT.md D-12 + UI-SPEC §"Destructive confirmation").
@@ -20,15 +24,20 @@
 //     mutations on offline replay.
 //   - useRemovePlanExercise(planId): scope.id = `plan:<planId>` (REQUIRED — Plan
 //     04-01's setMutationDefaults throws if plan_id is missing in the payload).
+//   - useReorderPlanExercises(planId): two-phase orchestrator returning
+//     { reorder(newOrder) }. The hook owns its own optimistic-cache snapshot
+//     and rollback; the screen only forwards the new array from
+//     DraggableFlatList's onDragEnd callback.
 //
 // Header opt-in: <Stack.Screen options={{ headerShown: true, ... }} /> with
 // useColorScheme()-bound headerStyle/headerTintColor per CLAUDE.md ## Conventions
 // "Real screens (Phase 4+)".
 //
 // References:
-//   - 04-CONTEXT.md D-09, D-10, D-11, D-12
+//   - 04-CONTEXT.md D-08, D-09, D-10, D-11, D-12
 //   - 04-UI-SPEC.md §Plan edit + §Visuals "Plan_exercise row" + §"Empty states"
-//   - 04-RESEARCH.md §5
+//   - 04-RESEARCH.md §3 (drag library API + ScaleDecorator + scope.id),
+//     §5 (FK-safe replay), §8.5 (do-not-nest-scrollers Pitfall)
 //   - PITFALLS §8.1, §8.13
 
 import { useState, useEffect } from "react";
@@ -37,7 +46,6 @@ import {
   Text,
   TextInput,
   Pressable,
-  FlatList,
   KeyboardAvoidingView,
   Platform,
   ActionSheetIOS,
@@ -49,6 +57,10 @@ import { Stack, useLocalSearchParams, useRouter, type Href } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import DraggableFlatList, {
+  ScaleDecorator,
+  type RenderItemParams,
+} from "react-native-draggable-flatlist";
 import { planFormSchema, type PlanFormInput } from "@/lib/schemas/plans";
 import {
   usePlanQuery,
@@ -58,7 +70,9 @@ import {
 import {
   usePlanExercisesQuery,
   useRemovePlanExercise,
+  useReorderPlanExercises,
 } from "@/lib/queries/plan-exercises";
+import type { PlanExerciseRow as PlanExerciseRowDb } from "@/lib/schemas/plan-exercises";
 
 // Local row shape — narrowed to the fields PlanExerciseRow renders. Mirrors
 // PlanExerciseRow from @/lib/schemas/plan-exercises (the cached Zod-parsed
@@ -96,6 +110,18 @@ export default function PlanDetailScreen() {
   const updatePlan = useUpdatePlan(id);
   const archivePlan = useArchivePlan(id);
   const removePlanExercise = useRemovePlanExercise(id!);
+  const reorderPlanExercises = useReorderPlanExercises(id!);
+
+  // onDragEnd handler for DraggableFlatList. The library hands us the new
+  // ordered array — we forward to Plan 01's two-phase reorder orchestrator
+  // (which owns the optimistic-cache snapshot, phase-1 negative offsets,
+  // phase-2 final positions, and rollback on phase-1 error).
+  const handleReorder = (newOrder: PlanExerciseRowShape[]) => {
+    if (!planExercises) return;
+    // The drag library carries the same row objects through; cast to the
+    // schema-parsed PlanExerciseRow type the reorder hook expects.
+    reorderPlanExercises.reorder(newOrder as unknown as PlanExerciseRowDb[]);
+  };
 
   const [bannerError, setBannerError] = useState<string | null>(null);
 
@@ -211,9 +237,10 @@ export default function PlanDetailScreen() {
         className="flex-1"
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <FlatList<PlanExerciseRowShape>
+        <DraggableFlatList<PlanExerciseRowShape>
           data={(planExercises ?? []) as PlanExerciseRowShape[]}
           keyExtractor={(item) => item.id}
+          onDragEnd={({ data }) => handleReorder(data)}
           contentContainerStyle={{
             paddingHorizontal: 16,
             paddingTop: 16,
@@ -369,22 +396,30 @@ export default function PlanDetailScreen() {
               </View>
             )
           }
-          renderItem={({ item: planExercise }) => (
-            <PlanExerciseRow
-              planExercise={planExercise}
-              onEdit={() =>
-                router.push(
-                  `/plans/${plan.id}/exercise/${planExercise.id}/edit` as Href,
-                )
-              }
-              onRemove={() =>
-                removePlanExercise.mutate({
-                  id: planExercise.id,
-                  plan_id: plan.id,
-                })
-              }
-              muted={muted}
-            />
+          renderItem={({
+            item: planExercise,
+            drag,
+            isActive,
+          }: RenderItemParams<PlanExerciseRowShape>) => (
+            <ScaleDecorator>
+              <PlanExerciseRow
+                planExercise={planExercise}
+                drag={drag}
+                isActive={isActive}
+                onEdit={() =>
+                  router.push(
+                    `/plans/${plan.id}/exercise/${planExercise.id}/edit` as Href,
+                  )
+                }
+                onRemove={() =>
+                  removePlanExercise.mutate({
+                    id: planExercise.id,
+                    plan_id: plan.id,
+                  })
+                }
+                muted={muted}
+              />
+            </ScaleDecorator>
           )}
         />
       </KeyboardAvoidingView>
@@ -392,24 +427,34 @@ export default function PlanDetailScreen() {
   );
 }
 
-// PlanExerciseRow — local component (Plan 04 will modify in-place to add the
-// drag-handle column when the parent FlatList is swapped to DraggableFlatList).
+// PlanExerciseRow — local component (Plan 04 extends with drag-handle column).
 // Keeping it inline avoids a 2-file diff for what is a single-component
 // evolution.
 //
 // V1 limitation: the cached PlanExercise row does NOT carry the joined
 // exercises.name — Plan 01's queryFn selects '*' from plan_exercises only.
 // We render the exercise_id as a fallback ("Övning <short-id>") so users
-// still see something meaningful per-row. Plan 04 (or a Plan 04-04 polish)
-// can extend the queryFn with `select('*, exercises ( name )')` and update
-// the row component accordingly.
+// still see something meaningful per-row. A future polish can extend the
+// queryFn with `select('*, exercises ( name )')` and update this row to
+// render `planExercise.exercises?.name ?? '(övning saknas)'`.
+//
+// Drag-handle (Plan 04 + UI-SPEC §Visuals "Plan_exercise row"): leading
+// Pressable wrapping `Ionicons reorder-three-outline` with
+// onLongPress={drag} + accessibilityLabel="Drag för att ändra ordning"
+// + p-3 padding (48pt total touch target around the 24pt icon).
+// `isActive` adds a subtle opacity-80 to the row body while dragging
+// (ScaleDecorator already handles the scale-up on the parent renderItem).
 function PlanExerciseRow({
   planExercise,
+  drag,
+  isActive,
   onEdit,
   onRemove,
   muted,
 }: {
   planExercise: PlanExerciseRowShape;
+  drag: () => void;
+  isActive: boolean;
   onEdit: () => void;
   onRemove: () => void;
   muted: string;
@@ -417,8 +462,21 @@ function PlanExerciseRow({
   const exerciseLabel = `Övning ${planExercise.exercise_id.slice(0, 8)}`;
   const targetChip = formatTargetChip(planExercise);
   return (
-    <View className="flex-row items-center bg-gray-100 dark:bg-gray-800 rounded-lg px-4 py-4">
-      <View className="flex-1 mr-2">
+    <View
+      className={`flex-row items-center bg-gray-100 dark:bg-gray-800 rounded-lg px-4 py-4 ${
+        isActive ? "opacity-80" : ""
+      }`}
+    >
+      <Pressable
+        onLongPress={drag}
+        accessibilityRole="button"
+        accessibilityLabel="Drag för att ändra ordning"
+        className="p-3 active:opacity-80"
+        hitSlop={4}
+      >
+        <Ionicons name="reorder-three-outline" size={24} color={muted} />
+      </Pressable>
+      <View className="flex-1 mx-2">
         <Text
           className="text-base font-semibold text-gray-900 dark:text-gray-50"
           numberOfLines={1}
