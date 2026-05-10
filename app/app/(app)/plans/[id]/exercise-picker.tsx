@@ -316,7 +316,7 @@ export default function ExercisePicker() {
             >
               <Ionicons name="add" size={20} color={accent} />
               <Text className="text-base font-semibold text-blue-600 dark:text-blue-400">
-                + Skapa ny övning
+                Skapa ny övning
               </Text>
             </Pressable>
 
@@ -350,7 +350,7 @@ export default function ExercisePicker() {
                   </Text>
                   <Text className="text-base text-gray-500 dark:text-gray-400 text-center">
                     {searchQuery.trim()
-                      ? 'Tryck "+ Skapa ny övning".'
+                      ? 'Tryck "Skapa ny övning".'
                       : "Skapa din första."}
                   </Text>
                 </View>
