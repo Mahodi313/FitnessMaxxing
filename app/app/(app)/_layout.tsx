@@ -56,6 +56,23 @@ export default function AppLayout() {
         // the same Info.plist key now set in app.json for production builds.
         freezeOnBlur: true,
       }}
-    />
+    >
+      {/* Modal route presentation MUST be declared at the layout level. The
+          `presentation` prop on react-native-screens is static — setting it
+          via <Stack.Screen options={{ presentation: 'modal' }} /> inside the
+          child screen file doesn't take effect because the screen has
+          already registered with its default 'card' (push) presentation by
+          the time the dynamic options apply. UAT 2026-05-10: picker and
+          targets-edit were pushing sideways instead of presenting as
+          modals. (#expo-router) */}
+      <Stack.Screen
+        name="plans/[id]/exercise-picker"
+        options={{ presentation: "modal" }}
+      />
+      <Stack.Screen
+        name="plans/[id]/exercise/[planExerciseId]/edit"
+        options={{ presentation: "modal" }}
+      />
+    </Stack>
   );
 }
