@@ -179,20 +179,44 @@ queryClient.setMutationDefaults(["plan", "create"], {
     return PlanRowSchema.parse(data);
   },
   onMutate: async (vars: PlanInsertVars) => {
+    // Dual-write to LIST and DETAIL caches.
+    // UAT 2026-05-10: an offline-created plan was visible in Planer (list cache
+    // populated) but plan-detail showed "Laddar…" forever because
+    // usePlanQuery(id) reads plansKeys.detail(id) — which was empty — and the
+    // queryFn paused under networkMode: 'offlineFirst'. Mirroring the pattern
+    // used by ['plan','update']/['plan-exercise','update'] keeps both caches
+    // hot from millisecond zero.
     await queryClient.cancelQueries({ queryKey: plansKeys.list() });
-    const previous = queryClient.getQueryData<PlanRow[]>(plansKeys.list());
+    await queryClient.cancelQueries({ queryKey: plansKeys.detail(vars.id) });
+    const previousList = queryClient.getQueryData<PlanRow[]>(plansKeys.list());
+    const previousDetail = queryClient.getQueryData<PlanRow>(
+      plansKeys.detail(vars.id),
+    );
     queryClient.setQueryData<PlanRow[]>(plansKeys.list(), (old = []) => [
       vars as PlanRow,
       ...old,
     ]);
-    return { previous };
+    queryClient.setQueryData<PlanRow>(
+      plansKeys.detail(vars.id),
+      vars as PlanRow,
+    );
+    return { previousList, previousDetail };
   },
-  onError: (_err, _vars, ctx) => {
-    const c = ctx as { previous?: PlanRow[] } | undefined;
-    if (c?.previous) queryClient.setQueryData(plansKeys.list(), c.previous);
+  onError: (_err, vars, ctx) => {
+    const c = ctx as
+      | { previousList?: PlanRow[]; previousDetail?: PlanRow }
+      | undefined;
+    if (c?.previousList)
+      queryClient.setQueryData(plansKeys.list(), c.previousList);
+    // previousDetail is undefined for a freshly-created plan — explicitly clear
+    // the optimistic detail row so the next usePlanQuery refetches from server.
+    queryClient.setQueryData(plansKeys.detail(vars.id), c?.previousDetail);
   },
-  onSettled: () => {
+  onSettled: (_d, _e, vars) => {
     void queryClient.invalidateQueries({ queryKey: plansKeys.list() });
+    void queryClient.invalidateQueries({
+      queryKey: plansKeys.detail(vars.id),
+    });
   },
   retry: 1,
 });
