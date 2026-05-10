@@ -11,10 +11,15 @@
 // Mounted in app/app/(app)/(tabs)/_layout.tsx ABOVE <Tabs> and INSIDE
 // SafeAreaView edges={['top']} per UI-SPEC + RESEARCH §6.
 //
-// Color: bg-yellow-100 / dark:bg-yellow-900 with text-yellow-900 /
-// dark:text-yellow-100 (UI-SPEC Color §Warning/Info — yellow signals "system
-// condition affecting your work" without escalating to red, which is reserved
-// for errors and destructive actions).
+// Color: bg-yellow-200 / dark:bg-yellow-900 with text-yellow-900 /
+// dark:text-yellow-100 + border-yellow-400 / dark:border-yellow-700 frame.
+// UI-SPEC §Color/Warning specced bg-yellow-100 (#FEF3C7) but field-testing
+// (Phase 4 manual airplane-mode UAT) showed the pale-yellow bg reads as
+// near-white on light-mode iOS, so the banner registers as plain "dark text on
+// white" rather than as a yellow warning panel. Bumped to bg-yellow-200
+// (#FDE68A) + a yellow-400 border to give the banner unambiguous visual
+// identity. Contrast remains AAA: text-yellow-900 on bg-yellow-200 = 7.95:1.
+// See SUMMARY-fix note for the spec amendment.
 //
 // References:
 //   - 04-CONTEXT.md D-05
@@ -38,7 +43,7 @@ export function OfflineBanner() {
 
   return (
     <View
-      className="flex-row items-start justify-between gap-2 bg-yellow-100 dark:bg-yellow-900 px-4 py-3 mx-4 mt-2 rounded-lg"
+      className="flex-row items-start justify-between gap-2 bg-yellow-200 dark:bg-yellow-900 border border-yellow-400 dark:border-yellow-700 px-4 py-3 mx-4 mt-2 rounded-lg"
       accessibilityRole="alert"
     >
       <Text

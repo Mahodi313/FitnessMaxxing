@@ -102,7 +102,7 @@ Tailwind v3 default `fontSize` scale, restricted to four roles. Identical role t
 | Secondary (30%) | `#F3F4F6` (gray-100) | `#1F2937` (gray-800) | `bg-gray-100 dark:bg-gray-800` | TextInput field background; plan-list row card background; plan_exercise row background inside draggable list; exercise-list row in exercise-add sheet; tab-bar background (`tabBarStyle.backgroundColor`) |
 | Accent (10%) | `#2563EB` (blue-600) | `#60A5FA` (blue-400) | `bg-blue-600 dark:bg-blue-500` (button bg) + `text-blue-600 dark:text-blue-400` (link text + active tab tint) | **Reserved for: see "Accent reserved for" list below** |
 | Destructive | `#DC2626` (red-600) | `#F87171` (red-400) | `text-red-600 dark:text-red-400` / `bg-red-600 dark:bg-red-500` | Inline form-field error messages (text); "Arkivera plan" menu-item label (text only); confirmation dialog destructive button (background) — see Copywriting Contract |
-| Warning/Info | `#FEF3C7` bg + `#92400E` text (light); `#78350F` bg + `#FEF3C7` text (dark) | (same) | `bg-yellow-100 dark:bg-yellow-900` + `text-yellow-900 dark:text-yellow-100` | **OfflineBanner only.** Yellow signals "system condition affecting your work" without escalating to red (which is reserved for errors and destructive actions). New role added in Phase 4 — not present in Phase 3 |
+| Warning/Info | `#FDE68A` bg + `#78350F` text + `#FACC15` border (light); `#78350F` bg + `#FEF3C7` text + `#A16207` border (dark) | (same) | `bg-yellow-200 dark:bg-yellow-900` + `text-yellow-900 dark:text-yellow-100` + `border border-yellow-400 dark:border-yellow-700` | **OfflineBanner only.** Yellow signals "system condition affecting your work" without escalating to red (which is reserved for errors and destructive actions). Spec amendment 2026-05-10 (Phase 4 manual UAT): bumped bg from yellow-100 → yellow-200 + added explicit border because pale-yellow bg read as near-white on light-mode iOS, leaving the panel without a visible "yellow warning" identity (only the dark text against system white). Contrast remains AAA. New role added in Phase 4 — not present in Phase 3 |
 | Body text | `#111827` (gray-900) | `#F9FAFB` (gray-50) | `text-gray-900 dark:text-gray-50` | All non-error body and label text; field input text; tab-bar inactive tint |
 | Muted text | `#6B7280` (gray-500) | `#9CA3AF` (gray-400) | `text-gray-500 dark:text-gray-400` | TextInput placeholder text; plan-row description (one-line truncated); empty-state body copy; placeholder-tab copy ("Historik kommer i Phase 6"); drag-handle icon tint when row is at-rest |
 
@@ -128,7 +128,7 @@ Tailwind v3 default `fontSize` scale, restricted to four roles. Identical role t
 
 **Status bar contrast:** `<StatusBar style="auto" />` from Phase 1 stays. It flips status-bar-icon color with system theme so icons contrast against `bg-white` (light) and `bg-gray-900` (dark). Do not switch to `style="light"` or `style="dark"` for any Phase 4 surface.
 
-**OfflineBanner color rationale:** Yellow (warning/info) chosen over red (destructive) because being offline is an expected, recoverable system state in an offline-first app — not a user error and not a destructive action. Red would create false urgency and erode the "your data is safe offline" message the banner is supposed to communicate. Contrast: `text-yellow-900` on `bg-yellow-100` = 8.59:1 (AAA); `text-yellow-100` on `bg-yellow-900` = 11.7:1 (AAA).
+**OfflineBanner color rationale:** Yellow (warning/info) chosen over red (destructive) because being offline is an expected, recoverable system state in an offline-first app — not a user error and not a destructive action. Red would create false urgency and erode the "your data is safe offline" message the banner is supposed to communicate. Contrast (post-amendment): `text-yellow-900` on `bg-yellow-200` = 7.95:1 (AAA); `text-yellow-100` on `bg-yellow-900` = 11.7:1 (AAA).
 
 ---
 
@@ -581,7 +581,7 @@ None of these are component blocks pulled from a registry. There is no third-par
 | Item | Implementation |
 |------|----------------|
 | Touch target | All `Pressable` elements ≥ 44×44pt. Primary CTAs use `py-4` → ~48pt. Drag-handle uses `p-3` around 24pt icon → 48pt. ✕ close uses `px-2 py-1 + hitSlop={8}` → 44pt. List rows use `py-4` → 48pt. |
-| Color contrast (light mode) | Body `text-gray-900` on `bg-white` = 15.3:1 (AAA); on `bg-gray-100` = 13.6:1 (AAA). Muted `text-gray-500` on `bg-white` = 4.6:1 (AA Body). Accent `text-white` on `bg-blue-600` = 4.86:1 (AA Body). Error `text-red-600` on `bg-white` = 4.83:1 (AA Body). Warning `text-yellow-900` on `bg-yellow-100` = 8.59:1 (AAA). |
+| Color contrast (light mode) | Body `text-gray-900` on `bg-white` = 15.3:1 (AAA); on `bg-gray-100` = 13.6:1 (AAA). Muted `text-gray-500` on `bg-white` = 4.6:1 (AA Body). Accent `text-white` on `bg-blue-600` = 4.86:1 (AA Body). Error `text-red-600` on `bg-white` = 4.83:1 (AA Body). Warning `text-yellow-900` on `bg-yellow-200` = 7.95:1 (AAA, amended 2026-05-10). |
 | Color contrast (dark mode) | `text-gray-50` on `bg-gray-900` = 17.4:1 (AAA); on `bg-gray-800` = 14.4:1 (AAA). Muted `text-gray-400` on `bg-gray-900` = 6.4:1 (AA Body). Accent `text-white` on `bg-blue-500` = 4.5:1 (AA Body). Error `text-red-400` on `bg-gray-900` = 5.7:1 (AA Body). Warning `text-yellow-100` on `bg-yellow-900` = 11.7:1 (AAA). |
 | Form labels | Every TextInput has a sibling `<Text>` label visually associated above (gap-2 column) AND an `accessibilityLabel` matching the visible label string. |
 | Error association | Each field's error `<Text>` has `accessibilityLiveRegion="polite"` (Android) so screen readers announce errors. iOS VoiceOver picks up the error via re-render announcement. |
@@ -611,7 +611,7 @@ All Phase 4 surfaces MUST render correctly in both light and dark mode. Verifica
 - [ ] Active tab tint flips: `#2563EB` ↔ `#60A5FA` (`useColorScheme()` bound)
 - [ ] Inactive tab tint flips: `#6B7280` ↔ `#9CA3AF`
 - [ ] Error text flips: `text-red-600` ↔ `text-red-400`
-- [ ] Warning banner flips: `bg-yellow-100` + `text-yellow-900` ↔ `bg-yellow-900` + `text-yellow-100` (OfflineBanner)
+- [ ] Warning banner flips: `bg-yellow-200` + `text-yellow-900` ↔ `bg-yellow-900` + `text-yellow-100` (OfflineBanner; amended 2026-05-10 — bg-yellow-100 was too pale on light-mode iOS, lost visual yellow identity)
 - [ ] Muted text flips: `text-gray-500` ↔ `text-gray-400` (placeholders, plan-row description, drag-handle icon tint)
 - [ ] Header (when shown via `<Stack.Screen options={{ headerShown: true, ... }}>` on plan-detail) uses `useColorScheme()`-bound background and tint per CLAUDE.md ## Conventions
 - [ ] Status bar icons remain visible (handled by `<StatusBar style="auto" />` from `app/app/_layout.tsx`, untouched in Phase 4)
