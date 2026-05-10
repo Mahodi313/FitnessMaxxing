@@ -945,24 +945,24 @@ The full T-04-* threat register goes into Plan 02's `<threat_model>` block. The 
 | A4 | Single-device V1 means no LWW conflict scenarios | §5 Conflict Resolution | If user adds a second device in V1, conflict resolution is undefined. Locked by PROJECT.md scope; revisit at V1.1 multi-device. |
 | A5 | Plain AsyncStorage for the queue is acceptable per the V1 threat model (queue payloads contain no PII) | §8.10, Security Domain T-04-05 | If a future feature persists PII through the queue (e.g., user notes containing health data), queue must move to encrypted storage. **Mitigation:** SECURITY.md V1 accepted-risk; revisit if Phase 7 polish adds PII surfaces. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should `useReorderPlanExercises` use the two-phase update or fall back to a Supabase RPC?**
    - What we know: the unique constraint forces SOME ordering trick; two-phase is simpler but doubles mutation count; RPC requires a new migration.
    - What's unclear: whether 2x mutation count materially affects the airplane-mode test under realistic load (10 reorders × 2 = 20 mutations is still trivial).
-   - Recommendation: Plan 02 picks two-phase; if the airplane-mode test reveals issues, escalate to an RPC in a follow-up plan.
+   - RESOLVED: Plan 01 implements two-phase per D-09 (CONTEXT.md). Wave 0 test-reorder-constraint.ts proves the algorithm at the DB layer. Plan 04 manual airplane-mode test Step 6 backstops escalation to a Supabase RPC if real-device load reveals issues. No new migration is created in Phase 4.
 
 2. **Should `useArchivePlan` show a different optimistic-update visual state ("archiving...") or just remove from list?**
    - What we know: UI-SPEC says "row disappears from list immediately" (optimistic remove from `plansKeys.list()` cache).
-   - What's unclear: nothing functionally — the UI-SPEC is unambiguous. This is closed.
+   - RESOLVED: UI-SPEC is unambiguous — optimistic remove from list. No "archiving..." spinner. Plan 03 implements the archive flow with this behaviour.
 
 3. **Should the ID generation utility live at `lib/utils/uuid.ts` (CONTEXT.md D-06) or be inlined per call site?**
    - What we know: CONTEXT.md D-06 picks `lib/utils/uuid.ts`. Single source = easy to swap implementation later.
-   - What's unclear: nothing — closed.
+   - RESOLVED: Centralised at app/lib/utils/uuid.ts per CONTEXT.md D-06. Plan 01 ships the randomUUID() wrapper around expo-crypto. All call sites import from one path.
 
 4. **Should the `(tabs)/settings.tsx` placeholder ship the dark-mode toggle stub?**
    - What we know: F15-toggle is V1.1 (REQUIREMENTS.md). UI-SPEC says "Mer kommer i Phase 7" placeholder.
-   - What's unclear: nothing — Phase 7 owns the toggle.
+   - RESOLVED: Settings tab ships only the email + sign-out button + "Mer kommer i Phase 7" placeholder per UI-SPEC. F15 dark-mode toggle is Phase 7 scope; deferring it here keeps Phase 4 focused on the F2/F3/F4 slice.
 
 ## Environment Availability
 
