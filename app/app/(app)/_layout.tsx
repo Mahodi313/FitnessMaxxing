@@ -41,6 +41,12 @@ export default function AppLayout() {
         headerTintColor: isDark ? "#F9FAFB" : "#111827",
         headerTitleStyle: { color: isDark ? "#F9FAFB" : "#111827" },
         headerBackButtonDisplayMode: "minimal",
+        // contentStyle paints the screen-container behind the SafeAreaView so
+        // the brief frame visible during stack push/pop animations matches the
+        // rest of the app instead of falling through to react-native-screens'
+        // default white. UAT 2026-05-10: noticed a white flash on swipe-back
+        // from the picker modal to plan-detail.
+        contentStyle: { backgroundColor: isDark ? "#111827" : "#FFFFFF" },
       }}
     />
   );
