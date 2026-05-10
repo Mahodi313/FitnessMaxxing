@@ -40,7 +40,7 @@
 //     §5 (FK-safe replay), §8.5 (do-not-nest-scrollers Pitfall)
 //   - PITFALLS §8.1, §8.13
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   View,
   Text,
@@ -52,7 +52,13 @@ import {
   useColorScheme,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Stack, useLocalSearchParams, useRouter, type Href } from "expo-router";
+import {
+  Stack,
+  useFocusEffect,
+  useLocalSearchParams,
+  useRouter,
+  type Href,
+} from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -137,6 +143,17 @@ export default function PlanDetailScreen() {
   const [bannerError, setBannerError] = useState<string | null>(null);
   const [showOverflowMenu, setShowOverflowMenu] = useState(false);
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
+
+  // freezeOnBlur (set on the (app) Stack screenOptions) keeps this screen
+  // mounted across navigation. Without this hook a modal left open before
+  // navigating away would still be visible when returning to this screen.
+  // Reset modal state every time the screen gains focus.
+  useFocusEffect(
+    useCallback(() => {
+      setShowOverflowMenu(false);
+      setShowArchiveConfirm(false);
+    }, []),
+  );
 
   const {
     control,
@@ -449,18 +466,28 @@ export default function PlanDetailScreen() {
 
       {/* Themed overflow-menu bottom sheet. Replaces ActionSheetIOS which
           rendered as a malformed floating pill in iOS dark mode (UAT
-          2026-05-10). Slides up from the bottom; tap scrim or "Avbryt" to
-          dismiss. Currently only one meaningful action ("Arkivera plan") —
-          extension point for future per-plan actions (duplicate, share, etc). */}
+          2026-05-10). Tap scrim or "Avbryt" to dismiss. Currently only one
+          meaningful action — extension point for future per-plan actions.
+
+          Layout uses explicit `style` (not NativeWind className) on the outer
+          Pressable because a prior iteration with className="flex-1 justify-end
+          bg-black/50" + animationType="slide" + statusBarTranslucent rendered
+          unstyled: outer Pressable collapsed to intrinsic size at top-left,
+          card had no background. Inline style for layout primitives works
+          consistently across animationType values; NativeWind is kept for the
+          inner card styling where it works reliably. */}
       <Modal
         visible={showOverflowMenu}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setShowOverflowMenu(false)}
-        statusBarTranslucent
       >
         <Pressable
-          className="flex-1 justify-end bg-black/50"
+          style={{
+            flex: 1,
+            justifyContent: "flex-end",
+            backgroundColor: "rgba(0,0,0,0.5)",
+          }}
           onPress={() => setShowOverflowMenu(false)}
           accessibilityRole="button"
           accessibilityLabel="Stäng meny"
@@ -505,10 +532,15 @@ export default function PlanDetailScreen() {
         transparent
         animationType="fade"
         onRequestClose={() => setShowArchiveConfirm(false)}
-        statusBarTranslucent
       >
         <Pressable
-          className="flex-1 items-center justify-center bg-black/50 px-8"
+          style={{
+            flex: 1,
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: "rgba(0,0,0,0.5)",
+            paddingHorizontal: 32,
+          }}
           onPress={() => setShowArchiveConfirm(false)}
           accessibilityRole="button"
           accessibilityLabel="Stäng dialog"
