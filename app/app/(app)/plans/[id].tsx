@@ -40,7 +40,7 @@
 //     §5 (FK-safe replay), §8.5 (do-not-nest-scrollers Pitfall)
 //   - PITFALLS §8.1, §8.13
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -72,6 +72,7 @@ import {
   useRemovePlanExercise,
   useReorderPlanExercises,
 } from "@/lib/queries/plan-exercises";
+import { useExercisesQuery } from "@/lib/queries/exercises";
 import type { PlanExerciseRow as PlanExerciseRowDb } from "@/lib/schemas/plan-exercises";
 
 // Local row shape — narrowed to the fields PlanExerciseRow renders. Mirrors
@@ -103,6 +104,17 @@ export default function PlanDetailScreen() {
   const { data: planExercises, isPending: pxPending } = usePlanExercisesQuery(
     id!,
   );
+  // V1: plan_exercises rows don't join exercises.name in the cache (Plan 04-01
+  // queryFn selects '*' from plan_exercises only). Resolve via the exercises
+  // cache at render-time — useExercisesQuery is already mounted by the picker
+  // route so the data is hot. UAT 2026-05-10: replaced the "Övning <8-char-id>"
+  // fallback that surfaced raw uuids in the list.
+  const { data: exercises } = useExercisesQuery();
+  const exerciseNameById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const e of exercises ?? []) m.set(e.id, e.name);
+    return m;
+  }, [exercises]);
 
   // Hooks accept the planId so scope.id binds to `plan:<planId>` per Plan
   // 04-01's resource-hook contract — chained mutations on the same plan
@@ -412,6 +424,10 @@ export default function PlanDetailScreen() {
             <ScaleDecorator>
               <PlanExerciseRow
                 planExercise={planExercise}
+                exerciseName={
+                  exerciseNameById.get(planExercise.exercise_id) ??
+                  "(övning saknas)"
+                }
                 drag={drag}
                 isActive={isActive}
                 onEdit={() =>
@@ -439,12 +455,11 @@ export default function PlanDetailScreen() {
 // Keeping it inline avoids a 2-file diff for what is a single-component
 // evolution.
 //
-// V1 limitation: the cached PlanExercise row does NOT carry the joined
-// exercises.name — Plan 01's queryFn selects '*' from plan_exercises only.
-// We render the exercise_id as a fallback ("Övning <short-id>") so users
-// still see something meaningful per-row. A future polish can extend the
-// queryFn with `select('*, exercises ( name )')` and update this row to
-// render `planExercise.exercises?.name ?? '(övning saknas)'`.
+// V1: the cached PlanExercise row does NOT join exercises.name (Plan 01's
+// queryFn selects '*' from plan_exercises only). The parent screen resolves
+// the name from useExercisesQuery and passes it down via the exerciseName
+// prop. Optimistic and DB rows render the same way because the picker's
+// optimistic onMutate populates the exercises cache before navigating back.
 //
 // Drag-handle (Plan 04 + UI-SPEC §Visuals "Plan_exercise row"): leading
 // Pressable wrapping `Ionicons reorder-three-outline` with
@@ -454,6 +469,7 @@ export default function PlanDetailScreen() {
 // (ScaleDecorator already handles the scale-up on the parent renderItem).
 function PlanExerciseRow({
   planExercise,
+  exerciseName,
   drag,
   isActive,
   onEdit,
@@ -461,13 +477,13 @@ function PlanExerciseRow({
   muted,
 }: {
   planExercise: PlanExerciseRowShape;
+  exerciseName: string;
   drag: () => void;
   isActive: boolean;
   onEdit: () => void;
   onRemove: () => void;
   muted: string;
 }) {
-  const exerciseLabel = `Övning ${planExercise.exercise_id.slice(0, 8)}`;
   const targetChip = formatTargetChip(planExercise);
   return (
     <View
@@ -489,7 +505,7 @@ function PlanExerciseRow({
           className="text-base font-semibold text-gray-900 dark:text-gray-50"
           numberOfLines={1}
         >
-          {exerciseLabel}
+          {exerciseName}
         </Text>
         {targetChip && (
           <Text
