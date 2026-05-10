@@ -18,7 +18,7 @@ FitnessMaxxing levereras som en personlig iPhone gym-tracker via Expo Go. Resan 
 - [x] **Phase 1: Bootstrap & Infra Hardening** - Locked stack installerad med rätt pins, NativeWind-smoke-test renderar på iPhone, dark-mode-konvention etablerad *(2026-05-08)*
 - [x] **Phase 2: Schema, RLS & Type Generation** - Korrigerat schema applicerat i Supabase med både `using` och `with check`, cross-user-fixturer passerar (22/22), TS-typer genererade, 27/27 SECURED *(2026-05-09)*
 - [x] **Phase 3: Auth & Persistent Session** - Användare kan registrera, logga in, och sessioner överlever app-restart via LargeSecureStore
-- [ ] **Phase 4: Plans, Exercises & Offline-Queue Plumbing** - Användare kan skapa planer och övningar offline; airplane-mode-test bekräftar att kön persisterar och replayas korrekt
+- [x] **Phase 4: Plans, Exercises & Offline-Queue Plumbing** - Användare kan skapa planer och övningar offline; airplane-mode-test bekräftar att kön persisterar och replayas korrekt (completed 2026-05-10)
 - [ ] **Phase 5: Active Workout Hot Path (F13 lives or dies)** - Användare loggar set under pass; varje set överlever airplane mode + force-quit + battery-pull
 - [ ] **Phase 6: History & Read-Side Polish** - Användare ser passhistorik och progressionsgraf per övning
 - [ ] **Phase 7: V1 Polish Cut** - RPE, anteckningar och dark-mode-toggle färdiga; V1 redo för 4-veckors personlig validering
@@ -170,7 +170,7 @@ Phases execute sequentially: 1 → 2 → 3 → 4 → 5 → 6 → 7. Phase 5 må*
 | 1. Bootstrap & Infra Hardening | 3/3 | ✓ Complete | 2026-05-08 |
 | 2. Schema, RLS & Type Generation | 6/6 | ✓ Complete (27/27 SECURED, F17 validated) | 2026-05-09 |
 | 3. Auth & Persistent Session | 4/4 | ✓ Complete (UAT 9/11 pass; 2 gaps accepted-deferred to V1.1 — email-confirmation deep-link) | 2026-05-09 |
-| 4. Plans, Exercises & Offline-Queue Plumbing | 4/4 | ◑ Plans complete (UAT signed off `approved` 2026-05-10; awaiting phase-level closeout — gsd-secure-phase 4 + gsd-verify-work 4 + phase.complete) | — |
+| 4. Plans, Exercises & Offline-Queue Plumbing | 4/4 | Complete    | 2026-05-10 |
 | 5. Active Workout Hot Path | 0/TBD | ○ Not started | — |
 | 6. History & Read-Side Polish | 0/TBD | ○ Not started | — |
 | 7. V1 Polish Cut | 0/TBD | ○ Not started | — |
