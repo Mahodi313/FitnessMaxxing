@@ -16,6 +16,8 @@ Logga ett set och omedelbart se vad jag tog senast på samma övning — utan at
 
 - **F15 (konvention)** — Validated in Phase 1: dark mode established as a project-wide convention (`darkMode:'class'` in `tailwind.config.js` with NativeWind 4 system-theme bridge); `dark:` variants used from start in `app/app/index.tsx`, status-bar + nav-header conventions captured in `CLAUDE.md ## Conventions`. Manual toggle UI deferred to Phase 7.
 - **F17 (set-typ schema-only)** — Validated in Phase 2: `set_type` Postgres ENUM with values `working | warmup | dropset | failure` is live in remote DB and surfaces through `app/types/database.ts` to the typed Supabase client. `is_warmup` removed everywhere. UI for toggling set type is deferred to V1.1 — V1 always writes `'working'` (default).
+- **F1** — Validated in Phase 3: email/password registration + sign-in working end-to-end with Supabase Auth + LargeSecureStore session persistence; 9/11 UAT items pass, 2 V1.1-deferred (deep-link email-confirm carry-over).
+- **F2 / F3 / F4** — Validated in Phase 4: full plan CRUD (create/archive/edit), exercise CRUD with chained create-and-add, plan_exercise CRUD with two-phase-negative-bridge drag-reorder. Offline-first TanStack v5 queue with optimistic mutations, scope.id-serialized replay, manual airplane-mode UAT signed off 2026-05-10. Code review CR-01 + CR-02 (reorder offline data-loss) closed in commit `66d0804`.
 
 ### Active
 
@@ -23,10 +25,10 @@ Logga ett set och omedelbart se vad jag tog senast på samma övning — utan at
 
 #### V1 Måste (kärnflöde)
 
-- [ ] **F1** — Användarregistrering med email + lösen
-- [ ] **F2** — Skapa, redigera, ta bort träningsplaner
-- [ ] **F3** — Övningsbibliotek (egna övningar, ingen seed i V1)
-- [ ] **F4** — Lägga till och ordna om övningar i en plan
+- [x] **F1** — Användarregistrering med email + lösen (Phase 3, 2 V1.1-deferred UAT gaps)
+- [x] **F2** — Skapa, redigera, ta bort träningsplaner (Phase 4)
+- [x] **F3** — Övningsbibliotek (egna övningar, ingen seed i V1) (Phase 4)
+- [x] **F4** — Lägga till och ordna om övningar i en plan (Phase 4)
 - [ ] **F5** — Starta pass från en plan
 - [ ] **F6** — Logga set (vikt + reps) under pass
 - [ ] **F7** — Visa senaste värdet per övning vid loggning

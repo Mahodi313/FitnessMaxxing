@@ -1,18 +1,28 @@
 // app/app/_layout.tsx
 import "../global.css";
 import { useEffect } from "react";
-import { AppState, Platform } from "react-native";
+import { useColorScheme } from "react-native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
-import {
-  QueryClientProvider,
-  focusManager,
-  onlineManager,
-} from "@tanstack/react-query";
-import NetInfo from "@react-native-community/netinfo";
+// react-native-gesture-handler must be imported in the entry file so its
+// native modules register before any GestureDetector descendant renders. The
+// named import below triggers the module load — separately importing it for
+// side-effects only is no longer required in v2.x.
+// See https://docs.swmansion.com/react-native-gesture-handler/docs/fundamentals/installation.
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { QueryClientProvider } from "@tanstack/react-query";
 
-import { queryClient } from "@/lib/query-client";
+// LOAD-BEARING import order — see 04-RESEARCH.md §"Module-load order" + Pitfall 8.2.
+// client.ts MUST execute first (registers all 8 setMutationDefaults), THEN
+// persister.ts (hydrates the cache from AsyncStorage — paused mutations rehydrate
+// against already-registered defaults), THEN network.ts (wires NetInfo +
+// AppState + the onlineManager.subscribe(resumePausedMutations) block that closes
+// Pitfall 8.12). Reordering these breaks the offline-queue replay contract.
+import { queryClient } from "@/lib/query/client";
+import "@/lib/query/persister";
+import "@/lib/query/network";
+
 // Importing useAuthStore here triggers the module-scope onAuthStateChange listener
 // + getSession() init flow registered in app/lib/auth-store.ts. Order does not
 // matter for correctness (listener registers exactly once on first import) but
@@ -33,23 +43,8 @@ SplashScreen.preventAutoHideAsync().catch(() => {
   // Splash may have already auto-hidden if JS started slowly; safe to ignore.
 });
 
-focusManager.setEventListener((setFocused) => {
-  const sub = AppState.addEventListener("change", (s) => {
-    if (Platform.OS !== "web") setFocused(s === "active");
-  });
-  return () => sub.remove();
-});
-
-onlineManager.setEventListener((setOnline) => {
-  const unsubscribe = NetInfo.addEventListener((state) => {
-    // NetInfo's isConnected is boolean | null; null = unknown (cold start
-    // before first probe). Treat unknown as online so TanStack Query doesn't
-    // mark mutations offline before we know — only an explicit `false` flips
-    // us offline.
-    setOnline(state.isConnected !== false);
-  });
-  return unsubscribe;
-});
+// focusManager + onlineManager + onlineManager.subscribe(resumePausedMutations)
+// are wired in @/lib/query/network.ts (imported above for side-effects).
 
 /**
  * Render-side splash hide controller. When status flips out of 'loading',
@@ -79,10 +74,22 @@ function RootNavigator() {
   const session = useAuthStore((s) => s.session);
   const status = useAuthStore((s) => s.status);
 
+  const scheme = useColorScheme();
+  const isDark = scheme === "dark";
+
   if (status === "loading") return null;
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        // contentStyle puts the dark/light backdrop behind every root-level
+        // screen ((app), (auth)) so brief animation frames don't flash white.
+        // The (app)/_layout.tsx Stack already sets its own contentStyle for
+        // pushes within (app); this one covers the root push between groups.
+        contentStyle: { backgroundColor: isDark ? "#111827" : "#FFFFFF" },
+      }}
+    >
       <Stack.Protected guard={!!session}>
         <Stack.Screen name="(app)" />
       </Stack.Protected>
@@ -94,11 +101,32 @@ function RootNavigator() {
 }
 
 export default function RootLayout() {
+  const scheme = useColorScheme();
+  const isDark = scheme === "dark";
+
+  // GestureHandlerRootView wraps the entire app so descendants of any screen
+  // (e.g., DraggableFlatList in plans/[id].tsx) can use GestureDetector without
+  // triggering the "must be a descendant of GestureHandlerRootView" runtime
+  // error. flex: 1 is required — without it children collapse to zero size.
+  //
+  // backgroundColor: the BOTTOM-MOST backdrop of the entire app. Any pixel
+  // visible during a navigation/animation transition that isn't covered by a
+  // screen falls through to this color. Without it iOS shows white. UAT
+  // 2026-05-10: white flash visible when pushing from (tabs) -> plans/[id] —
+  // the (app) Stack's contentStyle alone wasn't enough because the root
+  // Stack's screen container had no bg color set.
   return (
-    <QueryClientProvider client={queryClient}>
-      <SplashScreenController />
-      <RootNavigator />
-      <StatusBar style="auto" />
-    </QueryClientProvider>
+    <GestureHandlerRootView
+      style={{
+        flex: 1,
+        backgroundColor: isDark ? "#111827" : "#FFFFFF",
+      }}
+    >
+      <QueryClientProvider client={queryClient}>
+        <SplashScreenController />
+        <RootNavigator />
+        <StatusBar style="auto" />
+      </QueryClientProvider>
+    </GestureHandlerRootView>
   );
 }

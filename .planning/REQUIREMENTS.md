@@ -16,13 +16,13 @@ Krav för initial release. Mappade till roadmap-faser i Traceability-sektionen.
 
 ### Workout Plans
 
-- [ ] **F2**: Användare kan skapa, redigera och ta bort träningsplaner
-- [ ] **F4**: Användare kan lägga till och ordna om övningar i en plan
-  - Acceptans: drag-att-ordna; ändringar persisterar offline och synkar vid återanslutning
+- [x] **F2**: Användare kan skapa, redigera och ta bort träningsplaner — Phase 4 Plans 02–03 + 04: CREATE side via plans/new (Plan 02), EDIT via plan-detail meta-form (Plan 03 + Plan 04 offline-safe mutate fix), DELETE via archive flow (Plan 03 original ActionSheetIOS+Alert.alert → Plan 04 canonical inline-overlay destructive-confirm via commits `3a094eb`→`e07029a`; usePlansQuery filters archived_at IS NULL). Manual airplane-mode UAT signed off `approved` 2026-05-10.
+- [x] **F4**: Användare kan lägga till och ordna om övningar i en plan — Phase 4 Plan 03 ADD side (exercise-picker chained create-and-add with shared scope.id) + Phase 4 Plan 04 reorder side (DraggableFlatList + two-phase orchestrator via `useReorderPlanExercises(planId)`; commit `2501ac8`). Manual airplane-mode UAT confirmed dragged order persists across force-quit + reconnect without FK or duplicate-PK errors (UAT Steps 3–5, signed off 2026-05-10).
+  - Acceptans: drag-att-ordna; ändringar persisterar offline och synkar vid återanslutning ✓ MET
 
 ### Exercise Library
 
-- [ ] **F3**: Användare kan skapa egna övningar (ingen förladdad seed i V1)
+- [x] **F3**: Användare kan skapa egna övningar (ingen förladdad seed i V1) — Phase 4 Plan 03: exercise-picker inline create-form (namn + muskelgrupp + utrustning + anteckningar) chained to add-to-plan under shared scope.id='plan:<planId>' for FK-safe offline replay (RESEARCH §5).
   - Acceptans: namn, muskelgrupp, utrustning, anteckningar; visas i bibliotek vid plan-edit
 
 ### Active Workout (kärnflöde)
@@ -129,9 +129,9 @@ Vilka faser täcker vilka krav. Mappad av roadmap-skapandet 2026-05-07.
 | Krav | Fas | Status |
 |------|-----|--------|
 | F1 (registrering + login) | Phase 3 — Auth & Persistent Session | Pending |
-| F2 (planer CRUD) | Phase 4 — Plans, Exercises & Offline-Queue Plumbing | Pending |
-| F3 (egna övningar) | Phase 4 — Plans, Exercises & Offline-Queue Plumbing | Pending |
-| F4 (ordna övningar i plan) | Phase 4 — Plans, Exercises & Offline-Queue Plumbing | Pending |
+| F2 (planer CRUD) | Phase 4 — Plans, Exercises & Offline-Queue Plumbing | ✓ Complete 2026-05-10 (Plans 02–04; UAT signed off) — audit-source: 04-02-SUMMARY.md, 04-03-SUMMARY.md, 04-04-SUMMARY.md |
+| F3 (egna övningar) | Phase 4 — Plans, Exercises & Offline-Queue Plumbing | ✓ Complete 2026-05-10 (Plan 03 picker chained create-and-add; Plan 04 mutate-not-mutateAsync fix verified offline) — audit-source: 04-03-SUMMARY.md, 04-04-SUMMARY.md |
+| F4 (ordna övningar i plan) | Phase 4 — Plans, Exercises & Offline-Queue Plumbing | ✓ Complete 2026-05-10 (Plan 03 ADD + Plan 04 reorder via DraggableFlatList + two-phase orchestrator; airplane-mode UAT confirmed persistence + correct order in Supabase) — audit-source: 04-03-SUMMARY.md, 04-04-SUMMARY.md |
 | F5 (starta pass) | Phase 5 — Active Workout Hot Path | Pending |
 | F6 (logga set) | Phase 5 — Active Workout Hot Path | Pending |
 | F7 (senaste värdet) | Phase 5 — Active Workout Hot Path | Pending |
