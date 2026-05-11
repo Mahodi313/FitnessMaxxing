@@ -6,7 +6,7 @@ Built as a personal-use iPhone app first; potential App Store launch in V2. The 
 
 | | |
 |---|---|
-| **Status** | Phase 2 of 7 complete · 9 plans shipped · ~29% V1 |
+| **Status** | Phase 4 of 7 complete · 17 plans shipped · ~57% V1 |
 | **Stack** | Expo SDK 54 · React Native 0.81 · TypeScript 5.9 · Supabase (Postgres + Auth + RLS) |
 | **Platform** | iOS-only in V1 (Expo Go on iPhone) · Android explicitly out of scope |
 | **Build process** | AI-assisted SDLC via [GSD (Get Shit Done)](https://github.com/gsd-build/get-shit-done) on Claude Code · 7-phase roadmap · per-phase verification, code-review, and security-audit gates |
@@ -20,9 +20,9 @@ Built as a personal-use iPhone app first; potential App Store launch in V2. The 
 |---|---|---|
 | **1 — Bootstrap & Infra Hardening** | Locked stack installed (Expo 54, NativeWind 4, TanStack Query 5, Zustand 5, Supabase, react-hook-form + Zod, victory-native, Skia), dark-mode convention, walking-skeleton round-trip on iPhone | ✓ Complete (3 plans) |
 | **2 — Schema, RLS & Type Generation** | 6-table Postgres schema deployed to Supabase remote with errata-fixed RLS (`with check` + wrapped `(select auth.uid())`), `set_type` ENUM, `handle_new_user` trigger, generated `Database` types wired into typed Supabase client, cross-user RLS test harness | ✓ Complete (6 plans, F17 validated, 27/27 SECURED) |
-| **3 — Auth & Persistent Session** | Sign-up / sign-in flows wired to LargeSecureStore (encrypted session blob in AsyncStorage with key in `expo-secure-store`) | Next |
-| **4 — Plans, Exercises & Offline-Queue** | Create/edit plans and exercises offline; airplane-mode test confirms queue persists and replays | Pending |
-| **5 — Active Workout Hot Path** *(F13 lives or dies)* | Set logging survives airplane mode + force-quit + battery-pull | Pending |
+| **3 — Auth & Persistent Session** | Sign-up / sign-in wired to LargeSecureStore (encrypted session blob in AsyncStorage with key in `expo-secure-store`); session survives app-restart; root `Stack.Protected` + `(app)` group `<Redirect>` defense-in-depth | ✓ Complete (4 plans; UAT 9/11 pass; 2 gaps accepted-deferred to V1.1 — email-confirmation deep-link) |
+| **4 — Plans, Exercises & Offline-Queue** | Create/edit/archive plans, add custom exercises, drag-to-reorder; offline-first via TanStack Query mutation queue with `resumePausedMutations` on reconnect, client-generated UUIDs (FK-safe), two-phase reorder algorithm; airplane-mode UAT signed off `approved`; Phase 4 cross-user RLS gate 29/29 PASS | ✓ Complete (4 plans; F2 + F3 + F4 closed end-to-end) |
+| **5 — Active Workout Hot Path** *(F13 lives or dies)* | Set logging during a workout: ≤3s from button press to local persistence, set-position-aligned "last value" display, survives airplane mode + force-quit + battery-pull, draft-session recovery on cold start | Next |
 | **6 — History & Read-Side Polish** | Workout history list + per-exercise progression chart | Pending |
 | **7 — V1 Polish Cut** | RPE field, notes, dark-mode toggle UI · V1 ready for 4-week personal validation | Pending |
 
