@@ -1,10 +1,11 @@
 ---
 phase: 5
 slug: active-workout-hot-path-f13-lives-or-dies
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-05-12
+reviewed_at: 2026-05-12
 ---
 
 # Phase 5 — UI Design Contract
