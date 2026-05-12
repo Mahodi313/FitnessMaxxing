@@ -1318,29 +1318,34 @@ The planner uses this as input to gsd-pattern-mapper.
 | A6 | Postgres accepts a client-supplied UUID for `exercise_sets.id` that overrides the column's `DEFAULT gen_random_uuid()` (i.e. `DEFAULT` only fires when `id` is absent) | §Schema Changes (idempotency) | Duplicate inserts on replay → 23505 errors. **Mitigation:** Phase 4 already proved this for `workout_plans` + `plan_exercises`; Phase 5's pattern is identical. Wave 0 `test-upsert-idempotency.ts` extension covers the `exercise_sets` case explicitly. [VERIFIED via Phase 4 RESEARCH §5 + PostgreSQL docs on DEFAULT semantics.] |
 | A7 | The "Sverige-only V1" / kg-only scope makes `weight_kg` storage and display interchangeable (no unit-conversion at the boundary) | §Per-Set Persistence Architecture | If V2 adds lb support, all V1 weight_kg displays as kg without conversion — correct for V1 user but historical data needs migration when V2 ships. **Accepted-risk** per PROJECT.md scope; V1.1+ revisits. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should the F7 last-value query batch across all plan-exercises into a single PostgREST query?**
    - What we know: CONTEXT.md D-20 specifies per-exercise pre-fetch via `useLastValueQuery(exerciseId)` with staleTime 15min. Plan 02 prefetches one per `plan_exercises.exercise_id` on workout-screen mount or `useStartSession.onSuccess`.
    - What's unclear: 10 exercises × 2 queries = 20 round-trips. Acceptable for a 4G connection (≤2s total); arguable on a slow gym wifi.
    - Recommendation: Plan 02 implements per-exercise as specified by CONTEXT.md (simpler). V1.1 can batch via single RPC if latency soak shows ≥5s pre-fetch time.
+   - **RESOLVED:** Per-exercise pre-fetch as CONTEXT.md D-20 specifies (no batching in V1). V1.1 may revisit if a 10-exercise plan's pre-fetch consistently exceeds 5s on gym wifi.
 
 2. **Should the `useFinishSession` hook also invalidate `lastValueKeys.all` so the next session's F7 reflects this session's working sets?**
    - What we know: CONTEXT.md doesn't specify. The F7 query is `staleTime: 15min` so even without invalidation, the cache will refresh within 15min. But if the user starts a second session within 15min, the F7 chip shows stale data (still referencing the previous-previous session).
    - Recommendation: Plan 02 invalidates `lastValueKeys.all` in the `setMutationDefaults['session','finish'].onSettled` block. Trivial cost; correct semantics.
+   - **RESOLVED:** `setMutationDefaults[['session','finish']].onSettled` invalidates `lastValueKeys.all` in addition to the existing Phase 4 invalidations. Implemented in Plan 01 Task 05-01-02 Step C Block 10 (revision WARNING-03 closure). Grep gate in Task 05-01-02 `<done>` asserts the call exists in `client.ts`.
 
 3. **Where does the "Passet sparat ✓" toast actually live?**
    - What we know: CONTEXT.md D-24 says "on (tabs)/index". UI-SPEC §Toast specifies Reanimated `Animated.View` mounted via a Zustand flag or router-param hand-off from `useFinishSession.onSuccess`. CONTEXT.md `<discretion>` left to Plan 02.
    - Recommendation: Plan 02 picks. Simplest approach: a `useState`-backed toast inside `(tabs)/index.tsx` that gets triggered via a query-side-effect (`useEffect` watching `sessionsKeys.active()` for transition from non-null → null) OR via a Zustand "lastFinishedSessionId" flag set in `useFinishSession.onSuccess`. Reanimated `entering={FadeIn}` + `exiting={FadeOut.delay(2000)}` handles the timing.
+   - **RESOLVED:** Plan 03 Task 05-03-02 implements the toast in `(tabs)/index.tsx` via a `useEffect` that watches the `useActiveSessionQuery` value transitioning from non-null → null; uses `useState` + `setTimeout(2000)` for the 2s visibility window paired with Reanimated `entering={FadeIn.duration(200)}` + `exiting={FadeOut.duration(200)}`. The `FadeOut.delay(2000)` form from the recommendation prose was a flawed reading — `delay` blocks the start of the unmount fade, not the entire visible duration. The `setTimeout` + state-flip pattern is the correct primitive. (WARNING-04 revision closure.) No Zustand flag is introduced (CONTEXT.md D-25 explicitly forbids).
 
 4. **Should the workout screen mount a second `<OfflineBanner />` instance inside the SafeAreaView?**
    - What we know: UI-SPEC §Offline state surfaces recommends YES — mount a second instance below the header so offline state is visible during the hot path. The (tabs) banner is invisible inside `/workout/[sessionId]` because the route is outside the (tabs) layout.
    - Recommendation: Plan 02 mounts the second `<OfflineBanner />` per UI-SPEC. Both instances state-mirror via `useOnlineStatus()` so they appear/disappear simultaneously.
+   - **RESOLVED:** Plan 02 Task 05-02-03 Step A mounts `<OfflineBanner />` as a sibling above `<WorkoutBody>` inside the WorkoutScreen SafeAreaView. WARNING-01 revision closure. Grep gate in Task 05-02-03 `<done>` asserts the mount exists. Plan 03's F13 brutal-test recipe (Task 05-03-04) explicitly asserts "OfflineBanner visible" after the force-quit re-open in the workout screen.
 
 5. **`exercise_sets.set_number` race condition under rapid Klart-tap**
    - What we know: CONTEXT.md D-16 accepts client-side `set_number = existingSets.length + 1` with no DB uniqueness constraint. Two rapid taps on Klart for the same exercise (within the same render frame, before optimistic update completes) could compute the same `set_number`.
    - What's unclear: TanStack onMutate is synchronous; the cache write is synchronous. The next tap reads `queryClient.getQueryData` which returns the just-updated array. So two taps in two render frames cannot collide. Within ONE render frame, React doesn't fire two onPress handlers — Pressable debounces.
    - Recommendation: Plan 02 documents this in the `useAddSet` hook comment. Defensive: log a warning if `setNumber` would duplicate an existing cached value (cheap sanity check), but do NOT block the insert (per CONTEXT.md "more data > losing data").
+   - **RESOLVED:** Accept as documented — TanStack onMutate is synchronous so within-frame collision is not possible (the second tap reads the just-updated cache), and Pressable's native debounce blocks within-frame double-fires. Plan 02 Task 05-02-03 Step D action body computes set_number from `queryClient.getQueryData<SetRow[]>(setsKeys.list(sessionId))` per CONTEXT.md D-16; defensive logging is deferred to V1.1.
 
 ## Sources
 
