@@ -45,7 +45,7 @@ Identical scale to Phase 3 + Phase 4 UI-SPECs. All values multiples of 4, mapped
 
 | Token | Value | Tailwind class | Usage in Phase 5 |
 |-------|-------|----------------|------------------|
-| xs | 4px | `p-1`, `gap-1` | Gap inside the F7 last-value chip ("Förra: 82.5 × 8"); gap between counter-chip elements ("X/3 set klart") |
+| xs | 4px | `p-1`, `gap-1`, `py-1` | Gap inside the F7 last-value chip ("Förra: 82.5 × 8"); gap between counter-chip elements ("X/3 set klart"); vertical padding inside the card-header chip shells (target / equipment / counter) |
 | sm | 8px | `p-2`, `gap-2`, `mt-2` | Field-label-to-input gap; gap between vikt + reps inputs on the set-input row; gap between active-session-banner icon and label text; gap between Klart-tap checkmark fade and row content; ActiveSessionBanner ✕ close hit-padding (if dismissable — not in V1) |
 | md | 16px | `p-4`, `gap-4`, `mt-4` | Default horizontal screen padding on `/workout/[sessionId]`; vertical rhythm between exercise cards in the workout-screen scroll; padding inside exercise-card; ActiveSessionBanner inner padding |
 | lg | 24px | `p-6`, `gap-6`, `mt-6` | Vertical rhythm between exercise-card header and first set-row inside the card; gap between Avsluta-overlay heading and body copy |
@@ -53,12 +53,14 @@ Identical scale to Phase 3 + Phase 4 UI-SPECs. All values multiples of 4, mapped
 | 2xl | 48px | `p-12`, `mt-12` | Top padding inside Avsluta-overlay above its title in modal-content state |
 | 3xl | 64px | `pt-16` | Reserved — not used in Phase 5 surfaces |
 
+**4-pt grid is strict:** every Phase 5 spacing token resolves to a multiple of 4. Sub-4-pt Tailwind tokens (`*-0.5` = 2px, `*-1.5` = 6px, `*-2.5` = 10px, `*-3.5` = 14px) are **forbidden** anywhere in Phase 5 surfaces. The card-header chip shell uses `py-1` (4px) — NOT `py-0.5` (2px) — to remain on the grid.
+
 **Touch target minimum:** All interactive elements ≥ 44×44pt per Apple HIG (matches Phase 3 + Phase 4 contract). Phase 5 introduces one additional constraint: **the Klart button on the set-input row MUST be ≥ 56pt** per PITFALLS §6.1 (the hot path is finger-tap-density-critical; 56pt minimum reduces mis-tap risk during a high-RPM logging session).
 
 - Primary CTAs ("Starta pass", "Avsluta", "Återuppta"): `py-4` (16px) + `text-base` (16px) → ~48pt. Same as Phase 3 + Phase 4 — identical class string.
 - **Klart button on set-input row** (NEW Phase 5 constraint): `py-4` + `text-base font-semibold` + `min-h-[56px]` explicit style → ≥ 56pt total. Width is fixed at `w-20` (80pt) so the row layout is `[vikt: flex-1][reps: flex-1][Klart: w-20]` and the Klart-target is 80×56pt = 4480pt² — well above PITFALLS §6.1 floor.
 - ActiveSessionBanner full-row tap: minimum `py-3` row padding → 44pt. The full banner is a `Pressable` (tap anywhere routes to `/workout/<id>`).
-- Set-input row TextInputs (vikt + reps): `py-3` + `text-lg` (18px — bumped from `text-base` for at-a-glance scannability per PITFALLS §6.4 "AAA contrast on numbers") → ~52pt height. Each input is `flex-1` of the row; on a 360pt-wide iPhone minus 32pt horizontal padding minus 80pt Klart-w-20 minus 16pt gaps = ~116pt per input ≥ 56pt — meets HIG.
+- Set-input row TextInputs (vikt + reps): `py-3` + `text-base font-semibold` (16px at weight 600 — scan affordance carried by weight contrast, not size, so the four-role typography contract is preserved) → ~52pt height. Each input is `flex-1` of the row; on a 360pt-wide iPhone minus 32pt horizontal padding minus 80pt Klart-w-20 minus 16pt gaps = ~116pt per input ≥ 56pt — meets HIG.
 - Logged set-row tap target (D-14 tap-to-edit): full row is a `Pressable` with `py-3` → 44pt vertical.
 - Swipe-left delete reveal (D-14): swipe gesture itself has no fixed tap target; the revealed "Ta bort"-action button is `py-3 px-6` → ≥ 44pt tap target on the unhidden affordance.
 - Header right "Avsluta"-Pressable: `px-3 py-2` + hitSlop={8} → 44pt total (matches Phase 4 header-action pattern).
@@ -70,7 +72,10 @@ Exceptions: Klart button has a **floor** at 56pt (not the 44pt baseline) per PIT
 
 ## Typography
 
-Tailwind v3 default `fontSize` scale, restricted to four roles. Identical role table to Phase 3 + Phase 4 UI-SPECs. **One Phase 5 specific bump:** the numeric inputs on the set-row use `text-lg` (18px) rather than `text-base` (16px) so the in-progress weight/reps values are unambiguous at arm's length during a working set — this is a visual emphasis only, not a new role.
+Tailwind v3 default `fontSize` scale, restricted to four roles. Identical role table to Phase 3 + Phase 4 UI-SPECs. **Strict four-role contract:** Phase 5 declares exactly four font sizes — Label 14 / Body 16 / Heading 24 / Display 30. No `text-lg` (18px), no `text-xl` (20px), no other intermediate sizes appear in any Phase 5 surface. Numeric scan-affordance on the hot path is carried by **weight contrast** (semibold against surrounding regular body text), not by an additional size step.
+
+**Sizes declared (4):** 14 (Label) / 16 (Body) / 24 (Heading) / 30 (Display).
+**Weights declared (2):** 400 regular (`font-normal`) / 600 semibold (`font-semibold`).
 
 | Role | Size | Tailwind class | Weight | Tailwind weight class | Line Height |
 |------|------|----------------|--------|------------------------|-------------|
@@ -79,9 +84,9 @@ Tailwind v3 default `fontSize` scale, restricted to four roles. Identical role t
 | Heading | 24px | `text-2xl` | 600 (semibold) | `font-semibold` | 1.33 (Tailwind ships `lh-8` = 32px) |
 | Display | 30px | `text-3xl` | 600 (semibold) | `font-semibold` | 1.2 (Tailwind ships `lh-9` = 36px) |
 
-**Two weights only:** `font-normal` (400) for body and field input text; `font-semibold` (600) for labels, headings, the display, primary CTA labels, the active-session-banner copy, and the F7 last-value chip's set-position prefix. No `font-bold`, no `font-medium`, no `font-light`. Matches Phase 3 + Phase 4.
+**Two weights only:** `font-normal` (400) for body and field input text; `font-semibold` (600) for labels, headings, the display, primary CTA labels, the active-session-banner copy, the F7 last-value chip's set-position prefix, **and the numeric values on the set-input row + the editable-mode logged set-row** (Phase 5 hot-path emphasis is weight-driven, not size-driven). No `font-bold`, no `font-medium`, no `font-light`. Matches Phase 3 + Phase 4.
 
-**Numeric-input emphasis (Phase 5 specific):** Vikt and reps `TextInput` value uses `text-lg` (18px) instead of `text-base` (16px) for the hot path. This is a contextual size override, not a new typography role; the four-role contract above is preserved. F7 last-value chip uses Body (`text-base`) for its prefix ("Förra:") and `text-base font-semibold` for the numeric portion ("82.5 × 8") to make the prior set scannable without enlarging it beyond contextual emphasis.
+**Numeric-input hot-path emphasis (Phase 5 specific):** Vikt and reps `TextInput` values use **`text-base font-semibold`** (16px + weight 600) instead of the default `text-base font-normal` (16px + weight 400). This relies on weight contrast against the surrounding `font-normal` body text to make in-progress weight/reps scannable at arm's length. **No size bump** — the four-role contract is strictly preserved (no `text-lg`/18px size in Phase 5). The F7 last-value chip continues to use Body (`text-base`) for its prefix ("Förra:") at weight 400 and `text-base font-semibold` for the numeric portion ("82.5 × 8") at weight 600; this is the same weight-only emphasis pattern, consistent across the set-row and the chip.
 
 **Per-screen role mapping (Phase 5):**
 
@@ -96,9 +101,9 @@ Tailwind v3 default `fontSize` scale, restricted to four roles. Identical role t
 | `/workout/[sessionId].tsx` exercise-card header | Exercise name | Heading (`text-2xl font-semibold`) — bumped from "Body semibold" used on Phase 4 plan_exercise rows; on this screen the exercise name is the *visual anchor* per card, not a list-row entry |
 | `/workout/[sessionId].tsx` exercise-card chips | Target chip (`3×8–12`), equipment chip, counter chip (`2/3 set klart`) | Label (`text-sm font-semibold text-gray-500 dark:text-gray-400`) — muted color so they read as metadata |
 | `/workout/[sessionId].tsx` logged set-row | Set number prefix (`Set 1`) | Label (`text-sm font-semibold text-gray-500 dark:text-gray-400`) |
-| `/workout/[sessionId].tsx` logged set-row | Logged weight + reps (`82.5 × 8`) | Body (`text-base font-normal text-gray-900 dark:text-gray-50`) at rest; flips to `text-lg` editable when tapped (matches input-row emphasis) |
-| `/workout/[sessionId].tsx` set-input row | Vikt + reps TextInput value | `text-lg font-normal text-gray-900 dark:text-gray-50` (Phase 5 numeric-input bump) |
-| `/workout/[sessionId].tsx` set-input row | Vikt + reps TextInput placeholder | `text-lg font-normal text-gray-500 dark:text-gray-400` (placeholderTextColor prop carries `#9CA3AF` per Phase 3 Pitfall 7 workaround) |
+| `/workout/[sessionId].tsx` logged set-row | Logged weight + reps (`82.5 × 8`) | Body (`text-base font-normal text-gray-900 dark:text-gray-50`) at rest; flips to `text-base font-semibold` editable when tapped (weight bump matches input-row emphasis; size is unchanged) |
+| `/workout/[sessionId].tsx` set-input row | Vikt + reps TextInput value | `text-base font-semibold text-gray-900 dark:text-gray-50` (Phase 5 numeric-input weight bump — size remains Body 16px) |
+| `/workout/[sessionId].tsx` set-input row | Vikt + reps TextInput placeholder | `text-base font-normal text-gray-500 dark:text-gray-400` (placeholderTextColor prop carries `#9CA3AF` per Phase 3 Pitfall 7 workaround; placeholder stays weight-400 so the focus/blur weight delta tells the user when the field is being edited) |
 | `/workout/[sessionId].tsx` set-input row | Klart button label | Body size with semibold (`text-base font-semibold text-white`) |
 | `/workout/[sessionId].tsx` F7 last-value chip | "Förra:" prefix + "82.5 × 8" value | Both Body (`text-base`); prefix `font-normal`, value `font-semibold`; both muted (`text-gray-500 dark:text-gray-400`) |
 | `/workout/[sessionId].tsx` empty exercises state | "Den här planen har inga övningar än" + "Gå tillbaka och lägg till några." | Heading + Body (same pattern as Phase 4 plan-detail empty-state) |
@@ -362,9 +367,9 @@ View (className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 mb-4")
 ```
 
 **Card-header chip row format** (per CONTEXT.md `<specifics>`):
-- Target chip: `View bg-gray-200 dark:bg-gray-700 rounded-full px-2 py-0.5` containing `Text text-sm font-semibold text-gray-500 dark:text-gray-400` with `3×8–12` or `3 set` or `8–12 reps`.
-- Equipment chip: same chip shell, content `Skivstång` (literal `exercise.equipment` value).
-- Counter chip: positioned right (outside the chip row, in the header's right slot via `flex-row justify-between`); same shell, content `2/3 set klart` or `2 set`. **When all target_sets reached** (`loggedCount >= target_sets`), counter chip background swaps to `bg-green-100 dark:bg-green-900` and text to `text-green-900 dark:text-green-100` — success state, AAA contrast — providing implicit feedback that the user has met the plan's target without requiring an explicit "all done" badge.
+- Target chip: `View bg-gray-200 dark:bg-gray-700 rounded-full px-2 py-1` containing `Text text-sm font-semibold text-gray-500 dark:text-gray-400` with `3×8–12` or `3 set` or `8–12 reps`. (`py-1` = 4px — on the 4-pt grid; replaces an earlier `py-0.5` (2px) that violated the spacing scale.)
+- Equipment chip: same chip shell (`px-2 py-1`), content `Skivstång` (literal `exercise.equipment` value).
+- Counter chip: positioned right (outside the chip row, in the header's right slot via `flex-row justify-between`); same shell (`px-2 py-1`), content `2/3 set klart` or `2 set`. **When all target_sets reached** (`loggedCount >= target_sets`), counter chip background swaps to `bg-green-100 dark:bg-green-900` and text to `text-green-900 dark:text-green-100` — success state, AAA contrast — providing implicit feedback that the user has met the plan's target without requiring an explicit "all done" badge.
 
 ### `/workout/[sessionId].tsx` LoggedSetRow
 
@@ -406,12 +411,12 @@ In edit mode (after tap, D-14):
 ```
 View  → flex-row items-center gap-2 bg-white dark:bg-gray-900
         rounded-md px-3 py-3
-  [VikInput pre-filled with current weight_kg]
-  [RepsInput pre-filled with current reps]
+  [VikInput pre-filled with current weight_kg]   ← className uses text-base font-semibold
+  [RepsInput pre-filled with current reps]       ← className uses text-base font-semibold
   [KlartButton — calls useUpdateSet().mutate on submit]
 ```
 
-**Visual distinction between logged-and-resting vs editing:** at rest the row has lighter `bg-white dark:bg-gray-900` (one level above card-secondary background); in edit mode the row swaps to TextInput inputs that share the same row dimensions — no jarring height change. The success-green checkmark stays visible during edit so the row's "this is a saved set" identity persists.
+**Visual distinction between logged-and-resting vs editing:** at rest the row has lighter `bg-white dark:bg-gray-900` (one level above card-secondary background); in edit mode the row swaps to TextInput inputs that share the same row dimensions — no jarring height change. The success-green checkmark stays visible during edit so the row's "this is a saved set" identity persists. The value cells flip from `text-base font-normal` (at-rest) to `text-base font-semibold` (editing) — same size, weight-only contrast, so vertical layout is stable.
 
 ### `/workout/[sessionId].tsx` VikInput / RepsInput (numeric inputs on set-input row)
 
@@ -419,7 +424,7 @@ View  → flex-row items-center gap-2 bg-white dark:bg-gray-900
 TextInput  → flex-1 rounded-md bg-white dark:bg-gray-900
              border border-gray-300 dark:border-gray-700
              focus:border-blue-600 dark:focus:border-blue-500
-             px-3 py-3 text-lg text-gray-900 dark:text-gray-50
+             px-3 py-3 text-base font-semibold text-gray-900 dark:text-gray-50
              min-h-[56px]
   Props:
     placeholder="Vikt" or "Reps"
@@ -432,6 +437,8 @@ TextInput  → flex-1 rounded-md bg-white dark:bg-gray-900
     accessibilityLabel="Vikt i kilo" / "Antal repetitioner"
     selectTextOnFocus={true}          ← so pre-filled values can be quickly overwritten
 ```
+
+**Note on placeholder weight:** the placeholder text itself remains weight-400 (NativeWind's `font-semibold` applies to the value text via the input's render style; React Native's placeholder is controlled by `placeholderTextColor` only, not weight). The semibold weight only kicks in once the user types or once a pre-filled value is rendered. This means focus/blur naturally signals "you are editing" via the weight delta — additional UX benefit, no extra wiring.
 
 **Error border:** when RHF reports `fieldState.error`, border switches to `border-red-600 dark:border-red-400` (replaces the focus blue or the at-rest gray).
 
@@ -661,7 +668,7 @@ No third-party component blocks are fetched, copied, or wired via `npx shadcn ad
 **A11y deferrals to V1.1 (acknowledged not addressed in Phase 5):**
 - VoiceOver-friendly set reordering (V1 has no reorder UI for logged sets within a session; if added, would need up/down buttons exposed to AT)
 - Reduced-motion handling for the toast fade animation (would short-circuit `entering`/`exiting` to instant render — V1 default ships the fade)
-- Dynamic Type scaling above system default (numeric `text-lg` is fixed at 18px — users with very large text may see truncation on the set-row)
+- Dynamic Type scaling above system default (Body 16px is fixed; users with very large text may see truncation on the set-row — same risk as Phase 4 input rows)
 - Haptic feedback as an a11y enhancement (decoupled from V1 default; V1.1 if soak shows visual flash is insufficient)
 
 ---
@@ -723,13 +730,13 @@ Manual test: simulator → Settings → Developer → Dark Appearance toggle. Al
 
 These are intentionally identical between Phase 3 / Phase 4 / Phase 5 to preserve cross-phase visual consistency. The executor SHOULD reuse the exact class strings from Phase 4 components:
 
-- Spacing scale (xs–3xl tokens)
-- Typography role table (Body / Label / Heading / Display sizes + weights — two weights only)
+- Spacing scale (xs–3xl tokens; strict 4-pt grid — no sub-4-pt tokens like `*-0.5`)
+- Typography role table (Body / Label / Heading / Display sizes + weights — two weights only; strict four-size contract)
 - Color 60/30/10 split (dominant white, secondary gray-100, accent blue-600)
 - Destructive red-600 (same hex; new usage in Phase 5 = swipe-delete + draft-resume Avsluta sessionen)
 - Warning yellow-200 (unchanged — OfflineBanner only; Phase 5 adds no yellow surface)
 - Body and Muted text colors
-- TextInput field structure and class string (verbatim from Phase 3/Phase 4 — re-applied to set-input row with `text-lg` numeric bump)
+- TextInput field structure and class string (verbatim from Phase 3/Phase 4 — re-applied to set-input row with `font-semibold` weight bump on numeric value, no size change)
 - Primary CTA button structure (verbatim from Phase 3/Phase 4 — re-applied to "Starta pass", "Återuppta", overlay buttons)
 - Inline-overlay-confirm pattern (verbatim from Phase 4 commits 954c480 + e07029a + 1f4d8d0)
 - `useFocusEffect` state-reset pattern (verbatim from Phase 4 commit af6930c)
@@ -748,10 +755,10 @@ These are **new** in Phase 5 (no Phase 3/4 precedent):
 
 - Info-blue color role (ActiveSessionBanner)
 - Success-green color role (toast + check-icon on logged set-rows + counter-chip success state)
-- Numeric-input `text-lg` (18px) contextual emphasis on hot path
+- Numeric-input weight bump (`font-semibold` on hot-path values — size unchanged at `text-base` 16px; scan affordance via weight contrast, not size step)
 - Klart button 56pt floor (vs 44pt baseline)
 - ActiveSessionBanner component (mounts below OfflineBanner in (tabs)/_layout.tsx)
-- LoggedSetRow component (single-line static-or-editable display with swipe-left delete)
+- LoggedSetRow component (single-line static-or-editable display with swipe-left delete; at-rest `font-normal` → editing `font-semibold` weight delta)
 - LastValueChip component (F7 set-position-aligned chip)
 - Exercise-card layout (multi-row card: header + chips + logged rows + input row + last-value chip)
 - Toast component (Reanimated `Animated.View` with `entering`/`exiting.delay(2000)`)
@@ -760,6 +767,32 @@ These are **new** in Phase 5 (no Phase 3/4 precedent):
 - Workout-screen route-check to hide ActiveSessionBanner during active workout view
 - Counter-chip success-state color swap when all `target_sets` reached
 - Swipe-left set-row delete gesture (red action panel revealed behind row)
+
+---
+
+## Accepted FLAGs (Acknowledged Non-Blocking — Next Checker Run)
+
+The following Dimension 1 (Copywriting) findings from the checker are intentional and accepted for Phase 5. They are documented here so that the next checker pass treats them as known-and-justified rather than re-raising them.
+
+| Element | Surface | Copy | Justification |
+|---------|---------|------|---------------|
+| Primary CTA | Set-input row Klart button | `Klart` | Hot-path constraint — the button cell is fixed at `w-20` (80pt) so the row fits `[vikt: flex-1][reps: flex-1][Klart: w-20]` on a 360pt-wide iPhone. A two-word label ("Spara set") would either truncate or force the row to wrap, which breaks the always-visible-input-row contract from CONTEXT.md D-08. "Klart" is the iOS-native idiom for "submit this dense form cell" (compare Apple's native pickers + form-field commit affordance). |
+| Header right | Workout-screen header (`/workout/[sessionId].tsx`) | `Avsluta` | Header-right text-button has tight horizontal space (must coexist with the title + system back-arrow). The accompanying `accessibilityLabel="Avsluta passet"` carries the explicit verb-noun pairing for VoiceOver (already documented in the Accessibility Floor section above). |
+| Overlay primary | Draft-resume overlay (`(tabs)/index.tsx`) | `Återuppta` | The overlay heading immediately above (`Återuppta passet?`) supplies the noun ("passet"), so the button label only needs the verb. Two-word "Återuppta passet" on the button would duplicate the title and waste vertical space inside an inline overlay. |
+| Overlay secondary | Avsluta-pass overlay (`/workout/[sessionId].tsx`) | `Fortsätt` | Same overlay-context rationale: the title `Avsluta passet?` supplies the noun, and `Fortsätt` is the universal "not-now" cancel verb in Swedish iOS apps. |
+
+These four labels are space- and idiom-constrained choices, not oversights. They will not be re-evaluated in the next checker pass unless surface-level context changes (e.g. the button cell widens, in which case the executor MAY revisit). All other Swedish copy in this phase is multi-word and follows the verb-noun pattern (`Starta pass`, `Avsluta sessionen`, `Avsluta utan att spara`, `Ta bort`, `Tillbaka till planen`).
+
+---
+
+## Revision History
+
+| Date | Change | Reason |
+|------|--------|--------|
+| 2026-05-12 | Initial UI-SPEC | gsd-ui-researcher draft |
+| 2026-05-12 | D4 Typography fix: dropped `text-lg` (18px) entirely; numeric scan-affordance now via `font-semibold` weight contrast at `text-base` (16px). Sizes reduced from 5 (14/16/18/24/30) to 4 (14/16/24/30). | UI-checker BLOCK on Dimension 4 — declared sizes count, not roles named; 4-size contract violated. |
+| 2026-05-12 | D5 Spacing fix: replaced `py-0.5` (2px) with `py-1` (4px) on card-header chip shells (target / equipment / counter). All `*-0.5` Tailwind tokens forbidden in Phase 5 per the 4-pt grid declaration. | UI-checker BLOCK on Dimension 5 — 2px not on the declared 4 / 8 / 16 / 24 / 32 / 48 / 64 scale. |
+| 2026-05-12 | Added "Accepted FLAGs" section documenting four single-word Swedish CTA labels (Klart, Avsluta, Återuppta, Fortsätt) as intentional space- and idiom-constrained choices. | UI-checker FLAG on Dimension 1 — labels acknowledged as non-blocking; documenting for next-checker-run continuity. |
 
 ---
 
