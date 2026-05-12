@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: verifying
-stopped_at: Phase 5 context gathered — 4 areas discussed (layout, set input, F7, session lifecycle); 25 decisions captured incl. set-edit/delete divergence from research/ARCHITECTURE.md §5.3
-last_updated: "2026-05-11T20:29:29.850Z"
+stopped_at: Phase 5 UI-SPEC approved
+last_updated: "2026-05-12T19:29:00.657Z"
 last_activity: 2026-05-10
 progress:
   total_phases: 7
@@ -124,7 +124,7 @@ Items acknowledged for later:
 
 ## Session Continuity
 
-Last session: 2026-05-11T20:29:29.845Z
-Stopped at: Phase 5 context gathered — 4 areas discussed (layout, set input, F7, session lifecycle); 25 decisions captured incl. set-edit/delete divergence from research/ARCHITECTURE.md §5.3
-Resume file: .planning/phases/05-active-workout-hot-path-f13-lives-or-dies/05-CONTEXT.md
+Last session: 2026-05-12T19:29:00.649Z
+Stopped at: Phase 5 UI-SPEC approved
+Resume file: .planning/phases/05-active-workout-hot-path-f13-lives-or-dies/05-UI-SPEC.md
 Next: Orchestrator runs phase-level closeout — `/gsd-secure-phase 4` (close threat register T-04-01 … T-04-12 against implementation; produce 04-SECURITY.md with threats_open: 0) → `/gsd-verify-work 4` (write 04-VERIFICATION.md with all 5 success criteria MET) → `/gsd-code-review` (post-phase audit) → phase.complete (advance ROADMAP Phase 4 → ✓ Complete). Then plan Phase 5 (Active Workout Hot Path — F13 lives or dies).
