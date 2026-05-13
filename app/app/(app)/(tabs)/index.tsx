@@ -32,10 +32,48 @@
 // both routes ship, the casts can be dropped — this comment serves as a
 // breadcrumb for that V1.1 cleanup.
 //
+// Phase 5 D-21 + D-24 EXTENSION:
+//   - Draft-resume overlay: when useActiveSessionQuery returns a non-null row
+//     on cold-start (workout_sessions WHERE finished_at IS NULL exists for
+//     this user — surface "Återuppta passet?" inline-overlay per UI-SPEC
+//     §lines 240–250). The user must EXPLICITLY choose between Återuppta
+//     (route to /workout/<id>) or Avsluta sessionen (mutate finished_at to
+//     now() in place — closes the orphan without losing logged sets — Phase
+//     6 Historik will still show those sets). The backdrop does NOT dismiss
+//     (force-decision UX — UI-SPEC §line 250).
+//   - useFocusEffect cleanup resets `draftDismissed` so the overlay re-appears
+//     if the user navigates away and returns with the draft still active
+//     (Pitfall 5 — freezeOnBlur retains React state across navigation; a stale
+//     `draftDismissed=true` would silently swallow the prompt on a real
+//     unresolved draft. Mirrors plans/[id].tsx lines 168–173 verbatim.).
+//   - "Passet sparat ✓" success toast: renders on transition from
+//     activeSession=non-null → activeSession=null (the only signal that a
+//     Avsluta-flow completed — either from this screen's secondary button or
+//     from /workout/[sessionId]'s Avsluta-overlay routing back here). Uses
+//     Reanimated `Animated.View` with `entering={FadeIn.duration(200)}` +
+//     `exiting={FadeOut.duration(200)}`. The 2-second visible window is
+//     enforced by a `setTimeout(2000)` in `useEffect` (per must_haves line
+//     48: `FadeOut.delay(2000)` would defer the START of the fade, not the
+//     visible duration; setTimeout → setState → React triggers `exiting`).
+//
+// Toast implementation choice (RESEARCH Open Q#3 + must_haves):
+//   PICKED: `useEffect`-watching-`activeSession`-transition pattern.
+//   Why: TanStack-query value transition is the cleanest signal we already
+//   have — the Avsluta optimistic onMutate (Plan 01) clears
+//   sessionsKeys.active(), which propagates through useActiveSessionQuery
+//   instantly. No extra Zustand store, no router-param hand-off (both
+//   anti-patterns explicitly forbidden per CONTEXT.md D-25 and PATTERNS.md
+//   §Toast — no-analog notes).
+//
 // References:
 //   - 04-CONTEXT.md D-12, D-14
 //   - 04-UI-SPEC.md §Planer tab + §Visuals plan-list-row + §Visuals FAB
-import { useRouter, type Href } from "expo-router";
+//   - 05-CONTEXT.md D-21, D-24, D-25
+//   - 05-UI-SPEC.md §lines 238–250 (draft-resume), §lines 267–276 (toast),
+//     §lines 555–569 (Reanimated structure)
+//   - 05-PATTERNS.md §inline-overlay-confirm + §useFocusEffect reset
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useRouter, useFocusEffect, type Href } from "expo-router";
 import {
   View,
   Text,
@@ -45,8 +83,15 @@ import {
   useColorScheme,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
+import { format } from "date-fns";
 import { usePlansQuery } from "@/lib/queries/plans";
+import {
+  useActiveSessionQuery,
+  useFinishSession,
+} from "@/lib/queries/sessions";
+import { useSetsForSessionQuery } from "@/lib/queries/sets";
 
 export default function PlansTab() {
   const router = useRouter();
@@ -54,6 +99,86 @@ export default function PlansTab() {
   const scheme = useColorScheme();
   const accent = scheme === "dark" ? "#60A5FA" : "#2563EB";
   const muted = scheme === "dark" ? "#9CA3AF" : "#6B7280";
+
+  // Phase 5 D-21 — draft-resume overlay state.
+  const { data: activeSession } = useActiveSessionQuery();
+  // useSetsForSessionQuery gates on `!!sessionId` — empty string yields a
+  // disabled query (no fetch, data=undefined). setsCount falls back to 0 below.
+  const { data: activeSets } = useSetsForSessionQuery(activeSession?.id ?? "");
+  const [draftDismissed, setDraftDismissed] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+
+  // useFinishSession scope.id contract per Pitfall 3: STATIC string at
+  // useMutation() time. activeSession?.id varies as the cache rotates, so we
+  // re-bind on each render. Acceptable here because the draft-resume Avsluta
+  // is one-shot per draft (the optimistic onMutate clears active immediately
+  // after .mutate() fires; the hook re-renders with a different scope ONLY
+  // after the cache transitions, by which time the mutation is already
+  // serialized in the queue). The `?? "noop"` fallback satisfies TypeScript
+  // when activeSession is undefined; handleAvslutaSession guards before
+  // calling .mutate() so the noop scope never actually queues anything.
+  const finishSession = useFinishSession(activeSession?.id ?? "noop");
+
+  // Toast trigger: detect transition from active=non-null → active=null
+  // (Avsluta-flow completes from EITHER this screen's secondary OR the
+  // /workout/[sessionId] Avsluta-overlay). The previous-value ref captures
+  // the prior render's activeSession so we only fire on the actual edge,
+  // not on every render where activeSession===null.
+  const previousActiveRef = useRef<typeof activeSession | undefined>(undefined);
+  useEffect(() => {
+    if (previousActiveRef.current != null && activeSession == null) {
+      setShowToast(true);
+      const t = setTimeout(() => setShowToast(false), 2000);
+      previousActiveRef.current = activeSession;
+      return () => clearTimeout(t);
+    }
+    previousActiveRef.current = activeSession;
+  }, [activeSession]);
+
+  // Pitfall 5 — reset draftDismissed on re-focus so the overlay re-appears
+  // if user navigates back to the tab with a still-active draft (mirrors
+  // plans/[id].tsx lines 168–173 verbatim).
+  useFocusEffect(
+    useCallback(() => {
+      return () => setDraftDismissed(false);
+    }, []),
+  );
+
+  // Draft-resume body copy per UI-SPEC §lines 245–246. 0-set vs N-set variants.
+  const setsCount = activeSets?.length ?? 0;
+  const startedAt = activeSession?.started_at
+    ? format(new Date(activeSession.started_at), "HH:mm")
+    : "";
+  const draftBody =
+    setsCount > 0
+      ? `Du har ett pågående pass från ${startedAt} med ${setsCount} set sparade.`
+      : `Du startade ett pass ${startedAt} men har inte loggat något set än.`;
+
+  const handleResume = () => {
+    if (!activeSession) return;
+    setDraftDismissed(true);
+    router.push(`/workout/${activeSession.id}` as Href);
+  };
+
+  const handleAvslutaSession = () => {
+    if (!activeSession) return;
+    // mutate (NOT mutateAsync) per Phase 4 commit 5d953b6 UAT lesson — paused
+    // mutations under networkMode: 'offlineFirst' never resolve mutateAsync.
+    // The optimistic onMutate in setMutationDefaults['session','finish']
+    // (Plan 01) clears sessionsKeys.active() so the banner + overlay unmount
+    // immediately; the toast then fires via the useEffect transition watcher.
+    finishSession.mutate(
+      { id: activeSession.id, finished_at: new Date().toISOString() },
+      {
+        onError: () => {
+          // V1: silent — if the server eventually rejects, the active query
+          // will refetch and the row re-appears as active on next focus.
+          // V1.1 polish may add a banner-error here.
+        },
+      },
+    );
+    setDraftDismissed(true);
+  };
 
   // Loading state (≤500ms typical due to AsyncStorage cache hydration —
   // UI-SPEC §"Loading / cold-start").
@@ -148,6 +273,77 @@ export default function PlansTab() {
         >
           <Ionicons name="add" size={28} color="white" />
         </Pressable>
+      )}
+
+      {/* Phase 5 D-21 — Draft-resume overlay. Inline-overlay pattern per
+          PATTERNS.md §inline-overlay-confirm (NOT Modal portal — Phase 4 D-08
+          anti-pattern). Backdrop Pressable absorbs taps but does NOT dismiss
+          (force-decision UX per UI-SPEC §line 250). Inner container has
+          onStartShouldSetResponder so its own taps don't bubble through. */}
+      {activeSession && !draftDismissed && (
+        <Pressable
+          className="absolute inset-0 bg-black/40"
+          accessibilityElementsHidden={false}
+          // Intentionally NO onPress — backdrop is decoratively pressable to
+          // absorb taps but does not dismiss; force-decision UX per UI-SPEC.
+        >
+          <View
+            className="absolute inset-x-4 top-[40%] bg-gray-100 dark:bg-gray-800 rounded-2xl p-6"
+            style={{ gap: 24 }}
+            onStartShouldSetResponder={() => true}
+          >
+            <View style={{ gap: 8 }}>
+              <Text className="text-2xl font-semibold text-gray-900 dark:text-gray-50">
+                Återuppta passet?
+              </Text>
+              <Text className="text-base text-gray-900 dark:text-gray-50">
+                {draftBody}
+              </Text>
+            </View>
+            <View className="flex-row gap-3">
+              <Pressable
+                onPress={handleAvslutaSession}
+                className="flex-1 py-4 rounded-lg bg-red-600 dark:bg-red-500 items-center justify-center active:opacity-80"
+                accessibilityRole="button"
+                accessibilityLabel="Avsluta sessionen"
+              >
+                <Text className="text-base font-semibold text-white">
+                  Avsluta sessionen
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={handleResume}
+                className="flex-1 py-4 rounded-lg bg-blue-600 dark:bg-blue-500 items-center justify-center active:opacity-80"
+                accessibilityRole="button"
+                accessibilityLabel="Återuppta passet"
+              >
+                <Text className="text-base font-semibold text-white">
+                  Återuppta
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </Pressable>
+      )}
+
+      {/* Phase 5 D-24 — "Passet sparat ✓" success toast. Reanimated 4
+          Animated.View with entering={FadeIn.duration(200)} +
+          exiting={FadeOut.duration(200)}. The 2s visible window is gated by
+          setTimeout(2000) in the useEffect transition watcher above (NOT
+          FadeOut.delay(2000) — `delay` defers the start of the unmount fade,
+          not the visible duration; see must_haves line 48). */}
+      {showToast && (
+        <Animated.View
+          entering={FadeIn.duration(200)}
+          exiting={FadeOut.duration(200)}
+          className="absolute bottom-20 self-center bg-green-600 dark:bg-green-500 rounded-full px-6 py-3"
+          accessibilityRole="alert"
+          accessibilityLiveRegion="polite"
+        >
+          <Text className="text-base font-semibold text-white">
+            Passet sparat ✓
+          </Text>
+        </Animated.View>
       )}
     </SafeAreaView>
   );
