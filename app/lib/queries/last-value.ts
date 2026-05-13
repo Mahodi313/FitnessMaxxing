@@ -10,10 +10,16 @@
 //   STEP 2: fetch all working-sets from that session for this exercise_id,
 //           ordered by set_number.
 //
-// Returns Map<setNumber, { weight_kg, reps, completed_at }>. UI consumer:
+// Returns Record<setNumber, { weight_kg, reps, completed_at }>. UI consumer:
 //   const lastValueMap = useLastValueQuery(exerciseId, currentSessionId).data;
-//   const prev = lastValueMap?.get(currentSetNumber);
+//   const prev = lastValueMap?.[currentSetNumber];
 //   if (prev) render <LastValueChip ... />
+//
+// Why Record and not Map: TanStack Query persists cache via JSON.stringify
+// through the AsyncStorage persister. JS Map serializes to "{}" through
+// JSON and rehydrates as a plain object — calling `.get` on the rehydrated
+// value would throw at runtime. Record<number, V> survives JSON round-trip
+// losslessly and supports the same O(1) lookup via `obj[key]`.
 //
 // staleTime: 15 min per CONTEXT.md D-20 — pre-fetched on workout-screen
 // mount.
@@ -51,10 +57,10 @@ export function useLastValueQuery(
   currentSessionId: string,
 ) {
   const userId = useAuthStore((s) => s.session?.user.id);
-  return useQuery<Map<number, LastValueEntry>>({
+  return useQuery<Record<number, LastValueEntry>>({
     queryKey: lastValueKeys.byExercise(exerciseId),
     queryFn: async () => {
-      if (!userId) return new Map();
+      if (!userId) return {};
 
       // STEP 1: find the most-recent finished session for this exercise,
       // excluding the active session. The `workout_sessions!inner` join is
@@ -74,7 +80,7 @@ export function useLastValueQuery(
         .limit(1)
         .maybeSingle();
       if (sessionErr) throw sessionErr;
-      if (!sessionRow) return new Map();
+      if (!sessionRow) return {};
       const targetSessionId = sessionRow.session_id;
 
       // STEP 2: fetch every working set from that session for this exercise.
@@ -90,7 +96,7 @@ export function useLastValueQuery(
         .order("set_number", { ascending: true });
       if (setsErr) throw setsErr;
 
-      const map = new Map<number, LastValueEntry>();
+      const record: Record<number, LastValueEntry> = {};
       for (const s of sets ?? []) {
         // Parse the partial row via SetRowSchema.partial() (Pitfall 8.13 —
         // boundary parse, not cast). Only push entries with complete data.
@@ -101,14 +107,14 @@ export function useLastValueQuery(
           parsed.reps != null &&
           parsed.completed_at != null
         ) {
-          map.set(parsed.set_number, {
+          record[parsed.set_number] = {
             weight_kg: parsed.weight_kg,
             reps: parsed.reps,
             completed_at: parsed.completed_at,
-          });
+          };
         }
       }
-      return map;
+      return record;
     },
     enabled: !!exerciseId && !!userId,
     staleTime: 1000 * 60 * 15, // 15 min per CONTEXT.md D-20

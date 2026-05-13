@@ -309,7 +309,7 @@ function ExerciseCard({
   // set-position-aligned to currentSetNumber).
   const sessionPrefill =
     setsForThisExercise[setsForThisExercise.length - 1] ?? null;
-  const f7PrefillEntry = lastValueMap?.get(currentSetNumber);
+  const f7PrefillEntry = lastValueMap?.[currentSetNumber];
   const prefillWeight =
     sessionPrefill?.weight_kg ?? f7PrefillEntry?.weight_kg ?? null;
   const prefillReps = sessionPrefill?.reps ?? f7PrefillEntry?.reps ?? null;
@@ -754,7 +754,7 @@ function LastValueChip({
   setNumber: number;
 }) {
   const { data: lastValueMap } = useLastValueQuery(exerciseId, sessionId);
-  const prev = lastValueMap?.get(setNumber);
+  const prev = lastValueMap?.[setNumber];
   if (!prev) return null; // D-19 — not rendered when no data
   return (
     <View className="flex-row items-center gap-1 px-3 py-1 mt-1">
