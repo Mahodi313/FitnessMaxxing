@@ -108,7 +108,10 @@ FitnessMaxxing levereras som en personlig iPhone gym-tracker via Expo Go. Resan 
   4. Användare kan avsluta passet → `finished_at` sätts → tillbaka till hem; ingen "Discard workout"-knapp finns (data-loss-vector eliminerad)
   5. **Draft-session-recovery:** kall-start visar "Återuppta passet?" om `workout_sessions WHERE finished_at IS NULL` finns
   6. **F13 acceptance test passerar:** airplane mode + force-quit + battery-pull-simulering under 25-set-pass = alla 25 set överlever och synkar i rätt ordning vid återanslutning (idempotent via klient-genererade UUIDs + `scope.id` serial replay)
-**Plans**: TBD
+**Plans**: 3 plans
+  - [x] 05-01-PLAN.md — Schemas + plumbing + Wave 0 verification (sessions.ts/sets.ts Zod, 5 new setMutationDefaults in client.ts, persister throttleTime:500 + AppState background-flush, 3 new tsx scripts + 2 extended for 25-set FIFO replay)
+  - [x] 05-02-PLAN.md — Workout vertical slice (sessions/sets/last-value resource hooks + workout/[sessionId] screen + Starta pass CTA on plans/[id] + F7 chip + Avsluta-overlay; F5+F6+F7+F8 closed end-to-end)
+  - [x] 05-03-PLAN.md — ActiveSessionBanner + draft-session-recovery overlay on (tabs)/index + Passet sparat toast + test-rls.ts cross-user extension + F13 manual brutal-test recipe + human-verify gate (closes ROADMAP success #5 + #6)
 **UI hint**: yes
 
 ### Phase 6: History & Read-Side Polish

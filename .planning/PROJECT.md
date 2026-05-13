@@ -118,4 +118,6 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-09 after Phase 2 (Schema, RLS & Type Generation) completion — V1 schema deployed to remote project mokmiuifpdzwnceufduu with errata-fixed RLS, generated `types/database.ts` wired through `createClient<Database>`, cross-user RLS test harness 22/22 PASS, F17 validated, DB conventions codified in CLAUDE.md*
+*Last updated: 2026-05-13 after Phase 5 (Active Workout Hot Path — F13 lives or dies) completion — F5/F6/F7/F8/F13 all wired end-to-end with offline-first guarantees: 13 setMutationDefaults registered at module top-level with FIFO scope.id replay (`session:<id>`), MMKV persister throttleTime 500ms + AppState background-flush two-belt durability, ActiveSessionBanner cross-tab + draft-resume cold-start overlay + "Passet sparat ✓" toast, `test-rls.ts` extended to 38 cross-user assertions (≥35 threshold) for workout_sessions + exercise_sets. F13 brutal-test recipe (10 phases, 244 LOC) ships at `app/scripts/manual-test-phase-05-f13-brutal.md` — full physical-iPhone run deferred as HUMAN-UAT.
+
+*Previous update: 2026-05-09 after Phase 2 (Schema, RLS & Type Generation) completion — V1 schema deployed to remote project mokmiuifpdzwnceufduu with errata-fixed RLS, generated `types/database.ts` wired through `createClient<Database>`, cross-user RLS test harness 22/22 PASS, F17 validated, DB conventions codified in CLAUDE.md*

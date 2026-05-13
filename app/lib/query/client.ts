@@ -44,9 +44,20 @@ import {
   type PlanExerciseRow,
 } from "@/lib/schemas/plan-exercises";
 import {
+  SessionRowSchema,
+  type SessionRow,
+} from "@/lib/schemas/sessions";
+import {
+  SetRowSchema,
+  type SetRow,
+} from "@/lib/schemas/sets";
+import {
   plansKeys,
   exercisesKeys,
   planExercisesKeys,
+  sessionsKeys,
+  setsKeys,
+  lastValueKeys,
 } from "@/lib/query/keys";
 
 // ---------------------------------------------------------------------------
@@ -117,6 +128,38 @@ type PlanExerciseUpdateVars = { id: string; plan_id: string } & Partial<
 >;
 type PlanExerciseRemoveVars = { id: string; plan_id: string };
 
+// ---- Phase 5 type aliases (sessions + sets) --------------------------------
+// SessionInsertVars: useStartSession(...).mutate({ id, user_id, plan_id, started_at })
+// — id required, user_id required, plan_id + started_at optional (defaulted DB-side).
+type SessionInsertVars = Partial<SessionRow> & {
+  id: string;
+  user_id: string;
+  plan_id?: string | null;
+  started_at?: string;
+};
+// SessionFinishVars: useFinishSession(...).mutate({ id, finished_at })
+// — single-column UPDATE to flip finished_at from null to ISO string.
+type SessionFinishVars = { id: string; finished_at: string };
+
+// SetInsertVars: useAddSet(sessionId).mutate({ id, session_id, exercise_id, set_number, reps, weight_kg, ... })
+// — id, session_id, exercise_id, set_number, reps, weight_kg required. Optional:
+// completed_at (defaulted DB-side), set_type (default 'working'), rpe, notes.
+type SetInsertVars = Partial<SetRow> & {
+  id: string;
+  session_id: string;
+  exercise_id: string;
+  set_number: number;
+  reps: number;
+  weight_kg: number;
+};
+// SetUpdateVars: useUpdateSet(sessionId).mutate({ id, session_id, reps?, weight_kg?, ... })
+// — id + session_id required (scope.id is built from session_id at call site).
+type SetUpdateVars = { id: string; session_id: string } & Partial<
+  Pick<SetRow, "reps" | "weight_kg" | "rpe" | "notes" | "set_type">
+>;
+// SetRemoveVars: useRemoveSet(sessionId).mutate({ id, session_id })
+type SetRemoveVars = { id: string; session_id: string };
+
 // ---------------------------------------------------------------------------
 // Mutation defaults — register all 8 keys at MODULE TOP-LEVEL.
 //
@@ -156,6 +199,22 @@ type PlanExerciseRemoveVars = { id: string; plan_id: string };
 //   ['plan-exercise','update']  → scope.id = `plan:${vars.plan_id}`
 //   ['plan-exercise','remove']  → scope.id = `plan:${vars.plan_id}`
 //   ['plan-exercise','reorder'] → no-op default; orchestrator hook handles scope
+//
+// Phase 5 additions (D-12 + RESEARCH §Replay-order — every mutation under a
+// shared session scope replays FIFO so START lands before SETs, SETs land
+// before FINISH, no FK violations on 23503):
+//   ['session','start']         → scope.id = `session:${vars.id}`
+//   ['session','finish']        → scope.id = `session:${vars.id}`
+//   ['set','add']               → scope.id = `session:${vars.session_id}`
+//   ['set','update']            → scope.id = `session:${vars.session_id}`
+//   ['set','remove']            → scope.id = `session:${vars.session_id}`
+//
+// NOTE Pitfall 3 (function-shaped scope.id silently fails): scope.id MUST be
+// a static string at useMutation() time (v5 reads mutation.options.scope?.id
+// with typeof === 'string' gate). The 5 Phase 5 hooks accept their sessionId
+// parameter at construction time and bake it into the useMutation scope
+// option (in lib/queries/sessions.ts + lib/queries/sets.ts — Plan 02 owns
+// those files).
 //
 // Reference: query-core mutationCache.js:118-120 — `scopeFor(mutation) =
 // mutation.options.scope?.id`. A function-shaped scope.id silently fails
@@ -492,4 +551,315 @@ queryClient.setMutationDefaults(["plan-exercise", "reorder"], {
     return undefined as void;
   },
   retry: 0,
+});
+
+// ===========================================================================
+// Phase 5: 5 new mutationDefaults for the active-workout hot path.
+//
+// Module-load-order invariant (Pitfall 1): these MUST register at module
+// top-level BEFORE persister.ts hydrates paused mutations from AsyncStorage,
+// otherwise a paused ['set','add'] from the previous app session would
+// re-hydrate with no mutationFn and silently never replay (= lost set).
+//
+// scope.id contract (Phase 5 additions): the 5 hooks in lib/queries/sessions.ts
+// + lib/queries/sets.ts (Plan 02) bake `scope: { id: 'session:<sessionId>' }`
+// at useMutation() construction time so chained START → SETs → FINISH replay
+// FIFO under a shared session scope (RESEARCH §Replay-order, T-05-11
+// mitigation). The bodies below DO NOT declare scope — that lives at the
+// call site per Pitfall 3 ("function-shaped scope.id silently fails").
+// ===========================================================================
+
+// ===========================================================================
+// 9) ['session','start'] — workout_sessions INSERT (idempotent upsert).
+// Dual-write optimistic onMutate: writes BOTH sessionsKeys.active() (so the
+// persistent banner + (tabs)/index draft-resume render the new session) AND
+// sessionsKeys.detail(vars.id) (so useSessionQuery on the new /workout/<id>
+// route doesn't blink "Laddar…" before the server-trip completes — same
+// initialData seeding lesson as ['plan','create'] from Phase 4 Plan 04-04
+// commits eca0540 + b87bddf).
+// ===========================================================================
+queryClient.setMutationDefaults(["session", "start"], {
+  mutationFn: async (vars: SessionInsertVars) => {
+    const { data, error } = await supabase
+      .from("workout_sessions")
+      .upsert(vars, { onConflict: "id", ignoreDuplicates: true })
+      .select()
+      .single();
+    if (error) throw error;
+    return SessionRowSchema.parse(data);
+  },
+  onMutate: async (vars: SessionInsertVars) => {
+    // Dual-write to active + detail caches (mirrors ['plan','create']).
+    await queryClient.cancelQueries({ queryKey: sessionsKeys.active() });
+    await queryClient.cancelQueries({ queryKey: sessionsKeys.detail(vars.id) });
+    const previousActive = queryClient.getQueryData<SessionRow | null>(
+      sessionsKeys.active(),
+    );
+    const previousDetail = queryClient.getQueryData<SessionRow>(
+      sessionsKeys.detail(vars.id),
+    );
+    // WR-03 (05-REVIEW.md): build a complete SessionRow with explicit nulls for
+    // optional fields rather than casting Partial<SessionRow>. The mutationFn
+    // round-trips through SessionRowSchema.parse() on success — this keeps the
+    // optimistic cache shape Zod-equivalent during the offline window so
+    // consumers reading the cache during that window see the same shape they
+    // see post-reconciliation.
+    const optimisticRow = {
+      id: vars.id,
+      user_id: vars.user_id,
+      plan_id: vars.plan_id ?? null,
+      started_at: vars.started_at ?? new Date().toISOString(),
+      finished_at: vars.finished_at ?? null,
+      notes: vars.notes ?? null,
+      created_at: vars.created_at ?? null,
+    } satisfies SessionRow;
+    queryClient.setQueryData<SessionRow | null>(
+      sessionsKeys.active(),
+      optimisticRow,
+    );
+    queryClient.setQueryData<SessionRow>(
+      sessionsKeys.detail(vars.id),
+      optimisticRow,
+    );
+    return { previousActive, previousDetail };
+  },
+  onError: (_err, vars, ctx) => {
+    const c = ctx as
+      | { previousActive?: SessionRow | null; previousDetail?: SessionRow }
+      | undefined;
+    if (c?.previousActive !== undefined)
+      queryClient.setQueryData(sessionsKeys.active(), c.previousActive);
+    // previousDetail is undefined for a freshly-started session — explicitly
+    // clear the optimistic detail row so the next useSessionQuery refetches.
+    queryClient.setQueryData(sessionsKeys.detail(vars.id), c?.previousDetail);
+  },
+  onSettled: (_d, _e, vars) => {
+    void queryClient.invalidateQueries({ queryKey: sessionsKeys.active() });
+    void queryClient.invalidateQueries({ queryKey: sessionsKeys.detail(vars.id) });
+  },
+  retry: 1,
+});
+
+// ===========================================================================
+// 10) ['session','finish'] — workout_sessions UPDATE finished_at.
+// Optimistic clears sessionsKeys.active() (banner disappears + draft-resume
+// modal stops showing for this session). RESEARCH Open Q#2 (RESOLVED): the
+// onSettled body invalidates lastValueKeys.all so a back-to-back session's
+// F7 chips reflect THIS just-finished session's working sets without waiting
+// for the 15-min staleTime (CONTEXT.md D-20) to expire.
+// ===========================================================================
+queryClient.setMutationDefaults(["session", "finish"], {
+  mutationFn: async (vars: SessionFinishVars) => {
+    const { id, finished_at } = vars;
+    const { data, error } = await supabase
+      .from("workout_sessions")
+      .update({ finished_at })
+      .eq("id", id)
+      .select()
+      .single();
+    if (error) throw error;
+    return SessionRowSchema.parse(data);
+  },
+  onMutate: async (vars: SessionFinishVars) => {
+    await queryClient.cancelQueries({ queryKey: sessionsKeys.active() });
+    await queryClient.cancelQueries({ queryKey: sessionsKeys.detail(vars.id) });
+    const previousActive = queryClient.getQueryData<SessionRow | null>(
+      sessionsKeys.active(),
+    );
+    const previousDetail = queryClient.getQueryData<SessionRow>(
+      sessionsKeys.detail(vars.id),
+    );
+    // Active cache: if the just-finished session WAS the active one, clear it
+    // so the banner disappears immediately. Otherwise leave active alone.
+    if (previousActive && previousActive.id === vars.id) {
+      queryClient.setQueryData<SessionRow | null>(sessionsKeys.active(), null);
+    }
+    // Detail cache: merge finished_at into the snapshot if present.
+    if (previousDetail) {
+      queryClient.setQueryData<SessionRow>(sessionsKeys.detail(vars.id), {
+        ...previousDetail,
+        finished_at: vars.finished_at,
+      });
+    }
+    return { previousActive, previousDetail };
+  },
+  onError: (_err, vars, ctx) => {
+    const c = ctx as
+      | { previousActive?: SessionRow | null; previousDetail?: SessionRow }
+      | undefined;
+    if (c?.previousActive !== undefined)
+      queryClient.setQueryData(sessionsKeys.active(), c.previousActive);
+    if (c?.previousDetail)
+      queryClient.setQueryData(sessionsKeys.detail(vars.id), c.previousDetail);
+  },
+  onSettled: (_d, _e, vars) => {
+    void queryClient.invalidateQueries({ queryKey: sessionsKeys.active() });
+    void queryClient.invalidateQueries({ queryKey: sessionsKeys.detail(vars.id) });
+    // RESEARCH Open Q#2 (RESOLVED): invalidate last-value cache so back-to-
+    // back sessions' F7 chips surface this session's working sets without
+    // waiting for the 15-min staleTime to expire.
+    void queryClient.invalidateQueries({ queryKey: lastValueKeys.all });
+  },
+  retry: 1,
+});
+
+// ===========================================================================
+// 11) ['set','add'] — exercise_sets INSERT (idempotent upsert).
+// Optimistic append to setsKeys.list(vars.session_id) so the just-logged set
+// renders instantly. Idempotent via .upsert({ onConflict: 'id',
+// ignoreDuplicates: true }) — replay against an already-committed row is a
+// no-op (T-05-12 mitigation).
+// ===========================================================================
+queryClient.setMutationDefaults(["set", "add"], {
+  mutationFn: async (vars: SetInsertVars) => {
+    if (!vars.session_id)
+      throw new Error("session_id required for ['set','add']");
+    const { data, error } = await supabase
+      .from("exercise_sets")
+      .upsert(vars, { onConflict: "id", ignoreDuplicates: true })
+      .select()
+      .single();
+    if (error) throw error;
+    return SetRowSchema.parse(data);
+  },
+  // scope.id is set at call-site via mutate() options — pass `scope: { id: 'session:<sessionId>' }`.
+  onMutate: async (vars: SetInsertVars) => {
+    await queryClient.cancelQueries({
+      queryKey: setsKeys.list(vars.session_id),
+    });
+    const previous = queryClient.getQueryData<SetRow[]>(
+      setsKeys.list(vars.session_id),
+    );
+    // WR-03 (05-REVIEW.md): build a complete SetRow with explicit nulls/defaults
+    // for optional fields. The cache row matches SetRowSchema during the
+    // offline window — same shape as the post-reconciliation row from the
+    // mutationFn's SetRowSchema.parse() call.
+    const optimisticRow = {
+      id: vars.id,
+      session_id: vars.session_id,
+      exercise_id: vars.exercise_id,
+      set_number: vars.set_number,
+      reps: vars.reps,
+      weight_kg: vars.weight_kg,
+      rpe: vars.rpe ?? null,
+      set_type: vars.set_type ?? "working",
+      completed_at: vars.completed_at ?? new Date().toISOString(),
+      notes: vars.notes ?? null,
+    } satisfies SetRow;
+    queryClient.setQueryData<SetRow[]>(
+      setsKeys.list(vars.session_id),
+      (old = []) => [...old, optimisticRow],
+    );
+    return { previous };
+  },
+  onError: (_err, vars, ctx) => {
+    const c = ctx as { previous?: SetRow[] } | undefined;
+    if (c?.previous)
+      queryClient.setQueryData(setsKeys.list(vars.session_id), c.previous);
+  },
+  onSettled: (_d, _e, vars) => {
+    void queryClient.invalidateQueries({
+      queryKey: setsKeys.list(vars.session_id),
+    });
+  },
+  retry: 1,
+});
+
+// ===========================================================================
+// 12) ['set','update'] — exercise_sets UPDATE (id + partial).
+// REQUIRES vars.session_id at call-site so scope.id can compute
+// `session:<sessionId>` AND so the optimistic onMutate can target the right
+// list cache (T-05-11 + Pitfall 3 mitigation).
+// ===========================================================================
+queryClient.setMutationDefaults(["set", "update"], {
+  mutationFn: async (vars: SetUpdateVars) => {
+    if (!vars.session_id)
+      throw new Error("session_id required for scope.id on ['set','update']");
+    const { id, session_id: _sessionId, ...rest } = vars;
+    void _sessionId;
+    const { data, error } = await supabase
+      .from("exercise_sets")
+      .update(rest)
+      .eq("id", id)
+      .select()
+      .single();
+    if (error) throw error;
+    return SetRowSchema.parse(data);
+  },
+  // scope.id is set at call-site via mutate() options — pass `scope: { id: 'session:<sessionId>' }`.
+  onMutate: async (vars: SetUpdateVars) => {
+    await queryClient.cancelQueries({
+      queryKey: setsKeys.list(vars.session_id),
+    });
+    const previous = queryClient.getQueryData<SetRow[]>(
+      setsKeys.list(vars.session_id),
+    );
+    if (previous) {
+      // WR-03 (05-REVIEW.md): {...r, ...vars} structurally produces a complete
+      // SetRow (r has all keys; vars only fills a subset). `satisfies SetRow`
+      // keeps TS honest without the bare `as` escape hatch.
+      queryClient.setQueryData<SetRow[]>(
+        setsKeys.list(vars.session_id),
+        previous.map((r) =>
+          r.id === vars.id ? ({ ...r, ...vars } satisfies SetRow) : r,
+        ),
+      );
+    }
+    return { previous };
+  },
+  onError: (_err, vars, ctx) => {
+    const c = ctx as { previous?: SetRow[] } | undefined;
+    if (c?.previous)
+      queryClient.setQueryData(setsKeys.list(vars.session_id), c.previous);
+  },
+  onSettled: (_d, _e, vars) => {
+    void queryClient.invalidateQueries({
+      queryKey: setsKeys.list(vars.session_id),
+    });
+  },
+  retry: 1,
+});
+
+// ===========================================================================
+// 13) ['set','remove'] — exercise_sets DELETE.
+// REQUIRES vars.session_id at call-site so scope.id can compute
+// `session:<sessionId>` AND the optimistic onMutate can filter from the
+// right list cache.
+// ===========================================================================
+queryClient.setMutationDefaults(["set", "remove"], {
+  mutationFn: async (vars: SetRemoveVars) => {
+    if (!vars.session_id)
+      throw new Error("session_id required for scope.id on ['set','remove']");
+    const { error } = await supabase
+      .from("exercise_sets")
+      .delete()
+      .eq("id", vars.id);
+    if (error) throw error;
+    return undefined as void;
+  },
+  // scope.id is set at call-site via mutate() options — pass `scope: { id: 'session:<sessionId>' }`.
+  onMutate: async (vars: SetRemoveVars) => {
+    await queryClient.cancelQueries({
+      queryKey: setsKeys.list(vars.session_id),
+    });
+    const previous = queryClient.getQueryData<SetRow[]>(
+      setsKeys.list(vars.session_id),
+    );
+    queryClient.setQueryData<SetRow[]>(
+      setsKeys.list(vars.session_id),
+      (old = []) => old.filter((r) => r.id !== vars.id),
+    );
+    return { previous };
+  },
+  onError: (_err, vars, ctx) => {
+    const c = ctx as { previous?: SetRow[] } | undefined;
+    if (c?.previous)
+      queryClient.setQueryData(setsKeys.list(vars.session_id), c.previous);
+  },
+  onSettled: (_d, _e, vars) => {
+    void queryClient.invalidateQueries({
+      queryKey: setsKeys.list(vars.session_id),
+    });
+  },
+  retry: 1,
 });
