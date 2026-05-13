@@ -105,23 +105,36 @@ export default function PlansTab() {
   const muted = scheme === "dark" ? "#9CA3AF" : "#6B7280";
 
   // Phase 5 D-21 — draft-resume overlay state.
-  const { data: activeSession } = useActiveSessionQuery();
+  const { data: activeSession, isPending: activeSessionPending } =
+    useActiveSessionQuery();
   // useSetsForSessionQuery gates on `!!sessionId` — empty string yields a
   // disabled query (no fetch, data=undefined). setsCount falls back to 0 below.
   const { data: activeSets } = useSetsForSessionQuery(activeSession?.id ?? "");
-  // UAT 2026-05-13: original design reset `draftDismissed` on every blur via
-  // useFocusEffect cleanup, which made the overlay re-trigger every time the
-  // user navigated back to the tab mid-session (annoying). Switched to
-  // session-id-scoped dismissal: once you act on session X, X is remembered
-  // for this app launch. A genuinely new session (different id) re-triggers
-  // the overlay because dismissedForSessionId !== new id. App restart wipes
-  // the state (fresh mount) so cold-start recovery still works.
   const [dismissedForSessionId, setDismissedForSessionId] = useState<
     string | null
   >(null);
   const [showToast, setShowToast] = useState(false);
+  // UAT 2026-05-13 (2nd iteration): the overlay must ONLY surface a draft
+  // that pre-dates this app launch ("cold-start recovery"). A session the
+  // user just started themselves seconds ago is already represented by the
+  // ActiveSessionBanner at the top — repeating the prompt as a force-decision
+  // modal every time they navigate back to Planer is annoying, not helpful.
+  // Capture once: the active session id at the FIRST settled render of the
+  // query. If non-null, it was rehydrated from cache → leftover from a prior
+  // launch → eligible for the overlay. If null at first settle, anything
+  // that becomes active afterwards was created in-launch → no overlay.
+  const coldStartSessionIdRef = useRef<string | null | undefined>(undefined);
+  useEffect(() => {
+    if (coldStartSessionIdRef.current === undefined && !activeSessionPending) {
+      coldStartSessionIdRef.current = activeSession?.id ?? null;
+    }
+  }, [activeSession, activeSessionPending]);
+  const isColdStartDraft =
+    activeSession?.id != null &&
+    coldStartSessionIdRef.current === activeSession.id;
   const draftDismissed =
     activeSession?.id != null && dismissedForSessionId === activeSession.id;
+  const shouldShowDraftOverlay = isColdStartDraft && !draftDismissed;
 
   // useFinishSession scope.id contract per Pitfall 3: STATIC string at
   // useMutation() time. activeSession?.id varies as the cache rotates, so we
@@ -286,7 +299,7 @@ export default function PlansTab() {
           anti-pattern). Backdrop Pressable absorbs taps but does NOT dismiss
           (force-decision UX per UI-SPEC §line 250). Inner container has
           onStartShouldSetResponder so its own taps don't bubble through. */}
-      {activeSession && !draftDismissed && (
+      {activeSession && shouldShowDraftOverlay && (
         <Pressable
           className="absolute inset-0 bg-black/40"
           accessibilityElementsHidden={false}
