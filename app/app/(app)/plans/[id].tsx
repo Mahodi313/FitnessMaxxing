@@ -77,6 +77,9 @@ import {
   useReorderPlanExercises,
 } from "@/lib/queries/plan-exercises";
 import { useExercisesQuery } from "@/lib/queries/exercises";
+import { useStartSession } from "@/lib/queries/sessions";
+import { useAuthStore } from "@/lib/auth-store";
+import { randomUUID } from "@/lib/utils/uuid";
 import type { PlanExerciseRow as PlanExerciseRowDb } from "@/lib/schemas/plan-exercises";
 
 // Local row shape — narrowed to the fields PlanExerciseRow renders. Mirrors
@@ -127,6 +130,21 @@ export default function PlanDetailScreen() {
   const archivePlan = useArchivePlan(id);
   const removePlanExercise = useRemovePlanExercise(id!);
   const reorderPlanExercises = useReorderPlanExercises(id!);
+
+  // Phase 5 D-02 "Starta pass" CTA.
+  //
+  // useState lazy-init (NOT a bare randomUUID()) so the new session id is
+  // STABLE across re-renders. Without lazy init randomUUID() would re-run
+  // each render and the scope.id baked into useStartSession would change
+  // every render, breaking serial replay (Pitfall 3 + Plan 04-01 SUMMARY
+  // auto-fix Rule 1).
+  //
+  // Passing newSessionId into useStartSession at constructor time makes the
+  // hook's scope: { id: `session:${newSessionId}` } a STATIC string — the
+  // only valid shape per TanStack v5's static-scope contract.
+  const [newSessionId] = useState(() => randomUUID());
+  const userId = useAuthStore((s) => s.session?.user.id);
+  const startSession = useStartSession(newSessionId);
 
   // onDragEnd handler for DraggableFlatList. The library hands us the new
   // ordered array — we forward to Plan 01's two-phase reorder orchestrator
@@ -194,6 +212,41 @@ export default function PlanDetailScreen() {
       { onError: () => setBannerError("Något gick fel. Försök igen.") },
     );
     reset({ name: input.name, description: input.description ?? "" });
+  };
+
+  // Phase 5 D-02 — "Starta pass" handler.
+  //
+  // mutate (NOT mutateAsync) per Phase 4 commit 5d953b6 UAT lesson: paused
+  // mutations under networkMode: 'offlineFirst' never resolve mutateAsync,
+  // leaving the button stuck forever offline. The optimistic onMutate in
+  // Plan 01's setMutationDefaults dual-writes sessionsKeys.active() and
+  // sessionsKeys.detail(newSessionId), so the destination /workout/<id>
+  // screen has data immediately on router.push regardless of network.
+  const canStart = (planExercises?.length ?? 0) > 0;
+  const onStarta = () => {
+    if (!userId || !plan) return;
+    setBannerError(null);
+    startSession.mutate(
+      {
+        id: newSessionId,
+        user_id: userId,
+        plan_id: plan.id,
+        started_at: new Date().toISOString(),
+      },
+      {
+        onError: () =>
+          setBannerError("Kunde inte starta passet. Försök igen."),
+      },
+    );
+    // Optimistic navigation — onMutate already populated the active +
+    // detail caches; works online and offline.
+    //
+    // `as Href` cast: cross-plan route literal — the destination route
+    // `/workout/[sessionId]` is registered in (app)/_layout.tsx (this plan),
+    // but router.d.ts may not have regenerated yet when this code first
+    // type-checks. The cast becomes inert after the dev server regenerates
+    // .expo/types. Phase 4 Plan 04-02 Deviation §2 precedent.
+    router.push(`/workout/${newSessionId}` as Href);
   };
 
   // Archive uses an in-app themed Modal instead of Alert.alert because the
@@ -395,6 +448,28 @@ export default function PlanDetailScreen() {
                   </Text>
                 </Pressable>
               )}
+
+              {/* Phase 5 D-02 — "Starta pass" primary CTA. Helper text only
+                  rendered when the plan has zero exercises (button disabled
+                  state — UI-SPEC). */}
+              {!canStart && (
+                <Text className="text-base text-gray-500 dark:text-gray-400 px-1 mt-2">
+                  Lägg till minst en övning för att kunna starta.
+                </Text>
+              )}
+              <Pressable
+                onPress={onStarta}
+                disabled={!canStart}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  canStart ? "Starta pass" : "Lägg till minst en övning först"
+                }
+                className="rounded-lg bg-blue-600 dark:bg-blue-500 py-4 mt-2 active:opacity-80 disabled:opacity-50 items-center justify-center"
+              >
+                <Text className="text-base font-semibold text-white">
+                  Starta pass
+                </Text>
+              </Pressable>
 
               <View className="flex-row items-center justify-between mt-4">
                 <Text className="text-2xl font-semibold text-gray-900 dark:text-gray-50">
