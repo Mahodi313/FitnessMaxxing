@@ -41,11 +41,15 @@
 //     now() in place — closes the orphan without losing logged sets — Phase
 //     6 Historik will still show those sets). The backdrop does NOT dismiss
 //     (force-decision UX — UI-SPEC §line 250).
-//   - useFocusEffect cleanup resets `draftDismissed` so the overlay re-appears
-//     if the user navigates away and returns with the draft still active
-//     (Pitfall 5 — freezeOnBlur retains React state across navigation; a stale
-//     `draftDismissed=true` would silently swallow the prompt on a real
-//     unresolved draft. Mirrors plans/[id].tsx lines 168–173 verbatim.).
+//   - Dismissal is scoped to the active session_id (NOT a boolean), so once
+//     the user acts on session X (Återuppta or Avsluta), the overlay stays
+//     hidden for the rest of the app launch even as they navigate Tabs <→
+//     /workout/[id] freely. A genuinely new draft (different session.id —
+//     e.g. after finishing X and starting Y) re-triggers the overlay because
+//     dismissedForSessionId !== Y. App restart wipes state (fresh mount), so
+//     cold-start recovery still surfaces the prompt. (UAT 2026-05-13 — the
+//     prior useFocusEffect-reset design slammed the overlay up on every tab
+//     blur/focus cycle, which was annoying mid-pass.)
 //   - "Passet sparat ✓" success toast: renders on transition from
 //     activeSession=non-null → activeSession=null (the only signal that a
 //     Avsluta-flow completed — either from this screen's secondary button or
@@ -71,9 +75,9 @@
 //   - 05-CONTEXT.md D-21, D-24, D-25
 //   - 05-UI-SPEC.md §lines 238–250 (draft-resume), §lines 267–276 (toast),
 //     §lines 555–569 (Reanimated structure)
-//   - 05-PATTERNS.md §inline-overlay-confirm + §useFocusEffect reset
-import { useState, useEffect, useCallback, useRef } from "react";
-import { useRouter, useFocusEffect, type Href } from "expo-router";
+//   - 05-PATTERNS.md §inline-overlay-confirm
+import { useState, useEffect, useRef } from "react";
+import { useRouter, type Href } from "expo-router";
 import {
   View,
   Text,
@@ -105,8 +109,19 @@ export default function PlansTab() {
   // useSetsForSessionQuery gates on `!!sessionId` — empty string yields a
   // disabled query (no fetch, data=undefined). setsCount falls back to 0 below.
   const { data: activeSets } = useSetsForSessionQuery(activeSession?.id ?? "");
-  const [draftDismissed, setDraftDismissed] = useState(false);
+  // UAT 2026-05-13: original design reset `draftDismissed` on every blur via
+  // useFocusEffect cleanup, which made the overlay re-trigger every time the
+  // user navigated back to the tab mid-session (annoying). Switched to
+  // session-id-scoped dismissal: once you act on session X, X is remembered
+  // for this app launch. A genuinely new session (different id) re-triggers
+  // the overlay because dismissedForSessionId !== new id. App restart wipes
+  // the state (fresh mount) so cold-start recovery still works.
+  const [dismissedForSessionId, setDismissedForSessionId] = useState<
+    string | null
+  >(null);
   const [showToast, setShowToast] = useState(false);
+  const draftDismissed =
+    activeSession?.id != null && dismissedForSessionId === activeSession.id;
 
   // useFinishSession scope.id contract per Pitfall 3: STATIC string at
   // useMutation() time. activeSession?.id varies as the cache rotates, so we
@@ -135,15 +150,6 @@ export default function PlansTab() {
     previousActiveRef.current = activeSession;
   }, [activeSession]);
 
-  // Pitfall 5 — reset draftDismissed on re-focus so the overlay re-appears
-  // if user navigates back to the tab with a still-active draft (mirrors
-  // plans/[id].tsx lines 168–173 verbatim).
-  useFocusEffect(
-    useCallback(() => {
-      return () => setDraftDismissed(false);
-    }, []),
-  );
-
   // Draft-resume body copy per UI-SPEC §lines 245–246. 0-set vs N-set variants.
   const setsCount = activeSets?.length ?? 0;
   const startedAt = activeSession?.started_at
@@ -156,7 +162,7 @@ export default function PlansTab() {
 
   const handleResume = () => {
     if (!activeSession) return;
-    setDraftDismissed(true);
+    setDismissedForSessionId(activeSession.id);
     router.push(`/workout/${activeSession.id}` as Href);
   };
 
@@ -177,7 +183,7 @@ export default function PlansTab() {
         },
       },
     );
-    setDraftDismissed(true);
+    setDismissedForSessionId(activeSession.id);
   };
 
   // Loading state (≤500ms typical due to AsyncStorage cache hydration —
