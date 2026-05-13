@@ -43,7 +43,10 @@ export function ActiveSessionBanner() {
   // Hide-on-workout-route logic (UI-SPEC §line 509): don't double-stack with
   // workout-screen header. The active workout screen already has its own
   // Avsluta header action; banner duplication wastes vertical space.
-  const onWorkoutRoute = segments.some((s) => s === "workout");
+  // segments returns typed-route literals; expo-router's generated union for
+  // the (tabs) scope does not include "workout" (it lives at the (app) layout
+  // level), so we widen to string for the comparison. Runtime check is correct.
+  const onWorkoutRoute = (segments as readonly string[]).some((s) => s === "workout");
   if (!activeSession || onWorkoutRoute) return null;
 
   return (
