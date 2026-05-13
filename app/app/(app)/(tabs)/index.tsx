@@ -114,24 +114,28 @@ export default function PlansTab() {
     string | null
   >(null);
   const [showToast, setShowToast] = useState(false);
-  // UAT 2026-05-13 (2nd iteration): the overlay must ONLY surface a draft
+  // UAT 2026-05-13 (3rd iteration): the overlay must ONLY surface a draft
   // that pre-dates this app launch ("cold-start recovery"). A session the
   // user just started themselves seconds ago is already represented by the
   // ActiveSessionBanner at the top — repeating the prompt as a force-decision
   // modal every time they navigate back to Planer is annoying, not helpful.
-  // Capture once: the active session id at the FIRST settled render of the
-  // query. If non-null, it was rehydrated from cache → leftover from a prior
-  // launch → eligible for the overlay. If null at first settle, anything
-  // that becomes active afterwards was created in-launch → no overlay.
-  const coldStartSessionIdRef = useRef<string | null | undefined>(undefined);
+  //
+  // Capture the active session id at the FIRST settled query result and store
+  // in STATE (not useRef — a ref update doesn't trigger a re-render, so the
+  // overlay would never appear even when the ref captures a session). Once
+  // captured the value is sticky for this mount: subsequent activeSession
+  // changes (user finishes X, starts Y) don't re-trigger capture because the
+  // sentinel is no longer `undefined`.
+  const [coldStartSessionId, setColdStartSessionId] = useState<
+    string | null | undefined
+  >(undefined);
   useEffect(() => {
-    if (coldStartSessionIdRef.current === undefined && !activeSessionPending) {
-      coldStartSessionIdRef.current = activeSession?.id ?? null;
+    if (coldStartSessionId === undefined && !activeSessionPending) {
+      setColdStartSessionId(activeSession?.id ?? null);
     }
-  }, [activeSession, activeSessionPending]);
+  }, [activeSession, activeSessionPending, coldStartSessionId]);
   const isColdStartDraft =
-    activeSession?.id != null &&
-    coldStartSessionIdRef.current === activeSession.id;
+    activeSession?.id != null && coldStartSessionId === activeSession.id;
   const draftDismissed =
     activeSession?.id != null && dismissedForSessionId === activeSession.id;
   const shouldShowDraftOverlay = isColdStartDraft && !draftDismissed;
