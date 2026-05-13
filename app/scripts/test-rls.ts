@@ -25,6 +25,7 @@
 //   - .planning/research/PITFALLS.md §2.3, §2.5, §4.1, "Pitfall 8"
 
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { randomUUID } from "node:crypto";
 import type { Database } from "../types/database";
 
 // ---------------------------------------------------------------------------
@@ -599,6 +600,188 @@ async function main() {
   } else {
     pass(
       "Phase 4 extension: B's plan still has exactly 1 plan_exercise (no rogue insert)",
+    );
+  }
+
+  // =========================================================================
+  // Phase 5 extension — explicit cross-user assertions for the NEW mutation
+  // SHAPES Phase 5 introduces. Phase 2 already covers generic CRUD on
+  // workout_sessions + exercise_sets (lines 380–435), but Phase 5 adds three
+  // specific payload shapes the new hooks emit:
+  //   - useFinishSession.mutate(): UPDATE workout_sessions SET finished_at=…
+  //     (F8 — generic Phase 2 UPDATE asserts only `notes`; restate with the
+  //     exact column the new mutation hits, which is the realistic attack
+  //     vector for "finish someone else's pass to corrupt their history")
+  //   - useStartSession.mutate(): INSERT with started_at + plan_id +
+  //     client-UUID id (F5 — generic Phase 2 INSERT lacks started_at; this
+  //     restates with the canonical Phase 5 payload shape)
+  //   - useAddSet.mutate(): INSERT with completed_at + set_type (F6 — Phase 2
+  //     INSERT lacks those columns; restate with the canonical shape)
+  //   - useUpdateSet.mutate(): UPDATE weight_kg specifically (F6 — Phase 2
+  //     UPDATE only patches reps; restate with weight_kg, the load-bearing
+  //     column for training integrity)
+  //
+  // Closes CLAUDE.md "Cross-user verification is a gate" for Phase 5; covers
+  // threat-register IDs T-05-01 (exercise_sets parent-FK forge), T-05-02
+  // (workout_sessions user_id forge), T-05-03 (exercise_sets cross-user
+  // SELECT). All assertions reuse the Phase 2 seed (`sessB`, `setB`, `exA`,
+  // `planB`, `userB`).
+  // =========================================================================
+  console.log(
+    "[test-rls] Phase 5 extension — workout_sessions + exercise_sets new-shape cross-user gates…",
+  );
+
+  // ---- workout_sessions UPDATE finished_at cross-user (F8 finish path) ----
+  // useFinishSession.mutate({ id, finished_at }) is the realistic shape.
+  assertWriteBlocked(
+    "Phase 5 extension: A cannot UPDATE finished_at on B's workout_session (F8 cross-user)",
+    await clientA
+      .from("workout_sessions")
+      .update({ finished_at: new Date().toISOString() })
+      .eq("id", sessB.id)
+      .select(),
+  );
+
+  // ---- workout_sessions INSERT with B's user_id (F5 start path) ----
+  // useStartSession.mutate({ id, user_id, plan_id, started_at }) — canonical
+  // payload. The Phase 2 block asserts the generic shape; this restates with
+  // started_at + client-UUID id to match the exact F5 attack vector.
+  assertWriteBlocked(
+    "Phase 5 extension: A cannot INSERT workout_session with B's user_id (F5 start cross-user)",
+    await clientA
+      .from("workout_sessions")
+      .insert({
+        id: randomUUID(),
+        user_id: userB.id,
+        plan_id: planB.id,
+        started_at: new Date().toISOString(),
+      })
+      .select(),
+  );
+
+  // ---- workout_sessions UPDATE notes on B's session (T-05-15 disclosure) ----
+  // Phase 2 already covers UPDATE B's session with notes; restate explicitly
+  // for the threat-register T-05-15 traceability link.
+  assertWriteBlocked(
+    "Phase 5 extension: A cannot UPDATE notes on B's workout_session (T-05-15 cross-user tampering)",
+    await clientA
+      .from("workout_sessions")
+      .update({ notes: "owned" })
+      .eq("id", sessB.id)
+      .select(),
+  );
+
+  // ---- exercise_sets INSERT into B's session with full F6 shape ----
+  // useAddSet.mutate() — the canonical payload includes completed_at +
+  // set_type (which Phase 2 block omits). RLS parent-FK EXISTS subquery
+  // blocks regardless of payload; this asserts the realistic shape doesn't
+  // sneak through a hypothetical policy regression.
+  assertWriteBlocked(
+    "Phase 5 extension: A cannot INSERT exercise_set into B's session (F6 cross-user — RLS parent-FK EXISTS)",
+    await clientA
+      .from("exercise_sets")
+      .insert({
+        id: randomUUID(),
+        session_id: sessB.id,
+        exercise_id: exA.id,
+        set_number: 99,
+        reps: 5,
+        weight_kg: 100,
+        completed_at: new Date().toISOString(),
+        set_type: "working",
+      })
+      .select(),
+  );
+
+  // ---- exercise_sets UPDATE weight_kg on B's set (F6 tampering) ----
+  // useUpdateSet.mutate({ weight_kg }) — the load-bearing column for
+  // training integrity. Phase 2 covers UPDATE reps; restate with weight_kg
+  // (the dominant tampering target).
+  assertWriteBlocked(
+    "Phase 5 extension: A cannot UPDATE weight_kg on B's exercise_set (T-05-01 tampering)",
+    await clientA
+      .from("exercise_sets")
+      .update({ weight_kg: 0.01 })
+      .eq("id", setB.id)
+      .select(),
+  );
+
+  // ---- Defense-in-depth: B's session + set survived all A-attempts ----
+  // Mirror Phase 4 block lines 532-603: explicit admin SELECT to verify B's
+  // rows are byte-for-byte unchanged. Catches the hypothetical regression
+  // where RLS empty-filters the .select() suffix but the write still landed
+  // (false-pass on assertWriteBlocked).
+  console.log(
+    "[test-rls] Phase 5 extension — defense-in-depth: B's session + set survive…",
+  );
+
+  const { data: sessBAfter, error: sessBAfterErr } = await admin
+    .from("workout_sessions")
+    .select("id, user_id, notes, finished_at")
+    .eq("id", sessB.id)
+    .maybeSingle();
+  if (sessBAfterErr || !sessBAfter) {
+    fail("Phase 5 extension: B's workout_session integrity check failed", {
+      error: sessBAfterErr,
+    });
+  } else if (
+    sessBAfter.user_id !== userB.id ||
+    sessBAfter.notes !== null ||
+    sessBAfter.finished_at !== null
+  ) {
+    fail(
+      "Phase 5 extension: B's workout_session mutated by A's attempts",
+      { sessBAfter },
+    );
+  } else {
+    pass(
+      "Phase 5 extension: B's workout_session integrity preserved (user_id, notes, finished_at intact)",
+    );
+  }
+
+  const { data: setBAfter, error: setBAfterErr } = await admin
+    .from("exercise_sets")
+    .select("id, session_id, weight_kg, reps")
+    .eq("id", setB.id)
+    .maybeSingle();
+  if (setBAfterErr || !setBAfter) {
+    fail("Phase 5 extension: B's exercise_set integrity check failed", {
+      error: setBAfterErr,
+    });
+  } else if (
+    setBAfter.session_id !== sessB.id ||
+    Number(setBAfter.weight_kg) !== 100 ||
+    setBAfter.reps !== 5
+  ) {
+    fail("Phase 5 extension: B's exercise_set mutated by A's attempts", {
+      setBAfter,
+    });
+  } else {
+    pass(
+      "Phase 5 extension: B's exercise_set integrity preserved (session_id, weight_kg 100, reps 5 intact)",
+    );
+  }
+
+  // Confirm no rogue exercise_sets rows landed on B's session from A's
+  // INSERT attempt. exercise_sets rows on sessB.id should be exactly 1
+  // (the seed row setB).
+  const { data: setsListAfter, error: setsListAfterErr } = await admin
+    .from("exercise_sets")
+    .select("id")
+    .eq("session_id", sessB.id);
+  if (setsListAfterErr || !setsListAfter) {
+    fail(
+      "Phase 5 extension: count exercise_sets on B's session after A's INSERT attempt",
+      { error: setsListAfterErr },
+    );
+  } else if (setsListAfter.length !== 1) {
+    fail(
+      "Phase 5 extension: B's session has unexpected exercise_sets count (rogue insert?)",
+      { count: setsListAfter.length },
+    );
+  } else {
+    pass(
+      "Phase 5 extension: B's session still has exactly 1 exercise_set (no rogue insert)",
     );
   }
 }

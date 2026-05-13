@@ -52,14 +52,14 @@ En personlig gym-tracker för iPhone där användaren skapar egna träningsplane
 | Library | Version | Install command | Why | Confidence |
 |---------|---------|------------------|-----|------------|
 | @supabase/supabase-js | `^2.105.3` | `npx expo install @supabase/supabase-js` | Official client, current 2.x line. Supports React Native using framework-provided fetch polyfill (no extra polyfill needed in Expo SDK 54). Version 3.0 exists on `next` dist-tag but is not yet GA. | HIGH |
-| expo-secure-store | `~14.0.1` | `npx expo install expo-secure-store` | **`npm view expo-secure-store@latest` shows `55.0.13` — that's the SDK 55 (next) line.** SDK 54 expects the 14.x line. **You MUST install via `npx expo install`, not `npm install`** — `expo install` reads your installed Expo SDK version and pins the right matching version automatically. | HIGH |
+| expo-secure-store | `~15.0.8` | `npx expo install expo-secure-store` | Verified 2026-05-13 via `npx expo install --check` on Expo SDK 54 — the 15.x line is the actual pinned version (earlier research note incorrectly cited `~14.0.1` and has been corrected). **You MUST install via `npx expo install`, not `npm install`** — `expo install` reads your installed Expo SDK version and pins the right matching version automatically. | HIGH |
 | @react-native-async-storage/async-storage | `2.2.0` | `npx expo install @react-native-async-storage/async-storage` | Required by the `LargeSecureStore` Supabase auth wrapper (see §Critical Recipes) because Expo SecureStore has a 2048-byte value limit but Supabase JWT sessions exceed that. | HIGH |
 | aes-js | `^3.1.2` | `npm install aes-js` | Pure-JS AES used inside `LargeSecureStore` to encrypt session blobs before they go into AsyncStorage. Pure-JS = no native module = works in Expo Go without prebuild. | HIGH |
 | react-native-get-random-values | `~1.11.0` | `npx expo install react-native-get-random-values` | Provides `crypto.getRandomValues()` so `aes-js` can generate the 256-bit key stored in SecureStore. Required by the same wrapper pattern. | HIGH |
 ### Charting (single recommendation)
 | Library | Version | Install command | Why | Confidence |
 |---------|---------|------------------|-----|------------|
-| @shopify/react-native-skia | `2.6.2` | `npx expo install @shopify/react-native-skia` | Required peer dep of Victory Native XL. Skia 2.x requires `react ≥ 19` and `react-native ≥ 0.79` — both satisfied by SDK 54. iOS 14+ and Android API 21+ minimum platform, well within iPhone-only V1 scope. | HIGH |
+| @shopify/react-native-skia | `2.2.12` | `npx expo install @shopify/react-native-skia` | Verified 2026-05-13 via `npx expo install --check` on Expo SDK 54 — the 2.2.x line is the actual pinned version (earlier research note incorrectly cited `2.6.2` and has been corrected). Required peer dep of Victory Native XL. Skia 2.x requires `react ≥ 19` and `react-native ≥ 0.79` — both satisfied by SDK 54. iOS 14+ and Android API 21+ minimum platform, well within iPhone-only V1 scope. | HIGH |
 | victory-native | `^41.20.2` | `npm install victory-native` | The Victory Native XL package (renamed from `victory-native-next`); v41 is the current major. **See "Charting decision" below for why we pick this over Skia-direct or victory-native v40.** Reports (May 2026) confirm `41.20.2` runs on Reanimated 4.1.x + Skia 2.6.x + RN 0.81 — its package.json still declares loose peer dep `@shopify/react-native-skia: ">=1.2.3"` but works fine with Skia 2.x. | MEDIUM |
 - **victory-native (XL)** is *built on* Skia + Reanimated + Gesture Handler. It gives you `<CartesianChart>`, line/bar/area, axes, gestures, and animated paths out of the box. For F10 ("graf per övning över tid: max vikt, total volym") this is one component and ~30 lines of TSX.
 - **Raw react-native-skia** is the lowest level — you'd hand-roll axes, scales (with d3), tooltips, and pan/zoom. Two-three days of work for what `<CartesianChart>` does in 30 minutes.
@@ -104,11 +104,11 @@ En personlig gym-tracker för iPhone där användaren skapar egna träningsplane
 | `zod@^4.4.3` | TypeScript ≥ 4.5 | All | Major perf win in tsc compile time over Zod 3. |
 | `date-fns@^4.1.0` | n/a | All | Pure JS. |
 | `@supabase/supabase-js@^2.105.3` | Node 20+ runtime, RN current stable | All | Provides fetch via framework polyfill — Expo SDK 54 is fine. |
-| `expo-secure-store@~14.0.1` | Expo SDK 54 only | n/a | **Do not install via `npm install` — use `npx expo install`.** Latest npm tag (55.x) is for SDK 55. |
+| `expo-secure-store@~15.0.8` | Expo SDK 54 only | n/a | **Do not install via `npm install` — use `npx expo install`.** Verified 2026-05-13 via `npx expo install --check`. |
 | `@react-native-async-storage/async-storage@2.2.0` | RN 0.81 | Used by `LargeSecureStore` | `npx expo install` resolves. |
 | `aes-js@^3.1.2` | n/a | n/a | Pure JS, no peer deps. |
 | `react-native-get-random-values@~1.11.0` | RN 0.81 | Used by `aes-js` | `npx expo install` resolves. |
-| `@shopify/react-native-skia@2.6.2` | react ≥ 19, RN ≥ 0.79 | Reanimated 4 | iOS 14+ / Android 21+ minimum. |
+| `@shopify/react-native-skia@2.2.12` | react ≥ 19, RN ≥ 0.79 | Reanimated 4 | iOS 14+ / Android 21+ minimum. Verified 2026-05-13 via `npx expo install --check`. |
 | `victory-native@^41.20.2` | Skia ≥ 1.2.3 (declared), works with 2.x | Reanimated 4.1.x confirmed by users in May 2026 | Loose peer dep — npm warnings ignorable. |
 ## Sources
 | Source | What was verified | Confidence |
