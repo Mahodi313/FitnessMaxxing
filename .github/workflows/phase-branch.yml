@@ -1,19 +1,15 @@
 name: Phase Branch CI
 
-# Triggas när du pushar till en GSD phase-branch
 on:
   push:
     branches:
-      - 'gsd/phase-*'
+      - "gsd/phase-*"
   pull_request:
     branches:
       - dev
     types: [opened, synchronize, reopened]
 
 jobs:
-  # ─────────────────────────────────────────
-  # JOB 1: TypeScript + Lint + Tests
-  # ─────────────────────────────────────────
   test:
     name: TypeScript + Lint + RLS Tests
     runs-on: ubuntu-latest
@@ -28,8 +24,8 @@ jobs:
       - name: Sätt upp Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "22"
+          cache: "npm"
           cache-dependency-path: app/package-lock.json
 
       - name: Installera dependencies
@@ -48,13 +44,10 @@ jobs:
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
 
-  # ─────────────────────────────────────────
-  # JOB 2: Expo Build Check
-  # ─────────────────────────────────────────
   expo-build:
     name: Expo Build Check
     runs-on: ubuntu-latest
-    needs: test  # kör bara om test-jobbet klarar sig
+    needs: test
     defaults:
       run:
         working-directory: app
@@ -66,30 +59,23 @@ jobs:
       - name: Sätt upp Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "22"
+          cache: "npm"
           cache-dependency-path: app/package-lock.json
 
       - name: Installera dependencies
         run: npm ci
 
-      - name: Installera Expo CLI
-        run: npm install -g expo-cli
-
-      - name: Expo export check (verifierar att appen kan bundlas)
+      - name: Expo export check
         run: npx expo export --platform ios --output-dir /tmp/expo-export
         env:
           EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
 
-  # ─────────────────────────────────────────
-  # JOB 3: Auto-öppna PR mot dev
-  # ─────────────────────────────────────────
   open-pr-to-dev:
     name: Öppna PR mot dev
     runs-on: ubuntu-latest
-    needs: [test, expo-build]  # bara om BÅDA jobben går igenom
-    # Bara på direkt push till phase-branch, inte på PR-events
+    needs: [test, expo-build]
     if: github.event_name == 'push'
 
     steps:
@@ -100,7 +86,6 @@ jobs:
         id: branch-info
         run: |
           BRANCH="${{ github.ref_name }}"
-          # Extrahera fas-nummer och namn, t.ex. "phase-04-workout-plans"
           PHASE=$(echo $BRANCH | sed 's/gsd\///')
           echo "phase=$PHASE" >> $GITHUB_OUTPUT
           echo "branch=$BRANCH" >> $GITHUB_OUTPUT
@@ -112,8 +97,7 @@ jobs:
           script: |
             const branch = '${{ steps.branch-info.outputs.branch }}';
             const phase = '${{ steps.branch-info.outputs.phase }}';
-            
-            // Kolla om PR redan finns
+
             const existingPRs = await github.rest.pulls.list({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -121,13 +105,12 @@ jobs:
               base: 'dev',
               state: 'open'
             });
-            
+
             if (existingPRs.data.length > 0) {
               console.log('PR finns redan:', existingPRs.data[0].html_url);
               return;
             }
-            
-            // Skapa ny PR
+
             const pr = await github.rest.pulls.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -136,14 +119,5 @@ jobs:
               base: 'dev',
               body: `## ${phase}\n\n### Vad ingår\nAutomatiskt genererad PR från GSD execute-fas.\n\n### CI Status\n- ✅ TypeScript check\n- ✅ Lint\n- ✅ RLS tester\n- ✅ Expo build check\n\n### Checklista\n- [ ] Testat i Expo Go på iPhone\n- [ ] GSD verify-work godkänd\n- [ ] Inga kända buggar\n\n> Mergea när GSD verify-work är klar.`
             });
-            
-            console.log('PR skapad:', pr.data.html_url);
 
-      - name: Uppdatera Linear issue
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            // Linear uppdateras automatiskt via GitHub-kopplingen
-            // när PR skapas med rätt branch-namn eller issue-referens
-            console.log('Linear uppdateras via GitHub-integration automatiskt');
+            console.log('PR skapad:', pr.data.html_url);
