@@ -61,6 +61,8 @@ async function purgeTestUsers() {
   if (error) throw new Error(`listUsers failed: ${error.message}`);
   for (const u of data.users) {
     if (u.email && u.email.startsWith(TEST_EMAIL_PREFIX)) {
+      // Cascade order: sessions deletion takes out exercise_sets (FK cascade);
+      // plans deletion takes out plan_exercises; then exercises.
       await admin.from("workout_sessions").delete().eq("user_id", u.id);
       await admin.from("workout_plans").delete().eq("user_id", u.id);
       await admin.from("exercises").delete().eq("user_id", u.id);
@@ -292,11 +294,302 @@ async function main() {
     });
   }
 
-  // Cleanup
+  // Cleanup Phase 4 fixtures BEFORE Phase 5 fixtures so each scenario is
+  // isolated. The Phase 5 block creates its own user/plan/exercise below.
   await admin.from("plan_exercises").delete().eq("id", planExerciseId);
   await admin.from("exercises").delete().eq("id", exerciseId);
   await admin.from("workout_plans").delete().eq("id", planId);
   await admin.auth.admin.deleteUser(user.id);
+
+  // =========================================================================
+  // PHASE 5 EXTENSION — ['session','start'] + 25× ['set','add']
+  //                     + ['session','finish'] under shared scope.id
+  //
+  // Phase 5 D-12 + RESEARCH §Replay-order: every Phase 5 mutation in a single
+  // session shares `scope.id = 'session:<sessionId>'`. The TanStack scopeFor
+  // serializes mutations within a scope so START lands BEFORE every SET (no
+  // FK 23503 on exercise_sets.session_id → workout_sessions.id), and FINISH
+  // lands AFTER every SET (the row's finished_at is set after all 25 sets
+  // are in the DB).
+  //
+  // Asserts:
+  //   (a) the workout_sessions row INSERT fires BEFORE any exercise_sets INSERT
+  //   (b) the workout_sessions UPDATE (finished_at) fires LAST
+  //   (c) set_number 1..25 are present and contiguous after replay
+  //   (d) no 23503 FK errors fire
+  // =========================================================================
+  console.log("[test-sync-ordering] Phase 5 extension — start + 25 sets + finish…");
+
+  const user5 = await createUser();
+  const planId5 = randomUUID();
+  const sessionId5 = randomUUID();
+  const exerciseId5 = randomUUID();
+
+  // Seed user + plan + exercise via admin (RLS-bypass).
+  {
+    const { error } = await admin
+      .from("workout_plans")
+      .insert({ id: planId5, user_id: user5.id, name: "Phase 5 Sync Order Plan" });
+    if (error) throw new Error(`seed plan5: ${error.message}`);
+  }
+  {
+    const { error } = await admin
+      .from("exercises")
+      .insert({ id: exerciseId5, user_id: user5.id, name: "Phase 5 Sync Bench" });
+    if (error) throw new Error(`seed exercise5: ${error.message}`);
+  }
+
+  // Build Phase 5 client with all 3 mutationDefaults wired against admin.
+  type PhaseFiveOrder = {
+    start: number | null;
+    setNumbers: Map<string, number>; // setId -> order
+    finish: number | null;
+  };
+  const orderTracker: PhaseFiveOrder = {
+    start: null,
+    setNumbers: new Map(),
+    finish: null,
+  };
+  let nextOrder = 1;
+  const fkErrors: string[] = [];
+
+  const client5 = new QueryClient({
+    defaultOptions: {
+      queries: { networkMode: "online" },
+      mutations: { networkMode: "online", retry: 0 },
+    },
+  });
+
+  client5.setMutationDefaults(["session", "start"], {
+    mutationFn: async (vars: unknown) => {
+      const v = vars as {
+        id: string;
+        user_id: string;
+        plan_id?: string | null;
+        started_at?: string;
+      };
+      orderTracker.start = nextOrder++;
+      const { data, error } = await admin
+        .from("workout_sessions")
+        .upsert(v, { onConflict: "id", ignoreDuplicates: true })
+        .select()
+        .single();
+      if (error) {
+        if (error.code === "23503") fkErrors.push(`session.start: ${error.message}`);
+        throw error;
+      }
+      return data;
+    },
+    networkMode: "online",
+    retry: 0,
+  });
+
+  client5.setMutationDefaults(["set", "add"], {
+    mutationFn: async (vars: unknown) => {
+      const v = vars as {
+        id: string;
+        session_id: string;
+        exercise_id: string;
+        set_number: number;
+        reps: number;
+        weight_kg: number;
+        completed_at: string;
+        set_type: "working" | "warmup" | "dropset" | "failure";
+      };
+      orderTracker.setNumbers.set(v.id, nextOrder++);
+      const { data, error } = await admin
+        .from("exercise_sets")
+        .upsert(v, { onConflict: "id", ignoreDuplicates: true })
+        .select()
+        .single();
+      if (error) {
+        if (error.code === "23503") fkErrors.push(`set.add #${v.set_number}: ${error.message}`);
+        throw error;
+      }
+      return data;
+    },
+    networkMode: "online",
+    retry: 0,
+  });
+
+  client5.setMutationDefaults(["session", "finish"], {
+    mutationFn: async (vars: unknown) => {
+      const v = vars as { id: string; finished_at: string };
+      orderTracker.finish = nextOrder++;
+      const { data, error } = await admin
+        .from("workout_sessions")
+        .update({ finished_at: v.finished_at })
+        .eq("id", v.id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    networkMode: "online",
+    retry: 0,
+  });
+
+  // -----------------------------------------------------------------------
+  // PHASE A — offline + queue all 27 mutations under shared scope.id.
+  // -----------------------------------------------------------------------
+  onlineManager.setOnline(false);
+
+  const sharedScope = { id: `session:${sessionId5}` };
+  const setIds: string[] = [];
+
+  // 1) Start session
+  const startMut = client5.getMutationCache().build(client5, {
+    mutationKey: ["session", "start"],
+    scope: sharedScope,
+  });
+  void startMut
+    .execute({
+      id: sessionId5,
+      user_id: user5.id,
+      plan_id: planId5,
+      started_at: new Date(Date.now() - 60_000).toISOString(),
+    })
+    .catch(() => {});
+
+  // 2) 25 sets
+  for (let i = 1; i <= 25; i++) {
+    const setId = randomUUID();
+    setIds.push(setId);
+    const m = client5.getMutationCache().build(client5, {
+      mutationKey: ["set", "add"],
+      scope: sharedScope,
+    });
+    void m
+      .execute({
+        id: setId,
+        session_id: sessionId5,
+        exercise_id: exerciseId5,
+        set_number: i,
+        reps: 8,
+        weight_kg: 100,
+        completed_at: new Date(Date.now() - 60_000 + i * 1000).toISOString(),
+        set_type: "working" as const,
+      })
+      .catch(() => {});
+  }
+
+  // 3) Finish session
+  const finishMut = client5.getMutationCache().build(client5, {
+    mutationKey: ["session", "finish"],
+    scope: sharedScope,
+  });
+  void finishMut
+    .execute({
+      id: sessionId5,
+      finished_at: new Date().toISOString(),
+    })
+    .catch(() => {});
+
+  await new Promise((r) => setTimeout(r, 300));
+
+  if (
+    orderTracker.start === null &&
+    orderTracker.setNumbers.size === 0 &&
+    orderTracker.finish === null
+  ) {
+    pass("Phase 5 ext A: all 27 mutations paused offline (no premature fire)");
+  } else {
+    fail("Phase 5 ext A: some mutation fired offline", {
+      start: orderTracker.start,
+      sets: orderTracker.setNumbers.size,
+      finish: orderTracker.finish,
+    });
+  }
+
+  // -----------------------------------------------------------------------
+  // PHASE B — flip online + resumePausedMutations; assert FIFO order.
+  // -----------------------------------------------------------------------
+  onlineManager.setOnline(true);
+  await client5.resumePausedMutations();
+  // Allow up to 10s for all 27 mutations to complete serially.
+  await new Promise((r) => setTimeout(r, 5000));
+
+  if (fkErrors.length === 0) {
+    pass("Phase 5 ext B: no 23503 FK violations during replay");
+  } else {
+    fail("Phase 5 ext B: FK violations fired during replay", { fkErrors });
+  }
+
+  if (
+    orderTracker.start !== null &&
+    orderTracker.finish !== null &&
+    orderTracker.setNumbers.size === 25
+  ) {
+    const minSetOrder = Math.min(
+      ...Array.from(orderTracker.setNumbers.values()),
+    );
+    const maxSetOrder = Math.max(
+      ...Array.from(orderTracker.setNumbers.values()),
+    );
+    if (
+      orderTracker.start < minSetOrder &&
+      maxSetOrder < orderTracker.finish
+    ) {
+      pass(
+        `Phase 5 ext B: start (order=${orderTracker.start}) → 25 sets (orders=${minSetOrder}..${maxSetOrder}) → finish (order=${orderTracker.finish}) FIFO replay correct`,
+      );
+    } else {
+      fail("Phase 5 ext B: FIFO ordering broken", {
+        start: orderTracker.start,
+        minSet: minSetOrder,
+        maxSet: maxSetOrder,
+        finish: orderTracker.finish,
+      });
+    }
+  } else {
+    fail("Phase 5 ext B: not all 27 mutations completed", {
+      start: orderTracker.start,
+      setsExecuted: orderTracker.setNumbers.size,
+      finish: orderTracker.finish,
+    });
+  }
+
+  // Verify all 25 sets landed in Postgres with contiguous set_numbers.
+  const { data: dbSets, error: dbSetsErr } = await admin
+    .from("exercise_sets")
+    .select("set_number, weight_kg, reps")
+    .eq("session_id", sessionId5)
+    .eq("exercise_id", exerciseId5)
+    .order("set_number", { ascending: true });
+  if (dbSetsErr) {
+    fail("Phase 5 ext B: failed to read exercise_sets", { error: dbSetsErr });
+  } else if (!dbSets || dbSets.length !== 25) {
+    fail("Phase 5 ext B: expected 25 sets in DB", { count: dbSets?.length });
+  } else {
+    const setNumbers = dbSets.map((s) => s.set_number);
+    const expected = Array.from({ length: 25 }, (_, i) => i + 1);
+    if (JSON.stringify(setNumbers) === JSON.stringify(expected)) {
+      pass("Phase 5 ext B: 25 sets in DB with contiguous set_number 1..25");
+    } else {
+      fail("Phase 5 ext B: set_numbers not contiguous", { setNumbers });
+    }
+  }
+
+  // Verify finished_at landed on the session.
+  const { data: dbSession, error: dbSessionErr } = await admin
+    .from("workout_sessions")
+    .select("finished_at")
+    .eq("id", sessionId5)
+    .single();
+  if (dbSessionErr || !dbSession) {
+    fail("Phase 5 ext B: failed to read workout_session", { error: dbSessionErr });
+  } else if (dbSession.finished_at === null) {
+    fail("Phase 5 ext B: workout_session.finished_at is null after replay");
+  } else {
+    pass("Phase 5 ext B: workout_session.finished_at set after all 25 sets landed");
+  }
+
+  // Phase 5 cleanup
+  await admin.from("exercise_sets").delete().eq("session_id", sessionId5);
+  await admin.from("workout_sessions").delete().eq("id", sessionId5);
+  await admin.from("exercises").delete().eq("id", exerciseId5);
+  await admin.from("workout_plans").delete().eq("id", planId5);
+  await admin.auth.admin.deleteUser(user5.id);
 }
 
 (async () => {
