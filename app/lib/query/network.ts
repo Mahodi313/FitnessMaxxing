@@ -74,7 +74,24 @@ focusManager.setEventListener((setFocused) => {
 //   2. asyncStoragePersister.persistClient  → writes to AsyncStorage
 // It is safe to call concurrently with the throttled internal flush; both
 // converge on AsyncStorage.setItem of the same key.
-AppState.addEventListener("change", (s) => {
+//
+// Subscription capture + Fast-Refresh guard (CR-01 from 05-REVIEW.md):
+// The returned EventSubscription is captured so it can be removed on Fast
+// Refresh re-evaluation. Without this, every dev-time hot reload stacks a
+// duplicate listener, and every background transition fires
+// persistQueryClientSave N times after N reloads — exactly counter to the
+// D-25 latency goal. The globalThis sentinel ensures the prior subscription
+// is torn down before a fresh one is registered when this module is
+// re-evaluated (Fast Refresh re-runs the module body).
+const APPSTATE_BGFLUSH_KEY = "__fitnessmaxxing_appstate_bgflush_sub__";
+const globalRef = globalThis as unknown as Record<
+  string,
+  { remove: () => void } | undefined
+>;
+if (globalRef[APPSTATE_BGFLUSH_KEY]) {
+  globalRef[APPSTATE_BGFLUSH_KEY].remove();
+}
+const appStateBackgroundSub = AppState.addEventListener("change", (s) => {
   if (Platform.OS !== "web" && (s === "background" || s === "inactive")) {
     void persistQueryClientSave({
       queryClient,
@@ -82,6 +99,7 @@ AppState.addEventListener("change", (s) => {
     });
   }
 });
+globalRef[APPSTATE_BGFLUSH_KEY] = appStateBackgroundSub;
 
 // ---- onlineManager <- NetInfo ---------------------------------------------
 // Phase 1 inheritance + Phase 1 invariant: state.isConnected is boolean | null;

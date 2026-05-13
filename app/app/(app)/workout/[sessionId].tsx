@@ -104,7 +104,14 @@ type SetFormInput = z.input<typeof setFormSchema>;
 
 export default function WorkoutScreen() {
   const router = useRouter();
-  const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
+  // WR-07 (05-REVIEW.md): useLocalSearchParams' generic argument is a TYPE
+  // ASSERTION, not a runtime guard. The actual runtime shape is
+  // Record<string, string | string[]> — a param could be string[] for
+  // catch-all routes or malformed deep-links. Narrow explicitly so downstream
+  // code (queryKey, route push back, etc.) never receives an array.
+  const rawParams = useLocalSearchParams<{ sessionId: string }>();
+  const sessionId =
+    typeof rawParams.sessionId === "string" ? rawParams.sessionId : undefined;
   const [showAvslutaOverlay, setShowAvslutaOverlay] = useState(false);
 
   // Pitfall 5 + Phase 4 D-08 (commit af6930c) — freezeOnBlur retains React
@@ -183,7 +190,7 @@ export default function WorkoutScreen() {
             onCancel={() => setShowAvslutaOverlay(false)}
             onFinish={() => {
               setShowAvslutaOverlay(false);
-              router.replace("/(app)/(tabs)/" as Href);
+              router.replace("/(app)/(tabs)");
             }}
           />
         )}
@@ -580,7 +587,6 @@ function LoggedSetRow({
     return (
       <EditableSetRow
         set={set}
-        sessionId={sessionId}
         onDone={(updated) => {
           if (updated) {
             updateSet.mutate({
@@ -642,11 +648,9 @@ function LoggedSetRow({
 // and submits via useUpdateSet (not useAddSet).
 function EditableSetRow({
   set,
-  sessionId: _sessionId,
   onDone,
 }: {
   set: SetRow;
-  sessionId: string;
   onDone: (updated: { weight_kg: number; reps: number } | null) => void;
 }) {
   const {
@@ -822,6 +826,14 @@ function AvslutaOverlay({
     onFinish();
   };
 
+  // WR-05 (05-REVIEW.md): backdrop-tap dismisses (onPress={onCancel}). This
+  // DIVERGES from the draft-resume overlay in (tabs)/index.tsx which uses
+  // force-decision UX (no backdrop dismiss). Rationale: Avsluta-during-workout
+  // is recoverable — the user can re-tap Avsluta in the header — whereas the
+  // draft-resume overlay surfaces an orphan session that MUST be either
+  // resumed or explicitly closed, so backdrop-dismiss there would leave the
+  // user in an ambiguous state. UI-SPEC §line 250 (force-decision) vs
+  // §line 558 (Avsluta-during-workout, dismissible).
   return (
     <Pressable
       style={{

@@ -140,16 +140,11 @@ export default function PlansTab() {
     activeSession?.id != null && dismissedForSessionId === activeSession.id;
   const shouldShowDraftOverlay = isColdStartDraft && !draftDismissed;
 
-  // useFinishSession scope.id contract per Pitfall 3: STATIC string at
-  // useMutation() time. activeSession?.id varies as the cache rotates, so we
-  // re-bind on each render. Acceptable here because the draft-resume Avsluta
-  // is one-shot per draft (the optimistic onMutate clears active immediately
-  // after .mutate() fires; the hook re-renders with a different scope ONLY
-  // after the cache transitions, by which time the mutation is already
-  // serialized in the queue). The `?? "noop"` fallback satisfies TypeScript
-  // when activeSession is undefined; handleAvslutaSession guards before
-  // calling .mutate() so the noop scope never actually queues anything.
-  const finishSession = useFinishSession(activeSession?.id ?? "noop");
+  // WR-04 (05-REVIEW.md): useFinishSession is now mounted INSIDE the
+  // DraftResumeOverlay subcomponent (defined below), which takes sessionId as
+  // a required prop. This keeps scope.id as a guaranteed-static string for
+  // the lifetime of the overlay mount and eliminates the prior `?? "noop"`
+  // sentinel that violated Pitfall 3's static-scope-at-construction rule.
 
   // Toast trigger: detect transition from active=non-null → active=null
   // (Avsluta-flow completes from EITHER this screen's secondary OR the
@@ -158,13 +153,20 @@ export default function PlansTab() {
   // not on every render where activeSession===null.
   const previousActiveRef = useRef<typeof activeSession | undefined>(undefined);
   useEffect(() => {
-    if (previousActiveRef.current != null && activeSession == null) {
+    // CR-02 (05-REVIEW.md): capture prev FIRST, update the ref unconditionally,
+    // then decide whether to fire the toast. The previous design wrote to the
+    // ref inside the firing branch AND outside it, which left a race where the
+    // ref pointed at a stale snapshot if activeSession mutated between the
+    // firing render and the cleanup-firing render. With this reordering, every
+    // render updates the ref once, and the timer/cleanup pair is registered
+    // only when an actual non-null→null transition is detected.
+    const prev = previousActiveRef.current;
+    previousActiveRef.current = activeSession;
+    if (prev != null && activeSession == null) {
       setShowToast(true);
       const t = setTimeout(() => setShowToast(false), 2000);
-      previousActiveRef.current = activeSession;
       return () => clearTimeout(t);
     }
-    previousActiveRef.current = activeSession;
   }, [activeSession]);
 
   // Draft-resume body copy per UI-SPEC §lines 245–246. 0-set vs N-set variants.
@@ -176,32 +178,6 @@ export default function PlansTab() {
     setsCount > 0
       ? `Du har ett pågående pass från ${startedAt} med ${setsCount} set sparade.`
       : `Du startade ett pass ${startedAt} men har inte loggat något set än.`;
-
-  const handleResume = () => {
-    if (!activeSession) return;
-    setDismissedForSessionId(activeSession.id);
-    router.push(`/workout/${activeSession.id}` as Href);
-  };
-
-  const handleAvslutaSession = () => {
-    if (!activeSession) return;
-    // mutate (NOT mutateAsync) per Phase 4 commit 5d953b6 UAT lesson — paused
-    // mutations under networkMode: 'offlineFirst' never resolve mutateAsync.
-    // The optimistic onMutate in setMutationDefaults['session','finish']
-    // (Plan 01) clears sessionsKeys.active() so the banner + overlay unmount
-    // immediately; the toast then fires via the useEffect transition watcher.
-    finishSession.mutate(
-      { id: activeSession.id, finished_at: new Date().toISOString() },
-      {
-        onError: () => {
-          // V1: silent — if the server eventually rejects, the active query
-          // will refetch and the row re-appears as active on next focus.
-          // V1.1 polish may add a banner-error here.
-        },
-      },
-    );
-    setDismissedForSessionId(activeSession.id);
-  };
 
   // Loading state (≤500ms typical due to AsyncStorage cache hydration —
   // UI-SPEC §"Loading / cold-start").
@@ -300,53 +276,19 @@ export default function PlansTab() {
 
       {/* Phase 5 D-21 — Draft-resume overlay. Inline-overlay pattern per
           PATTERNS.md §inline-overlay-confirm (NOT Modal portal — Phase 4 D-08
-          anti-pattern). Backdrop Pressable absorbs taps but does NOT dismiss
-          (force-decision UX per UI-SPEC §line 250). Inner container has
-          onStartShouldSetResponder so its own taps don't bubble through. */}
+          anti-pattern). Subcomponent extraction (WR-04 from 05-REVIEW.md):
+          DraftResumeOverlay takes sessionId as a required prop so the
+          useFinishSession scope.id is a stable static string per Pitfall 3. */}
       {activeSession && shouldShowDraftOverlay && (
-        <Pressable
-          className="absolute inset-0 bg-black/40"
-          accessibilityElementsHidden={false}
-          // Intentionally NO onPress — backdrop is decoratively pressable to
-          // absorb taps but does not dismiss; force-decision UX per UI-SPEC.
-        >
-          <View
-            className="absolute inset-x-4 top-[40%] bg-gray-100 dark:bg-gray-800 rounded-2xl p-6"
-            style={{ gap: 24 }}
-            onStartShouldSetResponder={() => true}
-          >
-            <View style={{ gap: 8 }}>
-              <Text className="text-2xl font-semibold text-gray-900 dark:text-gray-50">
-                Återuppta passet?
-              </Text>
-              <Text className="text-base text-gray-900 dark:text-gray-50">
-                {draftBody}
-              </Text>
-            </View>
-            <View className="flex-row gap-3">
-              <Pressable
-                onPress={handleAvslutaSession}
-                className="flex-1 py-4 rounded-lg bg-red-600 dark:bg-red-500 items-center justify-center active:opacity-80"
-                accessibilityRole="button"
-                accessibilityLabel="Avsluta sessionen"
-              >
-                <Text className="text-base font-semibold text-white">
-                  Avsluta sessionen
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={handleResume}
-                className="flex-1 py-4 rounded-lg bg-blue-600 dark:bg-blue-500 items-center justify-center active:opacity-80"
-                accessibilityRole="button"
-                accessibilityLabel="Återuppta passet"
-              >
-                <Text className="text-base font-semibold text-white">
-                  Återuppta
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-        </Pressable>
+        <DraftResumeOverlay
+          sessionId={activeSession.id}
+          bodyText={draftBody}
+          onResume={() => {
+            setDismissedForSessionId(activeSession.id);
+            router.push(`/workout/${activeSession.id}` as Href);
+          }}
+          onDismiss={() => setDismissedForSessionId(activeSession.id)}
+        />
       )}
 
       {/* Phase 5 D-24 — "Passet sparat ✓" success toast. Reanimated 4
@@ -369,5 +311,91 @@ export default function PlansTab() {
         </Animated.View>
       )}
     </SafeAreaView>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// DraftResumeOverlay — extracted subcomponent (WR-04 from 05-REVIEW.md).
+// Takes sessionId as a REQUIRED prop so useFinishSession's scope.id is a
+// stable static string for the lifetime of the mount, satisfying Pitfall 3
+// (scope.id MUST NOT change across re-renders). Mounts only when the parent
+// has determined that a cold-start draft should be surfaced.
+// ---------------------------------------------------------------------------
+function DraftResumeOverlay({
+  sessionId,
+  bodyText,
+  onResume,
+  onDismiss,
+}: {
+  sessionId: string;
+  bodyText: string;
+  onResume: () => void;
+  onDismiss: () => void;
+}) {
+  const finishSession = useFinishSession(sessionId);
+
+  const handleAvslutaSession = () => {
+    // mutate (NOT mutateAsync) per Phase 4 commit 5d953b6 UAT lesson — paused
+    // mutations under networkMode: 'offlineFirst' never resolve mutateAsync.
+    // The optimistic onMutate in setMutationDefaults['session','finish']
+    // (Plan 01) clears sessionsKeys.active() so the banner + overlay unmount
+    // immediately; the toast then fires via the useEffect transition watcher
+    // in the parent.
+    finishSession.mutate(
+      { id: sessionId, finished_at: new Date().toISOString() },
+      {
+        onError: () => {
+          // V1: silent — if the server eventually rejects, the active query
+          // will refetch and the row re-appears as active on next focus.
+        },
+      },
+    );
+    onDismiss();
+  };
+
+  return (
+    <Pressable
+      className="absolute inset-0 bg-black/40"
+      accessibilityElementsHidden={false}
+      // Intentionally NO onPress — backdrop is decoratively pressable to
+      // absorb taps but does not dismiss; force-decision UX per UI-SPEC.
+    >
+      <View
+        className="absolute inset-x-4 top-[40%] bg-gray-100 dark:bg-gray-800 rounded-2xl p-6"
+        style={{ gap: 24 }}
+        onStartShouldSetResponder={() => true}
+      >
+        <View style={{ gap: 8 }}>
+          <Text className="text-2xl font-semibold text-gray-900 dark:text-gray-50">
+            Återuppta passet?
+          </Text>
+          <Text className="text-base text-gray-900 dark:text-gray-50">
+            {bodyText}
+          </Text>
+        </View>
+        <View className="flex-row gap-3">
+          <Pressable
+            onPress={handleAvslutaSession}
+            className="flex-1 py-4 rounded-lg bg-red-600 dark:bg-red-500 items-center justify-center active:opacity-80"
+            accessibilityRole="button"
+            accessibilityLabel="Avsluta sessionen"
+          >
+            <Text className="text-base font-semibold text-white">
+              Avsluta sessionen
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={onResume}
+            className="flex-1 py-4 rounded-lg bg-blue-600 dark:bg-blue-500 items-center justify-center active:opacity-80"
+            accessibilityRole="button"
+            accessibilityLabel="Återuppta passet"
+          >
+            <Text className="text-base font-semibold text-white">
+              Återuppta
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+    </Pressable>
   );
 }

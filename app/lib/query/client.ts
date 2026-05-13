@@ -598,13 +598,28 @@ queryClient.setMutationDefaults(["session", "start"], {
     const previousDetail = queryClient.getQueryData<SessionRow>(
       sessionsKeys.detail(vars.id),
     );
+    // WR-03 (05-REVIEW.md): build a complete SessionRow with explicit nulls for
+    // optional fields rather than casting Partial<SessionRow>. The mutationFn
+    // round-trips through SessionRowSchema.parse() on success — this keeps the
+    // optimistic cache shape Zod-equivalent during the offline window so
+    // consumers reading the cache during that window see the same shape they
+    // see post-reconciliation.
+    const optimisticRow = {
+      id: vars.id,
+      user_id: vars.user_id,
+      plan_id: vars.plan_id ?? null,
+      started_at: vars.started_at ?? new Date().toISOString(),
+      finished_at: vars.finished_at ?? null,
+      notes: vars.notes ?? null,
+      created_at: vars.created_at ?? null,
+    } satisfies SessionRow;
     queryClient.setQueryData<SessionRow | null>(
       sessionsKeys.active(),
-      vars as SessionRow,
+      optimisticRow,
     );
     queryClient.setQueryData<SessionRow>(
       sessionsKeys.detail(vars.id),
-      vars as SessionRow,
+      optimisticRow,
     );
     return { previousActive, previousDetail };
   },
@@ -715,9 +730,25 @@ queryClient.setMutationDefaults(["set", "add"], {
     const previous = queryClient.getQueryData<SetRow[]>(
       setsKeys.list(vars.session_id),
     );
+    // WR-03 (05-REVIEW.md): build a complete SetRow with explicit nulls/defaults
+    // for optional fields. The cache row matches SetRowSchema during the
+    // offline window — same shape as the post-reconciliation row from the
+    // mutationFn's SetRowSchema.parse() call.
+    const optimisticRow = {
+      id: vars.id,
+      session_id: vars.session_id,
+      exercise_id: vars.exercise_id,
+      set_number: vars.set_number,
+      reps: vars.reps,
+      weight_kg: vars.weight_kg,
+      rpe: vars.rpe ?? null,
+      set_type: vars.set_type ?? "working",
+      completed_at: vars.completed_at ?? new Date().toISOString(),
+      notes: vars.notes ?? null,
+    } satisfies SetRow;
     queryClient.setQueryData<SetRow[]>(
       setsKeys.list(vars.session_id),
-      (old = []) => [...old, vars as SetRow],
+      (old = []) => [...old, optimisticRow],
     );
     return { previous };
   },
@@ -764,10 +795,13 @@ queryClient.setMutationDefaults(["set", "update"], {
       setsKeys.list(vars.session_id),
     );
     if (previous) {
+      // WR-03 (05-REVIEW.md): {...r, ...vars} structurally produces a complete
+      // SetRow (r has all keys; vars only fills a subset). `satisfies SetRow`
+      // keeps TS honest without the bare `as` escape hatch.
       queryClient.setQueryData<SetRow[]>(
         setsKeys.list(vars.session_id),
         previous.map((r) =>
-          r.id === vars.id ? ({ ...r, ...vars } as SetRow) : r,
+          r.id === vars.id ? ({ ...r, ...vars } satisfies SetRow) : r,
         ),
       );
     }
