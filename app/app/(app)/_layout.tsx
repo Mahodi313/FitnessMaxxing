@@ -73,6 +73,16 @@ export default function AppLayout() {
         name="plans/[id]/exercise/[planExerciseId]/edit"
         options={{ presentation: "modal" }}
       />
+      {/* Phase 5 / Plan 05-02 D-03 — workout/[sessionId] is a regular Stack
+          screen (NOT modal). It inherits the centralized header styling
+          declared in screenOptions above (Phase 4 commit b57d1c2). The
+          headerRight Avsluta-button is declared per-screen inside
+          [sessionId].tsx because it needs access to the screen-local
+          Avsluta-overlay state. */}
+      <Stack.Screen
+        name="workout/[sessionId]"
+        options={{ headerShown: true, title: "Pass" }}
+      />
     </Stack>
   );
 }

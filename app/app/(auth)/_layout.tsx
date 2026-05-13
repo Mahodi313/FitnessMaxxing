@@ -15,7 +15,10 @@ import { useAuthStore } from "@/lib/auth-store";
 export default function AuthLayout() {
   const session = useAuthStore((s) => s.session);
   if (session) {
-    return <Redirect href="/(app)" />;
+    // Route to the home tab. expo-router's regenerated typed-routes (after
+    // SDK 54 typegen refresh) rejects bare group hrefs like "/(app)" — group
+    // roots are no longer assignable to Href. Use the concrete tabs index.
+    return <Redirect href="/(app)/(tabs)" />;
   }
   return <Stack screenOptions={{ headerShown: false }} />;
 }

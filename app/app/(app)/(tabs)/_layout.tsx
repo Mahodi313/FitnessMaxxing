@@ -27,6 +27,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useColorScheme } from "react-native";
 import { OfflineBanner } from "@/components/offline-banner";
+import { ActiveSessionBanner } from "@/components/active-session-banner";
 
 export default function TabsLayout() {
   const scheme = useColorScheme();
@@ -35,6 +36,7 @@ export default function TabsLayout() {
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-white dark:bg-gray-900">
       <OfflineBanner />
+      <ActiveSessionBanner />
       <Tabs
         screenOptions={{
           headerShown: false,

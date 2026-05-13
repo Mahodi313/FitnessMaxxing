@@ -92,6 +92,17 @@ function buildClient(counter: Counter): QueryClient {
     networkMode: "online",
     retry: 1,
   });
+  // Phase 5: also register ['set','add'] so the 25-set extension scenario
+  // can persist + re-hydrate paused mutations with the new mutationKey.
+  client.setMutationDefaults(["set", "add"], {
+    mutationFn: async (vars: unknown) => {
+      counter.count++;
+      counter.lastVars = vars;
+      return vars as { id: string };
+    },
+    networkMode: "online",
+    retry: 1,
+  });
   return client;
 }
 
@@ -233,6 +244,144 @@ async function main() {
   }
 
   unsubB();
+  await new Promise((r) => setTimeout(r, 100));
+
+  // ===========================================================================
+  // PHASE 5 EXTENSION — 25× ['set','add'] paused-mutation persist/restart.
+  //
+  // F13 acceptance: airplane mode + 25 sets logged + force-quit + reopen
+  // offline must show all 25 sets in cache. This block proves the persister
+  // contract holds for the new mutationKey ['set','add'] at the same fidelity
+  // as Phase 4 proved for ['plan-exercise','add'] above.
+  //
+  // Scenario: seed 25 paused ['set','add'] mutations under a shared scope.id
+  // 'session:test-session-25', serialize via persister, restart persister in
+  // a fresh QueryClient (simulating force-quit + cold-start), assert 25
+  // paused mutations restore with intact mutationKey + scope.id.
+  // ===========================================================================
+  console.log("[test-offline-queue] Phase 5 extension — 25× ['set','add']…");
+
+  const counterC: Counter = { count: 0 };
+  const clientC = buildClient(counterC);
+  const persisterC = createAsyncStoragePersister({ storage: asyncStorageShim });
+  const [unsubC, restorePromiseC] = persistQueryClient({
+    queryClient: clientC,
+    persister: persisterC,
+    maxAge: 86_400_000,
+  });
+  await restorePromiseC;
+
+  // Drain anything left from previous phases first so the count is clean.
+  // (Phase 1/2 mutation persists across the same asyncStorageShim.)
+  clientC.getMutationCache().clear();
+  await new Promise((r) => setTimeout(r, 100));
+
+  onlineManager.setOnline(false);
+
+  const TEST_SESSION_ID = "test-session-25";
+  for (let i = 1; i <= 25; i++) {
+    const setVars = {
+      id: `test-set-id-${String(i).padStart(3, "0")}`,
+      session_id: TEST_SESSION_ID,
+      exercise_id: "test-exercise-id-001",
+      set_number: i,
+      reps: 8,
+      weight_kg: 100,
+      completed_at: new Date().toISOString(),
+      set_type: "working",
+    };
+    const m = clientC.getMutationCache().build(clientC, {
+      mutationKey: ["set", "add"],
+      scope: { id: `session:${TEST_SESSION_ID}` },
+    });
+    void m.execute(setVars).catch(() => {
+      // paused — execute resolves only when finished. Best-effort.
+    });
+  }
+  await new Promise((r) => setTimeout(r, 200));
+
+  if (counterC.count === 0) {
+    pass("Phase 5 ext: 25 ['set','add'] mutationFns paused offline (no premature fire)");
+  } else {
+    fail("Phase 5 ext: ['set','add'] mutationFn fired offline", {
+      count: counterC.count,
+    });
+  }
+
+  const setsCachedC = clientC.getMutationCache().getAll();
+  if (setsCachedC.length === 25) {
+    const allKeysOk = setsCachedC.every(
+      (m) =>
+        JSON.stringify(m.options.mutationKey) ===
+        JSON.stringify(["set", "add"]),
+    );
+    const allScopesOk = setsCachedC.every(
+      (m) => m.options.scope?.id === `session:${TEST_SESSION_ID}`,
+    );
+    if (allKeysOk && allScopesOk) {
+      pass(
+        "Phase 5 ext: 25 cached ['set','add'] mutations have intact mutationKey + scope.id",
+      );
+    } else {
+      fail("Phase 5 ext: cached ['set','add'] key/scope drift", {
+        allKeysOk,
+        allScopesOk,
+      });
+    }
+  } else {
+    fail("Phase 5 ext: expected 25 cached set-add mutations", {
+      count: setsCachedC.length,
+    });
+  }
+
+  // Let persister auto-throttle flush state to disk.
+  await new Promise((r) => setTimeout(r, 1500));
+
+  // Force-quit simulation: tear down clientC.
+  unsubC();
+  await new Promise((r) => setTimeout(r, 100));
+
+  // Cold-start: rebuild fresh QueryClient + persister; hydrate from disk.
+  const counterD: Counter = { count: 0 };
+  const clientD = buildClient(counterD);
+  const persisterD = createAsyncStoragePersister({ storage: asyncStorageShim });
+  const [unsubD, restorePromiseD] = persistQueryClient({
+    queryClient: clientD,
+    persister: persisterD,
+    maxAge: 86_400_000,
+  });
+  await restorePromiseD;
+  await new Promise((r) => setTimeout(r, 100));
+
+  const setsCachedD = clientD.getMutationCache().getAll();
+  // Filter to the Phase 5 ['set','add'] mutations only — earlier Phase 4
+  // ['plan-exercise','add'] could also be on disk depending on test ordering.
+  const setAddMutations = setsCachedD.filter(
+    (m) =>
+      JSON.stringify(m.options.mutationKey) ===
+      JSON.stringify(["set", "add"]),
+  );
+  if (setAddMutations.length === 25) {
+    const allScopesOk = setAddMutations.every(
+      (m) => m.options.scope?.id === `session:${TEST_SESSION_ID}`,
+    );
+    if (allScopesOk) {
+      pass(
+        "Phase 5 ext: 25 ['set','add'] mutations re-hydrated with intact scope.id (F13 paused-cache survival)",
+      );
+    } else {
+      fail("Phase 5 ext: re-hydrated set-add scope.id drift", {
+        scopes: setAddMutations.map((m) => m.options.scope?.id),
+      });
+    }
+  } else {
+    fail("Phase 5 ext: expected 25 re-hydrated set-add mutations", {
+      count: setAddMutations.length,
+    });
+  }
+
+  unsubD();
+  await new Promise((r) => setTimeout(r, 100));
 
   // Cleanup tmp dir
   try {
