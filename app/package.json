@@ -21,7 +21,10 @@
     "test:reorder-constraint": "tsx scripts/test-reorder-constraint.ts",
     "test:upsert-idempotency": "tsx scripts/test-upsert-idempotency.ts",
     "test:offline-queue": "tsx scripts/test-offline-queue.ts",
-    "test:sync-ordering": "tsx scripts/test-sync-ordering.ts"
+    "test:sync-ordering": "tsx scripts/test-sync-ordering.ts",
+    "test:f13-brutal": "tsx --env-file=.env.local scripts/verify-f13-brutal-test.ts",
+    "inspect:duplicate-sets": "tsx --env-file=.env.local scripts/inspect-duplicate-sets.ts",
+    "inspect:recent-sessions": "tsx --env-file=.env.local scripts/inspect-recent-sessions.ts"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
