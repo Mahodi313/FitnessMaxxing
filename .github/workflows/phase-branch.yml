@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - "gsd/phase-*"
+      - "fix/*"
+      - "chore/*"
   pull_request:
     branches:
       - dev
