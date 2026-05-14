@@ -80,6 +80,23 @@ const cases: Case[] = [
     input: { weight_kg: 50, reps: 5, set_type: "bogus" },
     expectSuccess: false,
   },
+  // ---- Phase 5 gap-closure (FIT-9) — Swedish-locale decimal separator ----
+  {
+    name: "happy: weight '102,5' (Swedish comma) coerces to 102.5",
+    input: { weight_kg: "102,5", reps: 5 },
+    expectSuccess: true,
+  },
+  {
+    name: "happy: weight '102.5' (period) coerces to 102.5",
+    input: { weight_kg: "102.5", reps: 5 },
+    expectSuccess: true,
+  },
+  {
+    name: "reject: weight '102,5,5' (multi-comma) fails (NaN after replace)",
+    input: { weight_kg: "102,5,5", reps: 5 },
+    expectSuccess: false,
+    expectErrorIncludes: "Vikt krävs",
+  },
 ];
 
 let failed = 0;
