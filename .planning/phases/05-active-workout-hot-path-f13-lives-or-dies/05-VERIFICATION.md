@@ -1,9 +1,16 @@
 ---
 phase: 05-active-workout-hot-path-f13-lives-or-dies
 verified: 2026-05-14T19:14:20Z
-status: human_needed
-score: 10/10 must-haves verified (source-level); 3 iPhone-UAT items routed to human_verification
+status: passed
+score: 10/10 must-haves verified (source-level); 3 iPhone-UAT items routed to human_verification (persisted to 05-HUMAN-UAT.md, non-blocking per user direction)
 overrides_applied: 0
+phase_closure_note: |
+  User explicitly directed phase closure on 2026-05-14 after all source-level
+  gates GREEN + REGRESSION-01 fix (FIT-13) merged. The 3 iPhone-UAT items in the
+  human_verification block remain open as 05-HUMAN-UAT.md entries — they will
+  surface in `/gsd-progress` and `/gsd-audit-uat` until the user runs the physical
+  device UAT separately. Status promoted from `human_needed` → `passed` to reflect
+  that the open human items are acknowledged-deferred, not blockers.
 re_verification:
   previous_verified: 2026-05-13T20:33:14Z
   previous_status: human_needed
@@ -22,7 +29,9 @@ re_verification:
       severity: warning
       reason: "Test fixture inserts warmup (sn=1) + working (sn=1) for the same (session_id, exercise_id) — the new UNIQUE constraint from Migration 0003 (FIT-7) rejects the second INSERT. The PRODUCTION last-value.ts filter is correct (set_type='working' filter still works as designed); only the synthetic test fixture is now incompatible with the schema. r3.size resolves to 1 (warmup-only row, which the production code correctly filters out — but the test setup never lands the second working row because of the UNIQUE constraint, so the assertion measuring '2 working sets visible' fails)."
       impact: "Wave-0 test-last-value-query.ts now reports 1 FAILURE/8 PASS (was 9 PASS pre-FIT-7). No user-visible production regression — Truth #3 (F7 set-position-aligned last value) remains TRUE at the production code-path level. Test fixture needs an update to use distinct set_number values for warmup vs working (warmup=1, working=2,3) reflecting the new natural-key model."
-      follow_up: "Create Linear issue (suggested: FIT-11 [P2] test fixture). Not blocking phase advancement."
+      follow_up: "RESOLVED 2026-05-14 via FIT-13 (PR #30 merged). Fixture updated to use distinct set_number values (warmup=1, working=2,3) reflecting the new natural-key model. test-last-value-query.ts now reports 9/9 PASS post-fix."
+      resolved: true
+      resolved_by: "FIT-13 (PR #30) — commit fb2b635 fix(05): test-last-value-query Assertion 3 fixture skips warmup set_number"
 human_verification:
   - test: "F13 Brutal-Test full end-to-end recipe on physical iPhone (carried forward from 05-VERIFICATION.md 2026-05-13)"
     expected: "All 25 sets land in Supabase in correct set_number order; finished_at set after all sets; zero 23503 FK violations; zero 23505 unique-constraint violations on first-pass replay (idempotent retries are no-ops via onConflict:id ignoreDuplicates); duplicate-detection SQL (group by 1,2,3 having count(*) > 1) returns zero rows."
@@ -41,8 +50,8 @@ human_verification:
 # Phase 5: Active Workout Hot Path (F13 lives or dies) — Re-Verification Report
 
 **Phase Goal:** Användare kan starta ett pass, logga set i ≤3 sekunder per set, se senaste värdet per övning, och avsluta passet — varje set överlever även mest extrema offline-scenarier
-**Verified:** 2026-05-14T19:14:20Z
-**Status:** human_needed
+**Verified:** 2026-05-14T19:14:20Z (re-verified + finalized 2026-05-14T20:00:00Z post FIT-13 merge)
+**Status:** passed (with deferred iPhone UAT in 05-HUMAN-UAT.md)
 **Re-verification:** Yes — post gap-closure (FIT-7 / FIT-8 / FIT-9 / FIT-10 + 05-REVIEW.md fixes + Migration 0005)
 
 ## Re-Verification Summary
