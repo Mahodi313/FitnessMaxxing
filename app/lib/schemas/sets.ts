@@ -23,6 +23,15 @@
 // Anti-pattern to AVOID: do NOT relax multipleOf(0.25). It is the
 // load-bearing PITFALLS §1.5 guard for the F13 "never lose set fidelity"
 // contract.
+//
+// Locale-tolerant weight input (Plan 05-06 / FIT-9): z.preprocess on
+// weight_kg replaces ',' with '.' before z.coerce.number() runs.
+// Swedish-locale iPhones render ',' on the decimal-pad keyboard (D-11),
+// but JavaScript's Number parser only accepts '.'. UAT 2026-05-13 Gap #3
+// — without this preprocess, users were silently blocked from logging
+// fractional weights. Multi-comma strings ("102,5,5") normalize to
+// "102.5.5" → Number returns NaN → schema rejects (regex .replace with
+// the /g flag is intentional).
 
 import { z } from "zod";
 
@@ -32,11 +41,16 @@ import { z } from "zod";
 // (the hook bakes randomUUID() + the set_number count); this schema is the
 // strict gate the form crosses BEFORE the mutate() fires.
 export const setFormSchema = z.object({
-  weight_kg: z
-    .coerce.number({ error: "Vikt krävs" })
-    .min(0, { error: "Vikt måste vara 0 eller högre" })
-    .max(500, { error: "Vikt över 500kg verkar fel — kontrollera" })
-    .multipleOf(0.25, { error: "Vikt i steg om 0.25kg" }),
+  weight_kg: z.preprocess(
+    // Plan 05-06 / FIT-9: Swedish-locale comma → JS-parsable period.
+    // /g flag so "102,5,5" → "102.5.5" → NaN → schema rejects.
+    (val) => (typeof val === "string" ? val.replace(/,/g, ".") : val),
+    z
+      .coerce.number({ error: "Vikt krävs" })
+      .min(0, { error: "Vikt måste vara 0 eller högre" })
+      .max(500, { error: "Vikt över 500kg verkar fel — kontrollera" })
+      .multipleOf(0.25, { error: "Vikt i steg om 0.25kg" }),
+  ),
   reps: z
     .coerce.number({ error: "Reps krävs" })
     .int({ error: "Reps måste vara ett heltal" })
