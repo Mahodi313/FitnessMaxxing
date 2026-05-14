@@ -3,9 +3,18 @@
 --
 -- Removes duplicate (session_id, exercise_id, set_number) rows produced under
 -- the D-16 client-side set_number race (UAT 2026-05-13, session
--- 379cfd29-a06f-4dbc-b429-ab273b16c096 — 6 silent duplicates). Keeps the
--- OLDEST row by completed_at per tuple, then `id` as a deterministic
--- tiebreaker when completed_at ties or is null.
+-- 379cfd29-a06f-4dbc-b429-ab273b16c096 — 6 silent duplicates).
+--
+-- Keep-row policy (WR-05 clarification, 05-REVIEW.md): the `order by
+-- completed_at asc nulls last, id asc` clause keeps the OLDEST row by
+-- completed_at per tuple. Rows with completed_at IS NULL rank LAST under
+-- `nulls last` and are therefore the deletion candidates if a tuple has both
+-- a real timestamp and a NULL — preserving the latest known completion time
+-- over an in-flight/incomplete row. If ALL rows in a tuple have NULL
+-- completed_at (unreachable in practice because exercise_sets.completed_at
+-- has `default now()` per migration 0001 line 81), the tiebreaker falls to
+-- `id ASC` — deterministic but not temporally meaningful (UUIDs have no
+-- temporal ordering).
 --
 -- MUST run BEFORE 0003 (UNIQUE constraint) or 0003 will fail.
 --
