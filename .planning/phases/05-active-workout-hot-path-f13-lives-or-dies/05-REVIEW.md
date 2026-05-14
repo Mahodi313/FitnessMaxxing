@@ -1,339 +1,337 @@
 ---
 phase: 05-active-workout-hot-path-f13-lives-or-dies
-reviewed: 2026-05-13T00:00:00Z
+reviewed: 2026-05-14T00:00:00Z
 depth: standard
-files_reviewed: 23
+files_reviewed: 26
 files_reviewed_list:
   - app/app/(app)/(tabs)/_layout.tsx
   - app/app/(app)/(tabs)/index.tsx
   - app/app/(app)/_layout.tsx
   - app/app/(app)/plans/[id].tsx
   - app/app/(app)/workout/[sessionId].tsx
-  - app/app/(auth)/_layout.tsx
+  - app/app/_layout.tsx
   - app/components/active-session-banner.tsx
-  - app/lib/queries/last-value.ts
-  - app/lib/queries/sessions.ts
+  - app/lib/persistence-store.ts
   - app/lib/queries/sets.ts
   - app/lib/query/client.ts
   - app/lib/query/keys.ts
   - app/lib/query/network.ts
   - app/lib/query/persister.ts
-  - app/lib/schemas/sessions.ts
   - app/lib/schemas/sets.ts
   - app/package.json
+  - app/scripts/inspect-duplicate-sets.ts
+  - app/scripts/inspect-recent-sessions.ts
   - app/scripts/manual-test-phase-05-f13-brutal.md
-  - app/scripts/test-last-value-query.ts
   - app/scripts/test-offline-queue.ts
   - app/scripts/test-rls.ts
-  - app/scripts/test-session-schemas.ts
   - app/scripts/test-set-schemas.ts
   - app/scripts/test-sync-ordering.ts
+  - app/scripts/verify-f13-brutal-test.ts
+  - app/supabase/migrations/0002_dedupe_exercise_sets.sql
+  - app/supabase/migrations/0003_exercise_sets_natural_key.sql
+  - app/supabase/migrations/0004_exercise_sets_set_number_trigger.sql
 findings:
-  critical: 2
-  warning: 7
-  info: 6
-  total: 15
+  critical: 1
+  warning: 6
+  info: 5
+  total: 12
 status: issues_found
 ---
 
-# Phase 5: Code Review Report
+# Phase 5 (gap-closure FIT-7..FIT-10): Code Review Report
 
-**Reviewed:** 2026-05-13
+**Reviewed:** 2026-05-14
 **Depth:** standard
-**Files Reviewed:** 23 (24 listed in config; `app/scripts/test-rls.ts` was reviewed but Phase 5 only added an extension to it)
+**Files Reviewed:** 26
 **Status:** issues_found
 
 ## Summary
 
-Phase 5 ships the active-workout hot path (F5/F6/F7/F8/F13) with the offline-first guarantees Phase 4 set up. The architecture is sound and most of the load-bearing invariants (scope.id static at construction time, optimistic dual-writes to `sessionsKeys.active()` + `sessionsKeys.detail(id)`, Zod-parse-at-boundary for all Supabase reads, RLS cross-user gates extended in `test-rls.ts` for the F5/F6/F8 payload shapes, two-belt persister durability via throttle 500ms + AppState background-flush) hold up under scrutiny.
+This review targets the Phase 5 gap-closure work (Plans 05-04/05/06/07; PRs FIT-7 through FIT-10 merged 2026-05-14) layered on top of the original Phase 5 work (commit `06cb5a3`). The gap-closure deliverables themselves are largely sound: the SQL migrations are correctly ordered (0002 dedupe → 0003 UNIQUE → 0004 trigger), the trigger is correctly authored as SECURITY INVOKER with `set search_path = ''`, the client-side `set_number` computation has been fully removed from the persisted payload (D-16 properly superseded), the `PersistQueryClientProvider` wiring respects the LOAD-BEARING module-load order, the Swedish-locale `z.preprocess` correctly wraps only `weight_kg` (not `reps`/`rpe`) with the `/g` flag intact, and the test-rls.ts uniqueness assertion correctly uses `clientB` (RLS-scoped) rather than admin.
 
-However, two BLOCKERs surface:
+Adversarial issues that **DO** remain:
 
-1. **`AppState.addEventListener` in `lib/query/network.ts` is never unsubscribed** — the AppState background-flush subscription leaks for the lifetime of the JS runtime. While `network.ts` is module-load-once so this won't compound, the second AppState listener (the `focusManager` one) IS unsubscribed via the returned `sub.remove()` callback — the asymmetry is a real bug because Fast Refresh during development re-evaluates the module, stacking subscriptions and double-firing the persister flush on every background event. This becomes a correctness issue when paired with the next finding.
-2. **`(tabs)/index.tsx` toast `useEffect` mutates `previousActiveRef.current = activeSession` BEFORE the cleanup function runs**, but ALSO inside the cleanup-returning branch — the cleanup `clearTimeout` is only registered on the rising edge, and the ref-update inside that branch silently swallows the next transition. Concretely: if the user starts session Y while the toast for finishing session X is still visible, `previousActiveRef.current = activeSession` (which is now Y) blocks the next non-null→null detection. This is a F8 "Passet sparat" toast suppression bug under the (admittedly rare) double-finish workflow.
+1. **One BLOCKER (CR-01) — `clientB` is not signed out before the natural-key uniqueness assertion runs**: the `cleanupTestUsers` `finally` block calls `admin.auth.admin.deleteUser(userB.id)` while `clientB` still holds an active JWT for that user. On the next test:rls run, the residual session in `clientB`'s in-memory state is not the failure mode — but the `cleanupTestUsers` call at the START of `main()` does NOT sign out the in-memory clients either, so on a re-run inside the same process (e.g., a test harness that calls main() twice), clientA/clientB would carry stale JWTs across user-rotation and silently authenticate as the previous test's users. This affects rerun durability for `test:rls`. More importantly: there's a real BLOCKER below in the migration 0002 + 0003 sequencing under concurrent deploy.
 
-Five additional WARNINGs cover: a typed-route trailing-slash drift in `workout/[sessionId].tsx` router.replace, an `expo-secure-store` version mismatch against the documented SDK 54 line, the optimistic cache write that bypasses `SetRowSchema.parse` and casts `vars as SetRow` (loses the Zod boundary guarantee Pitfall 8.13 was written to enforce), a missing `enabled: !!sessionId` on `useFinishSession` mutate guard (the `?? "noop"` fallback queues a no-op scope), the AvslutaOverlay backdrop-tap dismissal that conflicts with the force-decision UX the draft-resume overlay implements, an unused `_sessionId` parameter in `EditableSetRow`, and a missing `useLocalSearchParams` array-shape guard on `sessionId`.
+2. **Migration 0002 dedupe runs in a single `begin; ... commit;` block with NO advisory lock or `LOCK TABLE EXCLUSIVE`** — so a concurrent INSERT from a still-deployed-old-client into `exercise_sets` during the dedupe window can land a NEW duplicate AFTER the `delete` statement evaluates but BEFORE Migration 0003's UNIQUE constraint creation gets the `ACCESS EXCLUSIVE` lock. Migration 0003 will then fail (23505 at ALTER TABLE time) and either abort the migration chain (good, but leaves the DB in a partially-deduped state) or — if 0002 and 0003 are applied as separate transactions — leave 0003 unable to add the constraint until manual cleanup. **This is a real concern only for the FIRST deploy of these migrations against the live DB** while D-16-era clients are still in-flight; on a personal-use V1 with a single user/device, the practical impact is near-zero, but the migration files are checked-in for V1.1+ where multi-device sync is feasible.
 
-Info-tier items round out with sub-optimal naming, dead/unreachable branches, and inconsistencies in scope.id contract documentation between hook construction sites.
+3. Five WARNINGs cover: Fast-Refresh listener stacking that CR-01 from the previous review only partially closed (`focusManager` + `onlineManager.subscribe` STILL leak — the prior fix only protected the AppState background-flush); a logic bug in `test-rls.ts` cleanup where `clientA`/`clientB` are never signed out; `inspect:duplicate-sets` hardcodes a session-UUID in source (breaks reuse — must be edited before running); `verify-f13-brutal-test.ts` uses `(${RECENT_WINDOW_MIN}::text || ' minutes')::interval` which is correct postgres but slightly worse than the `make_interval(mins => ${RECENT_WINDOW_MIN})` parameterized form; `test:f13-brutal` script in package.json uses bare `--env-file` (not `--env-file-if-exists`) inconsistent with the FIT-7 hardening done for `test:rls`; `package.json` declares `expo-secure-store@~15.0.8` matching CLAUDE.md but `@shopify/react-native-skia@2.2.12` which CLAUDE.md previously footnoted as a corrected 2.2.x pin (no drift in 2026-05 baseline — confirmed); the `inspect-duplicate-sets.ts` script casts `prev: any` and `count: any` without need.
+
+4. Info items document non-bug improvements: a typo in `app/scripts/test-set-schemas.ts` test-case label `"reject: weight 1255"` (the input is `1255` but the failure mode is "over 500"), the migration 0002 keep-row tiebreaker should ideally be `id ASC` deterministic rather than `completed_at asc nulls last, id asc` which has a subtle bug when `completed_at` is NULL (`NULLS LAST` is correct, but the comment claims "OLDEST by completed_at, then id" — under NULL the tiebreaker is the only signal; not a bug, but the comment is misleading), the `BL-` ID prefix in this review uses `CR-` (canonical) per the workflow contract, and the `inspect-recent-sessions.ts` script does not validate the queried sessions belong to the test user (admin RLS bypass means it'll dump anyone's data — fine for personal V1 but flag if multi-user dev environment).
+
+Below: full findings in the requested format. Severity counts are **1 critical, 6 warning, 5 info**.
 
 ## Critical Issues
 
-### CR-01: AppState listener leak in `network.ts` — Fast Refresh stacks subscriptions; AppState background-flush fires N times after N reloads
+### CR-01: Migrations 0002 + 0003 sequencing has a TOCTOU window — concurrent INSERTs during dedupe can re-introduce duplicates before UNIQUE constraint lands
 
-**File:** `app/lib/query/network.ts:77-84`
-**Issue:** The `AppState.addEventListener("change", ...)` call for the Phase 5 D-25 background-flush is fire-and-forget — its returned `EventSubscription` is never captured, so neither the symmetry-pair `sub.remove()` nor a module-teardown is possible. The focus-manager listener directly above (lines 56-61) IS captured via `const sub = AppState.addEventListener(...)` and returns `sub.remove` to the focusManager — so the project clearly knows the pattern.
+**File:** `app/supabase/migrations/0002_dedupe_exercise_sets.sql:16-32` (paired with `app/supabase/migrations/0003_exercise_sets_natural_key.sql:18-20`)
 
-Under Expo Fast Refresh, `network.ts` is re-evaluated whenever it (or any of its imports — `client.ts`, `persister.ts`, `supabase.ts`) is edited, which stacks a second background-flush subscription on top of the first. After three reloads, every AppState transition to `background` fires `persistQueryClientSave` three times. Since `persistQueryClientSave` performs a full dehydrate + AsyncStorage write, this triples the work during the most latency-sensitive moment (the user is swiping the app away mid-set-log) — which directly contradicts the Phase 5 D-25 hot-path durability gate the listener is meant to harden.
+**Issue:** Migration 0002 wraps the dedupe in a `begin; ... commit;` block but does NOT acquire `LOCK TABLE public.exercise_sets IN ACCESS EXCLUSIVE MODE` or `pg_advisory_xact_lock(...)` before the `with ranked as (... row_number() ...) delete from public.exercise_sets es using ranked r where es.id = r.id and r.rn > 1`. Postgres' default isolation (READ COMMITTED) means concurrent transactions can INSERT rows into `exercise_sets` between the snapshot the CTE sees and the moment the DELETE commits.
 
-In production builds Fast Refresh is off, so this manifests only in dev. But the same pattern means a future refactor that ever calls `network.ts` more than once would silently double-persist forever with no diagnostic.
+The migration chain is `0002 → 0003 → 0004`. Supabase CLI applies these as separate top-level transactions (each migration file gets its own `begin/commit` pair). Between the commit of 0002 and the moment 0003's `ALTER TABLE ... ADD CONSTRAINT ... UNIQUE (session_id, exercise_id, set_number)` acquires `ACCESS EXCLUSIVE`, **any client running the pre-FIT-7 code path can land a duplicate** — because the old client computes `set_number = count + 1` from its local cache. Migration 0003 then fails with `23505 unique_violation` at constraint-creation time, leaving the DB in a state where 0002 has run but 0003 has not, and the schema is permanently out-of-sync with the migrations until manual remediation.
 
-**Fix:**
-```typescript
-// app/lib/query/network.ts — capture the subscription so it can be removed,
-// matching the focusManager pattern directly above.
-const appStateBackgroundSub = AppState.addEventListener("change", (s) => {
-  if (Platform.OS !== "web" && (s === "background" || s === "inactive")) {
-    void persistQueryClientSave({
-      queryClient,
-      persister: asyncStoragePersister,
-    });
-  }
-});
+For a personal V1 with a single user / single device this is essentially unreachable (the deployer is the same physical actor as the writer), so the practical risk against the stated CLAUDE.md "personal gym-tracker V1" is low. But the migrations are checked in for the lifetime of the codebase, and if (a) V1.1+ ever supports multi-device or (b) a future contributor runs `supabase db push` against a shared staging DB while the old TestFlight build is still installed on someone's iPhone, the failure mode WILL fire. This is the contract gap that motivated the supersession of D-16 in the first place — closing it on the runtime path while leaving the migration path TOCTOU-vulnerable contradicts the intent.
 
-// In a future refactor, expose a teardown for this module:
-export function teardownNetworkListeners() {
-  appStateBackgroundSub.remove();
-  // (also tear down NetInfo + focusManager subs symmetrically)
-}
+**Fix:** Either (a) combine 0002 + 0003 into a single migration file so they run in one transaction (then the UNIQUE constraint creation blocks any concurrent INSERT until the dedupe's snapshot is committed):
+
+```sql
+-- app/supabase/migrations/0002_dedupe_and_natural_key.sql (combined)
+begin;
+
+-- Belt: take an exclusive lock so no concurrent INSERTs slip between
+-- the DELETE evaluation and the UNIQUE constraint creation.
+lock table public.exercise_sets in access exclusive mode;
+
+with ranked as ( /* unchanged dedupe CTE */ )
+delete from public.exercise_sets es
+using ranked r where es.id = r.id and r.rn > 1;
+
+alter table public.exercise_sets
+  add constraint exercise_sets_session_exercise_setno_uq
+  unique (session_id, exercise_id, set_number);
+
+commit;
 ```
 
-For Fast Refresh durability specifically, gate the subscription behind a `globalThis` flag so re-evaluation doesn't stack:
-```typescript
-const SUB_KEY = "__fitnessmaxxing_appstate_bgflush_sub__";
-// @ts-expect-error - module-level singleton flag
-if (globalThis[SUB_KEY]) globalThis[SUB_KEY].remove();
-const appStateBackgroundSub = AppState.addEventListener(/* ... */);
-// @ts-expect-error
-globalThis[SUB_KEY] = appStateBackgroundSub;
-```
+OR (b) keep them separate but add `lock table public.exercise_sets in access exclusive mode;` as the first statement inside 0002's `begin;` block, AND add the same lock as the first statement of 0003's transaction. The lock will be released at commit of 0002, and 0003 will re-acquire it. Between the two, a window still exists, but it is now constrained to the migration runner's own scheduler — Supabase CLI applies migrations sequentially in a single process, so the window collapses to microseconds.
 
-### CR-02: Toast suppression bug — `previousActiveRef` overwrite inside cleanup-returning branch swallows next finish transition
-
-**File:** `app/app/(app)/(tabs)/index.tsx:159-168`
-**Issue:** The toast trigger effect detects the `active=non-null → active=null` edge correctly, but inside the early-return branch it ALSO writes `previousActiveRef.current = activeSession` (line 164) before returning the cleanup. The intent appears to be "stamp the ref so we don't re-fire on next render", but the same write happens on the fall-through path (line 167) on every render — making the line 164 write redundant AND harmful.
-
-Concrete failure trace (F8 double-finish): user finishes session X → effect runs with `prev=X, current=null` → toast fires → ref updated to null → cleanup registered. User starts session Y within 2s → effect runs with `prev=null, current=Y` → falls through to line 167, ref becomes Y. User finishes Y immediately (UAT scenario "abort and restart workout") → effect runs with `prev=Y, current=null` → toast SHOULD fire again. It does. Fine.
-
-But: if the user TAPS Avsluta on Y while X's 2s toast timer is STILL ACTIVE (i.e., the 2-second window from the X toast hasn't elapsed), the cleanup from X's effect run runs (clears X's timer), then Y's branch enters with `prev != null && current==null` → fires another toast — but the SHARED `setTimeout(2000)` resets the `showToast=false` clock from scratch. End user sees a single, longer "Passet sparat" toast. Visually acceptable.
-
-The actual bug: there's nothing PREVENTING the line 164 write from also running on a NON-fire render. Consider this race: `prev=X, current=X` (no transition) → effect runs because deps `[activeSession]` registered a new query result snapshot of equal `.id` but new object identity from cache invalidation (Supabase refetch). The `previousActiveRef.current != null && activeSession == null` check fails (current is still X). Effect falls through to line 167. Fine.
-
-BUT: in React's StrictMode (Expo dev sometimes opts in), the effect runs TWICE on mount. First pass: `prev=undefined, current=X` (initial). The check `prev != null` is false. Fall through. `prev = X`. Cleanup not registered. Second pass: cleanup-from-first-pass runs (none registered, so no-op). Effect re-runs with `prev=undefined` again (the second pass uses the value at the time of effect-creation, not the current ref). Falls through. `prev = X`.
-
-This means under StrictMode the toast trigger logic is correct only because `previousActiveRef.current` is `useRef`-mutable. But the cleanup-return path at line 165 captures `t` in closure — and after the cleanup runs once (timer cleared), the toast.current stays `true`. The branch at line 161 fires `setShowToast(true)` again on the next render, but the cleanup-return from THAT render (a second timer) is now active. Two timers running. Not catastrophic — `setShowToast(false)` is idempotent — but a sign the state machine is brittle.
-
-The real bug is more subtle: **line 164's `previousActiveRef.current = activeSession` runs BEFORE the cleanup returns**, meaning subsequent renders where `activeSession` mutates BETWEEN this fire-render and cleanup-firing-render leave the ref pointing at the firing-render snapshot. If a third party (a query invalidation, a refetch) flips `activeSession` from null back to a fresh non-null Y in the same React frame, the cleanup-from-current effect still hasn't run, and the next effect call sees `prev != null` (because line 164 stamped it null) — so the user-fired toast for finishing X never re-arms correctly when Y is created and finished in rapid succession.
-
-**Fix:** Remove the redundant ref-write inside the firing branch; let line 167's single write handle every render uniformly:
-```typescript
-useEffect(() => {
-  const prev = previousActiveRef.current;
-  previousActiveRef.current = activeSession; // always update first
-  if (prev != null && activeSession == null) {
-    setShowToast(true);
-    const t = setTimeout(() => setShowToast(false), 2000);
-    return () => clearTimeout(t);
-  }
-}, [activeSession]);
-```
-
-The reordered effect captures `prev` at the top, updates the ref unconditionally, then decides whether to fire the toast based on the captured `prev`. Cleanup is registered only when a timer is actually scheduled. No double-register, no swallowed transition.
+Either fix is acceptable; (a) is stronger and is what I recommend.
 
 ## Warnings
 
-### WR-01: Trailing-slash drift in `router.replace("/(app)/(tabs)/" as Href)` — bypasses typed-routes via `as Href` cast
+### WR-01: Fast-Refresh listener stacking is only partially closed — `focusManager` + `onlineManager.subscribe(resumePausedMutations)` STILL leak across reloads
 
-**File:** `app/app/(app)/workout/[sessionId].tsx:186`
-**Issue:** The Avsluta-finish flow routes via `router.replace("/(app)/(tabs)/" as Href)`. The (auth) layout fix (commit 35efe5e) explicitly settled the typed-route as `/(app)/(tabs)` (no trailing slash) — see `app/app/(auth)/_layout.tsx:21`. The trailing slash + `as Href` cast bypasses Expo Router 6's typed-routes check, which means future router.d.ts regeneration will not catch a drift here. At runtime Expo Router normalises trailing slashes, so this works today, but the inconsistency means a future grep for "the canonical home route" returns two different forms.
+**File:** `app/lib/query/network.ts:56-61, 121-127`
 
-**Fix:**
+**Issue:** The previous review's CR-01 was correctly addressed for the AppState background-flush subscription via the `globalRef[APPSTATE_BGFLUSH_KEY]` sentinel pattern (lines 86-102). However, two OTHER module-load-time subscriptions remain unprotected:
+
+1. Line 56-61: `focusManager.setEventListener(...)` registers a new AppState listener every time `network.ts` is re-evaluated under Fast Refresh. The closure returned to `setEventListener` is overwritten internally by TanStack on each call, so the OLD AppState listener's `sub.remove` is never called — it leaks. After three reloads, every `AppState.change` event fires three closures, each calling `setFocused`. TanStack's `focusManager` is idempotent on `setFocused(true)`, so the user-visible bug is small, but the listener leak compounds memory.
+
+2. Line 121-127: `onlineManager.subscribe((online) => { ... resumePausedMutations() ... })` likewise has no teardown. After three reloads, every NetInfo emission fires three closures, three of which call `resumePausedMutations()` if `online && !wasOnline`. This is the load-bearing Pitfall 8.12 close — and now it fires three times in dev. Replay is idempotent (upsert with onConflict:id), so the user sees no anomaly, but every additional replay is a wasted REST round-trip + a wasted Zod parse on the response.
+
+The fix pattern (globalRef sentinel) is already proven in the same file — apply it consistently.
+
+**Fix:** Wrap each of the three module-load-time subscriptions in the same `globalThis` sentinel pattern. Suggested keys:
+
 ```typescript
-// app/app/(app)/workout/[sessionId].tsx:186
-router.replace("/(app)/(tabs)"); // drop trailing slash, drop `as Href` cast
+// Apply to focusManager.setEventListener
+const FOCUS_MGR_KEY = "__fm_focus_mgr_sub__";
+const globalFocus = globalThis as unknown as Record<string, (() => void) | undefined>;
+if (globalFocus[FOCUS_MGR_KEY]) globalFocus[FOCUS_MGR_KEY]();
+const focusUnsub = focusManager.setEventListener((setFocused) => {
+  const sub = AppState.addEventListener("change", (s) => {
+    if (Platform.OS !== "web") setFocused(s === "active");
+  });
+  return () => sub.remove();
+});
+globalFocus[FOCUS_MGR_KEY] = focusUnsub;
+
+// Apply to onlineManager.subscribe (resumePausedMutations gate)
+const ONLINE_REPLAY_KEY = "__fm_online_replay_sub__";
+const globalReplay = globalThis as unknown as Record<string, (() => void) | undefined>;
+if (globalReplay[ONLINE_REPLAY_KEY]) globalReplay[ONLINE_REPLAY_KEY]();
+let wasOnline = onlineManager.isOnline();
+const replayUnsub = onlineManager.subscribe((online) => {
+  if (online && !wasOnline) void queryClient.resumePausedMutations();
+  wasOnline = online;
+});
+globalReplay[ONLINE_REPLAY_KEY] = replayUnsub;
 ```
 
-If the cast is needed because router.d.ts hasn't regenerated for this build, run `npx expo start` once to force regeneration, then drop the cast as the comment at line 31-33 of `(tabs)/index.tsx` says future cleanup should do.
+This makes `network.ts` fully Fast-Refresh-safe.
 
-### WR-02: `expo-secure-store@~15.0.8` drifted from CLAUDE.md-documented `~14.0.1` for SDK 54
+### WR-02: `test:f13-brutal` + `inspect:duplicate-sets` + `inspect:recent-sessions` use bare `--env-file=.env.local` (not `--env-file-if-exists`) — CI-unsafe
 
-**File:** `app/package.json:49`
-**Issue:** CLAUDE.md technology-stack table explicitly pins `expo-secure-store: ~14.0.1` against SDK 54, with a callout that 55.x is the SDK 55 (next) line and `npx expo install` should pin the right version. The current dependency declaration is `"expo-secure-store": "~15.0.8"`.
+**File:** `app/package.json:25-27`
 
-This may be a stack-doc update lag (SDK 54 minor revision shifted the expo-secure-store baseline to 15.x), but if it's a drift from `npm install` instead of `npx expo install`, the LargeSecureStore Supabase auth wrapper may have native-module ABI incompatibilities on a physical device. M3 (broken authentication) is the OWASP MASVS L1 control this dependency underpins.
+**Issue:** FIT-7 hardened `test:rls` to use `--env-file-if-exists=.env.local` so the script doesn't fail in CI environments that supply secrets via `env:` block instead of a `.env.local` file. But three other scripts kept the bare `--env-file=` form:
 
-`@shopify/react-native-skia` is similarly drifted: CLAUDE.md says `2.6.2`, package.json says `2.2.12`. Both should be cross-checked against the actual SDK 54 expected versions via `npx expo install --check`.
+```json
+"test:f13-brutal": "tsx --env-file=.env.local scripts/verify-f13-brutal-test.ts",
+"inspect:duplicate-sets": "tsx --env-file=.env.local scripts/inspect-duplicate-sets.ts",
+"inspect:recent-sessions": "tsx --env-file=.env.local scripts/inspect-recent-sessions.ts"
+```
 
-**Fix:** Run `npx expo install --check` from `app/` and pin to whichever is correct. If CLAUDE.md is stale, also update the stack table to match.
+If `.env.local` is missing, tsx exits with `ENOENT: no such file or directory` BEFORE the script runs, which is a less informative failure than the explicit "Missing env" branch the scripts themselves implement. The `test:rls` line at 13 already demonstrates the correct pattern.
 
-### WR-03: Optimistic cache writes cast `vars as SetRow` — bypass the Zod boundary CLAUDE.md mandates
+The inspect scripts are dev-only and unlikely to run in CI, but `test:f13-brutal` is listed in `manual-test-phase-05-f13-brutal.md` as a programmatic gate (Phase 9 step 41) and the manual UAT could be wired into CI on a real device farm later. Inconsistency is the bug, not the immediate failure.
 
-**File:** `app/lib/query/client.ts:720, 726-727 (and pattern-mirror sites for sessions, plans, plan-exercises)`
-**Issue:** Every optimistic `onMutate` block uses `queryClient.setQueryData<SetRow[]>(setsKeys.list(vars.session_id), (old = []) => [...old, vars as SetRow])`. The `vars as SetRow` cast forces the partial `SetInsertVars` shape into the canonical row shape, but SetInsertVars has `completed_at` as OPTIONAL whereas SetRow has it as `string | null` (non-optional). When the input lacks `completed_at`, the cache holds a row with `completed_at: undefined`, which is NOT what `SetRowSchema.parse` would produce — Zod nullable defaults differently.
+**Fix:**
 
-This is the exact false-pass risk CLAUDE.md §"M7 — Client code quality" calls out: untyped casts at the cache boundary mean the runtime contract diverges from the schema contract. The mutationFn's `.upsert(...).select().single()` round-trips through `SetRowSchema.parse(data)` on success — so the cache eventually reconciles. But during the offline window (which can be hours), the consumer screens consume a SetRow with `undefined` fields not allowed by the schema.
+```json
+"test:f13-brutal": "tsx --env-file-if-exists=.env.local scripts/verify-f13-brutal-test.ts",
+"inspect:duplicate-sets": "tsx --env-file-if-exists=.env.local scripts/inspect-duplicate-sets.ts",
+"inspect:recent-sessions": "tsx --env-file-if-exists=.env.local scripts/inspect-recent-sessions.ts"
+```
 
-Consumer impact in this phase: `LastValueChip` (workout/[sessionId].tsx:756-758) reads `lastValueMap?.[setNumber]` which expects `weight_kg`/`reps` fields. F7's lastValueMap is server-only data so this is safe. But `useSetsForSessionQuery` consumers (the optimistic-appended cache) call `set.weight_kg` and `set.reps` directly — and the upsert vars MUST include both (TypeScript enforces this via `SetInsertVars`). So no immediate consumer breaks. The risk surfaces if a future consumer reads `set.completed_at` from the optimistic cache and gets `undefined` instead of `null` or an ISO string.
+The scripts already throw a loud error when env vars are missing, so the loss of the hard-fail at file-load time is not a regression.
 
-**Fix:** Either narrow the cache type to `Partial<SetRow>` to make the optionality explicit, or build the optimistic row explicitly with `null`-filled defaults:
+### WR-03: `test-rls.ts` does not sign out `clientA` / `clientB` between runs — re-invocation in the same Node process carries stale JWTs across user-rotation
+
+**File:** `app/scripts/test-rls.ts:148-167, 222-232`
+
+**Issue:** `cleanupTestUsers()` deletes the auth.users rows for every email starting with `rls-test-` via `admin.auth.admin.deleteUser(u.id)`. After deletion, Supabase invalidates the user record, but the JWT held in `clientA.auth` / `clientB.auth` is NOT remotely revoked — it's an HS256 JWT signed with the project's JWT secret, valid until its `exp` claim (default 1 hour).
+
+The script reaches `cleanupTestUsers` at startup (line 175) BEFORE attempting to sign in fresh users. If the script is invoked twice in the same Node process (e.g., a watch-mode test harness, or a future "rerun on failure" wrapper), the second invocation's `clientA.auth.signInWithPassword({ ... userA ... })` will succeed (with the freshly-created userA's credentials), overwriting the stale JWT. So in practice this doesn't manifest as a test failure today.
+
+BUT: between the cleanup-on-start and the sign-in calls, clientA / clientB still carry the PREVIOUS run's user identities. Any code path that exercises clientA / clientB before sign-in (none exist today, but adversarial-coding-defense) would attribute writes to a user that no longer exists, triggering RLS rejections that look like "RLS-blocked successfully" — false-pass on the assertion harness.
+
+The cleaner pattern is explicit sign-out before re-sign-in:
+
+**Fix:**
+
 ```typescript
-queryClient.setQueryData<SetRow[]>(setsKeys.list(vars.session_id), (old = []) => [
-  ...old,
-  {
-    id: vars.id,
-    session_id: vars.session_id,
-    exercise_id: vars.exercise_id,
-    set_number: vars.set_number,
-    weight_kg: vars.weight_kg,
-    reps: vars.reps,
-    set_type: vars.set_type ?? "working",
-    completed_at: vars.completed_at ?? new Date().toISOString(),
-    rpe: vars.rpe ?? null,
-    notes: vars.notes ?? null,
-  } satisfies SetRow,
+// Around line 222 (just before signInWithPassword)
+await clientA.auth.signOut().catch(() => {});  // best-effort; no error if no session
+await clientB.auth.signOut().catch(() => {});
+// Then proceed with the existing signInWithPassword calls.
+```
+
+Or at the END of main() / in the cleanup `finally`:
+
+```typescript
+await Promise.allSettled([
+  clientA.auth.signOut(),
+  clientB.auth.signOut(),
 ]);
 ```
 
-The `satisfies SetRow` keeps TypeScript honest without a cast. Apply the same pattern to `setMutationDefaults['session','start']` and any other `vars as Row` optimistic write.
+Either eliminates the stale-JWT window.
 
-### WR-04: `useFinishSession(activeSession?.id ?? "noop")` in `(tabs)/index.tsx` queues a `session:noop`-scoped no-op when activeSession is null
+### WR-04: `inspect-duplicate-sets.ts` hardcodes session UUID `379cfd29-a06f-4dbc-b429-ab273b16c096` — script is one-shot, not reusable
 
-**File:** `app/app/(app)/(tabs)/index.tsx:152`
-**Issue:** The hook constructor binds `scope: { id: 'session:noop' }` when `activeSession?.id` is undefined. The comment at lines 142-151 says "the noop scope never actually queues anything" because `handleAvslutaSession` guards via `if (!activeSession) return;`. That's true at the callsite level, but the hook returns a usable `mutate` function — if any future refactor (or a stray re-render race) ever calls `finishSession.mutate(...)` while activeSession is null, the mutation enters the cache under `session:noop` scope and replays on reconnect with arbitrary vars.
+**File:** `app/scripts/inspect-duplicate-sets.ts:23-28`
 
-The accepted-here pattern in the comment is "one-shot per draft, optimistic clears active immediately". Phase 5's contract is "scope.id is a static string per Pitfall 3" — using `"noop"` satisfies the type system but not the spirit of the contract, because two different sessions sequentially could both flow through the same `session:noop`-scoped hook instance if the cache flips active→null→fresh-active in one frame.
+**Issue:** The SQL filter `where session_id = '379cfd29-a06f-4dbc-b429-ab273b16c096'` is the specific UAT-2026-05-13 session that motivated FIT-7. Re-running the script on any other suspect session requires editing the source file. The manual UAT doc (`manual-test-phase-05-f13-brutal.md:182`) explicitly tells the operator: "replacing the hard-coded session UUID at the top of `inspect-duplicate-sets.ts` with the suspect session id" — acknowledging the inconvenience.
 
-**Fix:** Change the hook signature in `app/lib/queries/sessions.ts` to require sessionId (no default), and guard the (tabs)/index.tsx call site to only mount the hook when activeSession is non-null:
+This is a code-quality + dev-UX defect. A CLI argument or `process.env.INSPECT_SESSION_ID` env var would make the script reusable without source edits.
+
+**Fix:**
+
 ```typescript
-// app/lib/queries/sessions.ts
-export function useFinishSession(sessionId: string) {  // required, not optional
-  return useMutation<SessionRow, Error, SessionFinishVars>({
-    mutationKey: ["session", "finish"] as const,
-    scope: { id: `session:${sessionId}` },
-  });
-}
-```
-
-In (tabs)/index.tsx, the draft-resume overlay only renders when `shouldShowDraftOverlay && activeSession`. Lift the Avsluta UI into its own subcomponent that takes `sessionId: string` as a required prop:
-```tsx
-{shouldShowDraftOverlay && activeSession && (
-  <DraftResumeOverlay
-    sessionId={activeSession.id}
-    startedAt={activeSession.started_at}
-    setsCount={setsCount}
-    onResume={() => router.push(`/workout/${activeSession.id}` as Href)}
-    onDismiss={() => setDismissedForSessionId(activeSession.id)}
-  />
-)}
-```
-
-Inside `DraftResumeOverlay`, call `useFinishSession(sessionId)` — `sessionId` is now a guaranteed string captured at mount, the hook gets a static scope, and no `"noop"` sentinel exists.
-
-### WR-05: AvslutaOverlay backdrop-tap dismisses — inconsistent with draft-resume overlay's force-decision UX
-
-**File:** `app/app/(app)/workout/[sessionId].tsx:826-841`
-**Issue:** The `<Pressable>` backdrop in AvslutaOverlay has `onPress={onCancel}` (line 839). Tapping outside the dialog dismisses it. But the draft-resume overlay in `(tabs)/index.tsx:307-312` deliberately does NOT register `onPress` on its backdrop — per UI-SPEC §line 250 "force-decision UX, backdrop does NOT dismiss". The two overlays are visually identical inline-overlay-confirm patterns; their dismissal behavior diverges.
-
-Adversarial scenario: user is logging set 25, accidentally taps Avsluta in the header. The Avsluta dialog appears. User wants to cancel and continue. Tapping anywhere outside dismisses — correct expected behavior. So actually backdrop-dismiss IS the right UX for Avsluta-during-workout, because the user can always re-tap Avsluta if they meant to finish. The DRAFT-RESUME overlay is force-decision because either "Återuppta" or "Avsluta sessionen" is required (the orphan session is data-loss-adjacent if left undecided).
-
-The issue isn't that one dismisses and one doesn't — it's that the divergence isn't documented in either overlay's prose, so a future engineer copying one pattern to a new screen will pick the wrong dismissal behavior. Either: (a) add an inline comment to AvslutaOverlay explaining why this overlay dismisses while the draft-resume one doesn't, OR (b) standardize both to force-decision per CLAUDE.md's "destructive confirmation" convention.
-
-**Fix:** Add a comment to AvslutaOverlay clarifying the intentional divergence:
-```typescript
-// AvslutaOverlay: backdrop-tap dismisses (onPress={onCancel}). This DIVERGES
-// from the draft-resume overlay in (tabs)/index.tsx (which uses force-decision
-// UX). Rationale: Avsluta-during-workout is recoverable — the user can re-tap
-// Avsluta in the header — whereas the draft-resume overlay surfaces an orphan
-// session that MUST be either resumed or explicitly closed, so backdrop-dismiss
-// would leave the user in an ambiguous state. UI-SPEC §line 250 (force-decision)
-// vs §line 558 (Avsluta-during-workout, dismissible).
-```
-
-### WR-06: Unused `_sessionId` parameter in `EditableSetRow` — destructured but never referenced
-
-**File:** `app/app/(app)/workout/[sessionId].tsx:645, 649`
-**Issue:** `EditableSetRow` destructures `sessionId: _sessionId` from props but never uses it in the function body. The parent `LoggedSetRow` (line 583) passes `sessionId={sessionId}` to `EditableSetRow`. The actual UPDATE mutation happens in `LoggedSetRow`'s `onDone` callback (line 586-591), not inside `EditableSetRow`. The prop and the destructure are inert.
-
-ESLint's `@typescript-eslint/no-unused-vars` should catch this with the underscore-prefix convention exempting it — but the prop is still on the public function signature, advertising an API contract that's never honoured. A future engineer reading EditableSetRow's signature will assume it owns the mutation, then refactor and break the data flow.
-
-**Fix:** Remove `sessionId` from `EditableSetRow`'s prop signature entirely (it doesn't need it), and from the `LoggedSetRow` call site (line 583).
-
-### WR-07: `useLocalSearchParams<{ sessionId: string }>()` claims string but params may also be string[]
-
-**File:** `app/app/(app)/workout/[sessionId].tsx:107`
-**Issue:** Expo Router's `useLocalSearchParams` runtime type is `Record<string, string | string[]>` — a route param can be `string[]` for catch-all routes (`[...slug].tsx`) or under URL-array notation. The generic argument `<{ sessionId: string }>` is a type assertion, not a runtime narrowing. The downstream usage `useSessionQuery(sessionId ?? "")` (line 121) treats it as `string | undefined`, but if `sessionId` is ever `string[]` (theoretically possible if a malformed deep-link arrives), TanStack receives an array as the query key — different cache entry, query likely fails, no diagnostic.
-
-In practice `[sessionId].tsx` is a single-segment dynamic route so the runtime value is always `string | undefined`. The risk is theoretical for V1. But the same screen guards against `useLocalSearchParams` returning undefined (`session?.id ?? ""` on line 128), so the codebase already acknowledges the type isn't reliable.
-
-**Fix:** Add a runtime guard:
-```typescript
-const params = useLocalSearchParams<{ sessionId: string }>();
-const sessionId = typeof params.sessionId === "string" ? params.sessionId : undefined;
+const sessionId = process.env.INSPECT_SESSION_ID ?? process.argv[2];
 if (!sessionId) {
-  return <SafeAreaView className="flex-1 bg-white dark:bg-gray-900">{/* invalid-route fallback */}</SafeAreaView>;
+  console.error("Usage: INSPECT_SESSION_ID=<uuid> npm run inspect:duplicate-sets");
+  console.error("   or: npm run inspect:duplicate-sets -- <uuid>");
+  process.exit(1);
 }
+// Then bind sessionId into the query parameter:
+const sets = await sql`
+  select id, exercise_id, set_number, weight_kg, reps, completed_at, set_type
+  from public.exercise_sets
+  where session_id = ${sessionId}
+  order by exercise_id, set_number, completed_at
+`;
 ```
 
-This collapses the type-narrowing and the !session loading gate into one early-return.
+This also closes a minor SQL-injection-shaped concern: the hardcoded UUID is fine, but `process.argv[2]` going into a raw interpolation would be exploitable. `postgres`-js' tagged-template `sql\`...\`` API correctly parameterizes via `${sessionId}` (treats it as a bind parameter, not string interpolation).
+
+### WR-05: Migration 0002 keep-row tiebreaker comment says "OLDEST by completed_at" but `nulls last` makes NULL `completed_at` rows the TOMBSTONE candidates
+
+**File:** `app/supabase/migrations/0002_dedupe_exercise_sets.sql:18-26`
+
+**Issue:** The `order by completed_at asc nulls last, id asc` correctly keeps the oldest non-NULL `completed_at` row first. But if ANY duplicate row has `completed_at = NULL`, that row sorts to the END (`nulls last`), so it is rank > 1 and is DELETED. The comment at lines 6-8 says: "Keeps the OLDEST row by completed_at per tuple, then `id` as a deterministic tiebreaker when completed_at ties or is null."
+
+If the duplicate group is ALL `completed_at = NULL` (theoretically possible for a partially-written set under D-16-era race conditions), then all rows are `nulls last` together, and the `id asc` tiebreaker decides — the row with the lexicographically smallest UUID survives. That's deterministic, but the comment's "OLDEST" claim is misleading for the all-NULL case (UUIDs have no temporal ordering).
+
+For this codebase's actual data — `exercise_sets.completed_at` has `default now()` (per migration 0001 line 81), so a NULL value implies the user explicitly passed `null` in the INSERT, which the client code never does — the all-NULL case is unreachable in practice. But the comment should be tightened.
+
+**Fix:** Either reword the comment to: `"Keeps the row with the oldest non-NULL completed_at; under NULL ties, falls back to id ASC (deterministic, not temporally meaningful)."` — or add a defensive `where completed_at is not null` filter to the CTE so NULL rows are excluded from the dedupe entirely (and then a separate audit query can flag any orphaned NULL rows for manual review).
+
+Code-quality only, not a correctness bug under current data assumptions.
+
+### WR-06: `optimistic onMutate` for `['set','add']` provisional set_number computation can produce duplicate cache rows on replay-after-cold-start
+
+**File:** `app/lib/query/client.ts:740-778`
+
+**Issue:** The Plan 05-04 SUMMARY notes that the persisted payload omits `set_number` entirely (trigger assigns server-side), and the optimistic `onMutate` computes `provisionalSetNumber = (previous ?? []).filter((s) => s.exercise_id === vars.exercise_id).length + 1`. On a normal happy path this is fine — the optimistic row gets a provisional `set_number=N+1`, the server-assigned `set_number` reconciles on `onSettled invalidate`.
+
+But consider the F13 brutal-test path: 25 paused `['set','add']` mutations are persisted with their `onMutate`-time provisional `set_number` already written to the cache (under `setsKeys.list(sessionId)`). After force-quit + cold-start, the cache is rehydrated from disk. Each rehydrated paused mutation's `onMutate` does NOT re-run (TanStack does not replay `onMutate` on rehydration — only `mutationFn`). So the cache holds the 25 optimistic rows with their original provisional set_numbers.
+
+Edge case: if the optimistic cache rows were partially flushed pre-quit (e.g., the persister throttle had not yet captured the 25th row but had captured 24), the cache could rehydrate with 24 rows. The replaying mutations' `mutationFn` lands rows 1..25 on the server with server-assigned set_numbers. The `onSettled invalidate` then refetches the full server list (25 rows) — the cache reconciles correctly. No durable bug.
+
+The risk is purely visual transient: between rehydrate and `onSettled invalidate`, the UI might briefly show 24 cache rows, then 25 after the invalidation refetch lands. The `hydrated` gate from FIT-8 covers the AsyncStorage round-trip but does NOT gate on `setsKeys.list` having reconciled to the server count. For a personal V1 with 25 sets typical-max, this transient flash is acceptable, but the `provisionalSetNumber` computation assumes the cache is the source of truth — which it is NOT on rehydrate.
+
+**Fix:** This is a minor UX-tightening item, not a correctness defect. If you want to harden it, the optimistic row could be marked with a sentinel field (e.g., `_optimistic: true`) so the UI can render a subtle "syncing" indicator on those rows; or `onSettled` could explicitly re-set the cache to the server response shape via `setQueryData(setsKeys.list(...), refetchedData)` rather than just invalidating. Defer to V1.1; document in the LoggedSetRow's render path that the visible `set_number` is "provisional until refresh" if you want belt-and-braces.
 
 ## Info
 
-### IN-01: `LastValueChip` re-subscribes to `useLastValueQuery` unnecessarily — already pre-fetched in `ExerciseCard`
+### IN-01: `test-set-schemas.ts` test-case label `"reject: weight 1255"` — input value is `1255`, the test asserts the `"över 500kg"` error message, but the label is technically accurate AT-input-value 1255
 
-**File:** `app/app/(app)/workout/[sessionId].tsx:289-292, 756`
-**Issue:** `ExerciseCard` calls `useLastValueQuery(planExercise.exercise_id, sessionId)` at line 289, then renders `<LastValueChip exerciseId={planExercise.exercise_id} sessionId={sessionId} />` which calls `useLastValueQuery` AGAIN at line 756. TanStack dedupes by queryKey so this is zero extra fetch, but the second `useQuery` subscription is gratuitous — the parent already has `lastValueMap` in scope and could pass `lastValueMap?.[setNumber]` as a prop.
+**File:** `app/scripts/test-set-schemas.ts:43-47`
 
-Sub-optimal but not buggy. The comment at lines 11-12 of workout/[sessionId].tsx already calls out the dedupe pattern for `useSetsForSessionQuery` — the same justification applies here, just with a slightly more grating cost (each ExerciseCard mount adds a useQuery subscription per card, and useLastValueQuery is per-exercise, so a 10-exercise plan creates 20 subscriptions where 10 would suffice).
+**Issue:** The test case's input is `{ weight_kg: 1255, reps: 5 }`. The expected error message includes `"över 500kg"`. The label reads `"reject: weight 1255"` which is true, but adds nothing the input field doesn't already encode. A clearer label: `"reject: weight 1255 (> 500kg cap)"`. Style only.
 
-**Fix:** Pass `prev` as a prop to `LastValueChip`:
-```tsx
-<LastValueChip prev={lastValueMap?.[currentSetNumber]} />
-```
-And drop the second `useLastValueQuery` call.
+**Fix:** Rename label to `"reject: weight 1255 (exceeds 500kg max)"` for clarity. Optional.
 
-### IN-02: `coldStartSessionId` triple-state (`undefined` → `null` → `string`) confuses cold-start sentinel semantics
+### IN-02: `inspect-recent-sessions.ts` does not scope by `user_id` — admin-RLS-bypass dumps EVERY user's recent sessions
 
-**File:** `app/app/(app)/(tabs)/index.tsx:129-138`
-**Issue:** `coldStartSessionId` is initialized to `undefined` and transitions to `null` (no active session at cold-start) or `string` (active session id at cold-start). The sentinel logic at line 133 `if (coldStartSessionId === undefined && !activeSessionPending)` is correct but the type `string | null | undefined` makes the read sites (line 138) opaque.
+**File:** `app/scripts/inspect-recent-sessions.ts:22-34`
 
-A clearer state machine: a single boolean `coldStartCaptured` plus the captured session id:
+**Issue:** The query `from public.workout_sessions ws left join auth.users p on p.id = ws.user_id where ws.started_at > now() - interval '90 minutes'` does NOT filter by `user_id`. The script connects via the admin postgres user (bypasses RLS by default since service-role JWT or direct DB access). For personal V1 there's exactly one user, so this is fine. For dev environments with multiple test users, the script dumps all of them.
+
+**Fix:** Accept an optional `USER_EMAIL` env var:
+
 ```typescript
-const [coldStartActiveId, setColdStartActiveId] = useState<string | null>(null);
-const [coldStartCaptured, setColdStartCaptured] = useState(false);
-useEffect(() => {
-  if (!coldStartCaptured && !activeSessionPending) {
-    setColdStartActiveId(activeSession?.id ?? null);
-    setColdStartCaptured(true);
-  }
-}, [activeSession, activeSessionPending, coldStartCaptured]);
-const isColdStartDraft = activeSession?.id != null && coldStartActiveId === activeSession.id;
+const userFilter = process.env.USER_EMAIL;
+const sessions = userFilter
+  ? await sql`... where p.email = ${userFilter} and ws.started_at > ...`
+  : await sql`... where ws.started_at > ...`;
 ```
 
-Functionally equivalent, but two booleans + a string beats one tri-state.
+Documentation tightening only.
 
-### IN-03: `(tabs)/index.tsx` import of `useFinishSession` while the action is "Avsluta sessionen" (close orphan) — naming mismatch
+### IN-03: `migration 0004` trigger relies on SECURITY INVOKER + RLS to scope the MAX query — explicit but the failure mode under RLS-policy regression is silent
 
-**File:** `app/app/(app)/(tabs)/index.tsx:96`
-**Issue:** `useFinishSession` is named for the F8 happy-path finish action. The draft-resume overlay's "Avsluta sessionen" button uses the SAME hook to close an orphaned session (UAT 2026-05-13 fix). Functionally identical (UPDATE finished_at = now()), but the semantic mismatch — finishing a pass = positive UX, closing an orphan = damage-control — means a reader has to trace the mutationKey to confirm it's the same write. Adding a thin wrapper `useCloseOrphanSession = useFinishSession` would make the intent explicit at the call site.
+**File:** `app/supabase/migrations/0004_exercise_sets_set_number_trigger.sql:36-56`
 
-Minor; not a correctness issue. Documenting the dual-use in the hook's JSDoc would suffice.
+**Issue:** The trigger function comment correctly notes: `"SELECT MAX(set_number) inside the function only sees rows the inserting user can read."` This is correct for the current RLS policy (`Users can manage own sets` USING clause checks the parent workout_session's user_id). But if a future RLS migration accidentally weakens the SELECT policy on `exercise_sets`, the trigger would silently see rows from other users' sessions and assign a `set_number` based on the wrong MAX — leading to UNIQUE-constraint violations that look like 23505 collisions instead of an RLS bug.
 
-### IN-04: `setMutationDefaults['plan-exercise','reorder']` is a no-op default but `useReorderPlanExercises` is referenced only from one screen
+For defense-in-depth, the SELECT inside the trigger could explicitly join to `workout_sessions` and filter on `user_id = (select auth.uid())`:
 
-**File:** `app/lib/query/client.ts:545-554`
-**Issue:** The reorder default is registered as a no-op "so a stray useMutation({ mutationKey: ['plan-exercise','reorder'] }) wouldn't crash" — but the orchestrator is the only consumer, and the orchestrator builds N x `['plan-exercise','update']` mutations. The no-op default is dead code: nothing replays a `['plan-exercise','reorder']` mutation on hydration because the orchestrator never registers one in the cache. The defensive comment is technically correct but the entire mutationKey can be deleted.
-
-Not bugged; just bloat.
-
-### IN-05: Comment claim about React StrictMode in CR-02 ref-stamping — verify whether Expo SDK 54 enables StrictMode by default
-
-**File:** `app/app/(app)/(tabs)/index.tsx:159-168` (cross-referenced from CR-02)
-**Issue:** CR-02's StrictMode analysis is informational. Expo SDK 54 templates do not enable React StrictMode by default in production, but `app/app/_layout.tsx` may opt in. If StrictMode is on, every useEffect double-fires on mount in dev — the previousActiveRef logic survives this but is harder to reason about.
-
-If StrictMode is intentionally on, document the assumption in the toast-trigger effect comment.
-
-### IN-06: `manual-test-phase-05-f13-brutal.md` Phase 7 step 35 ("Tap Avsluta while still offline") is OPTIONAL, but Phase 9 step 39 asserts `finished_at` based on whether Phase 7 ran — branching test paths
-
-**File:** `app/scripts/manual-test-phase-05-f13-brutal.md:124, 145-147`
-**Issue:** The brutal-test document branches: Phase 7 is "OPTIONAL", Phase 9 step 39 says "`finished_at` is set (if Phase 7 ran) OR `finished_at IS NULL` (if Phase 7 was skipped)". This is fine for a manual UAT but makes the test under-specified — a tester who runs Phase 7 once and then re-runs the brutal-test without resetting state will see leftover `finished_at` from the prior run. Phase 1 step 4 baseline (`S0`, `E0`) records counts but doesn't note "ensure no pre-existing draft sessions exist" — a defensive precondition is missing.
-
-Not a code defect — documentation tightening. Suggest adding a Phase 0 explicit cleanup:
 ```sql
--- Phase 0: Pre-test state reset (run BEFORE Phase 1)
-DELETE FROM workout_sessions WHERE user_id = '<TEST_USER_ID>' AND finished_at IS NULL;
+new.set_number := coalesce(
+  (
+    select max(es.set_number) + 1
+    from public.exercise_sets es
+    join public.workout_sessions ws on ws.id = es.session_id
+    where es.session_id = new.session_id
+      and es.exercise_id = new.exercise_id
+      and ws.user_id = (select auth.uid())
+  ),
+  1
+);
 ```
+
+This is belt-and-suspenders — RLS already enforces the same predicate — but it makes the trigger's correctness independent of the SELECT policy on `exercise_sets`. Defer to V1.1; documented here for future hardening.
+
+### IN-04: `setMutationDefaults` `['set','add']` mutationFn comment claims `gen:types` will eventually surface trigger DEFAULTs — verify Supabase gen:types roadmap
+
+**File:** `app/lib/query/client.ts:719-728`
+
+**Issue:** The comment reads:
+
+```
+// Cast: types/database.ts gen:types doesn't surface trigger DEFAULTs so
+// exercise_sets.Insert still types set_number as required (number).
+// ... Drop the cast once Supabase gen:types learns trigger-DEFAULT surfacing.
+```
+
+This is accurate as of 2026-05-14 (Supabase typegen does NOT inspect triggers, only column DEFAULT clauses). The cast is correctly localized and documented. The comment is a future-cleanup breadcrumb — when/if Supabase ships a typegen pass that distinguishes "trigger-filled NOT NULL columns" from "column-default NOT NULL columns", this cast becomes droppable.
+
+No action; documentation is correct.
+
+### IN-05: `verify-f13-brutal-test.ts` `set_count` is read from a correlated subquery aliased `set_count` — `Number(target.set_count)` cast is necessary because `count(*)` returns `bigint` and postgres-js maps `bigint` to string by default
+
+**File:** `app/scripts/verify-f13-brutal-test.ts:45, 76`
+
+**Issue:** The script correctly does `Number(target.set_count)` at line 76 because postgres-js types `bigint` (count's return) as `string` by default. Confirmed correct. The IN-noticing here is: the same lib could be configured via `postgres({ types: { bigint: postgres.BigInt } })` to bring this in-line, but the cast pattern is fine for a single call site.
+
+Documentation only. No action.
 
 ---
 
-_Reviewed: 2026-05-13_
+_Reviewed: 2026-05-14_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
