@@ -344,8 +344,17 @@ async function main() {
   // =========================================================================
   // ASSERTION 3: working-set filter
   // -------------------------------------------------------------------------
-  // Insert a NEW finished session C with 1 warmup + 2 working sets.
-  // The Map should have only 2 working keys (1, 2) — warmup excluded.
+  // Insert a NEW finished session C with 1 warmup (at set_number=1) + 2
+  // working sets (at set_number=2, 3). The Map should have only the 2
+  // working keys (2, 3) — warmup excluded.
+  //
+  // FIT-13: fixture redesigned 2026-05-14 so warmup and working sets occupy
+  // distinct set_number values per (session, exercise). The Phase 5 FIT-7
+  // UNIQUE constraint `exercise_sets_session_exercise_setno_uq` rejects any
+  // tuple collision regardless of set_type — so the prior fixture (warmup at
+  // set_number=1 AND working at set_number=1) is now blocked at the DB
+  // layer. Production code is unaffected: the F7 query still filters
+  // `set_type='working'` as designed.
   // =========================================================================
   console.log("[test-last-value-query] assertion 3 — working-set filter…");
 
@@ -358,11 +367,11 @@ async function main() {
       plan_id: null,
       started_at: new Date(Date.now() - 3_660_000).toISOString(),
       finished_at: finishedAt,
-      notes: "Session C — warmup + 2 working",
+      notes: "Session C — warmup at sn=1 + 2 working at sn=2,3",
     });
     if (error) throw new Error(`seed sessionC: ${error.message}`);
   }
-  // Warmup set (should be excluded)
+  // Warmup set at set_number=1 (should be excluded by F7 query filter)
   await admin.from("exercise_sets").insert({
     id: randomUUID(),
     session_id: sessionCId,
@@ -373,23 +382,23 @@ async function main() {
     completed_at: new Date(Date.now() - 70_000).toISOString(),
     set_type: "warmup",
   });
-  // Working set 1
-  await admin.from("exercise_sets").insert({
-    id: randomUUID(),
-    session_id: sessionCId,
-    exercise_id: exerciseAId,
-    set_number: 1,
-    reps: 10,
-    weight_kg: 90,
-    completed_at: new Date(Date.now() - 65_000).toISOString(),
-    set_type: "working",
-  });
-  // Working set 2
+  // Working set at set_number=2
   await admin.from("exercise_sets").insert({
     id: randomUUID(),
     session_id: sessionCId,
     exercise_id: exerciseAId,
     set_number: 2,
+    reps: 10,
+    weight_kg: 90,
+    completed_at: new Date(Date.now() - 65_000).toISOString(),
+    set_type: "working",
+  });
+  // Working set at set_number=3
+  await admin.from("exercise_sets").insert({
+    id: randomUUID(),
+    session_id: sessionCId,
+    exercise_id: exerciseAId,
+    set_number: 3,
     reps: 8,
     weight_kg: 92.5,
     completed_at: new Date(Date.now() - 62_000).toISOString(),
@@ -402,19 +411,25 @@ async function main() {
     "00000000-0000-0000-0000-000000000000",
     userA.id,
   );
-  // Now Session C is the most recent (finished 1min ago), it has 2 working
-  // sets at set_number 1, 2.
+  // Session C is the most recent (finished 1min ago); it has 2 working
+  // sets at set_number 2, 3 — the warmup at set_number 1 must be filtered.
   assertEq(
     "Assertion 3: Map.size === 2 (warmup filtered out; only 2 working sets visible)",
     r3.size,
     2,
   );
   if (r3.size === 2) {
-    const set1 = r3.get(1);
+    const set2 = r3.get(2);
     assertEq(
-      "Assertion 3: set 1 weight_kg === 90 (working set, NOT 20 warmup)",
-      set1?.weight_kg,
+      "Assertion 3: set 2 weight_kg === 90 (working set, NOT the warmup at sn=1)",
+      set2?.weight_kg,
       90,
+    );
+    const set3 = r3.get(3);
+    assertEq(
+      "Assertion 3: set 3 weight_kg === 92.5 (working set)",
+      set3?.weight_kg,
+      92.5,
     );
   }
 
