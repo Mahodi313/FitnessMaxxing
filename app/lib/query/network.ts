@@ -53,6 +53,16 @@ import { asyncStoragePersister } from "@/lib/query/persister";
 // Phase 1 inheritance: when the app becomes active, mark queries as focused so
 // stale data refetches. RN-only; web is a no-op because Expo Router web is not
 // a target in V1.
+//
+// WR-01 (05-REVIEW.md) clarification — focusManager.setEventListener is
+// internally idempotent across Fast Refresh: TanStack Query v5's
+// FocusManager.setEventListener invokes `this.#cleanup?.()` immediately BEFORE
+// rebinding `this.#cleanup` to the new setup's returned teardown. That means
+// the previous setup's cleanup function (here `() => sub.remove()`) DOES fire
+// when this module is re-evaluated under Fast Refresh, so the old AppState
+// listener is properly torn down. No globalThis sentinel needed here. (Same
+// guarantee does NOT hold for `onlineManager.subscribe(...)` below, which is
+// a true append — that one IS protected by a sentinel.)
 focusManager.setEventListener((setFocused) => {
   const sub = AppState.addEventListener("change", (s) => {
     if (Platform.OS !== "web") setFocused(s === "active");
@@ -118,13 +128,31 @@ onlineManager.setEventListener((setOnline) => {
 // `wasOnline` so we don't fire on every NetInfo emission (NetInfo can re-emit
 // the same state); we only resume when state genuinely flipped from offline
 // to online. The first emission's gate is set from onlineManager.isOnline().
+//
+// Fast-Refresh guard (WR-01 from 05-REVIEW.md): onlineManager.subscribe
+// returns an unsubscribe function but, unlike setEventListener, it APPENDS
+// subscribers rather than replacing them — so without an explicit teardown
+// every Fast Refresh reload stacks another (online && !wasOnline) callback.
+// After three reloads, an offline→online flip fires resumePausedMutations()
+// three times. The upsert idempotency hides the bug from the user, but each
+// extra replay is a wasted REST round-trip + Zod parse. Same globalThis
+// sentinel pattern as the focusManager block above.
+const ONLINEMANAGER_RESUME_KEY = "__fitnessmaxxing_onlinemanager_resume__";
+const globalOnlineRef = globalThis as unknown as Record<
+  string,
+  (() => void) | undefined
+>;
+if (globalOnlineRef[ONLINEMANAGER_RESUME_KEY]) {
+  globalOnlineRef[ONLINEMANAGER_RESUME_KEY]();
+}
 let wasOnline = onlineManager.isOnline();
-onlineManager.subscribe((online) => {
+const onlineResumeUnsub = onlineManager.subscribe((online) => {
   if (online && !wasOnline) {
     void queryClient.resumePausedMutations();
   }
   wasOnline = online;
 });
+globalOnlineRef[ONLINEMANAGER_RESUME_KEY] = onlineResumeUnsub;
 
 // ---- useOnlineStatus() ----------------------------------------------------
 // React hook that returns the current onlineManager state. Built on
