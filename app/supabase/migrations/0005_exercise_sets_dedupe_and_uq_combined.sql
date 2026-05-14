@@ -26,14 +26,15 @@
 --   in the first place demanded closing this hole on the migration path too.
 --
 -- What this migration does (idempotent — safe to replay on already-fixed DB):
---   1. Take `LOCK TABLE public.exercise_sets IN ACCESS EXCLUSIVE MODE` as the
---      first statement inside the implicit migration transaction. This
---      blocks ALL concurrent INSERT/UPDATE/DELETE on the table from the
---      moment of acquisition until commit — closing the TOCTOU window.
---      Supabase CLI wraps each migration file in `BEGIN; ... COMMIT;`
---      automatically, so an explicit BEGIN/COMMIT here would nest and abort
---      the migration; the LOCK is the load-bearing statement and runs in
---      the CLI-managed transaction.
+--   1. Open an explicit `begin;` block (Supabase CLI does NOT auto-wrap
+--      migrations in a transaction — observed empirically 2026-05-14 when
+--      this file first hit the deployed DB and `LOCK TABLE` raised
+--      SQLSTATE 25P01 "can only be used in transaction blocks"; the
+--      sibling migration 0002 also uses explicit begin/commit). Take
+--      `LOCK TABLE public.exercise_sets IN ACCESS EXCLUSIVE MODE` as the
+--      first statement inside the block — this blocks ALL concurrent
+--      INSERT/UPDATE/DELETE on the table from the moment of acquisition
+--      until commit, closing the TOCTOU window.
 --   2. Re-run the dedupe CTE from 0002. On a freshly-broken DB this deletes
 --      duplicate rows. On the deployed DB (already deduped by 0002 + 0003)
 --      the CTE produces no rn > 1 rows, so the DELETE is a no-op.
@@ -69,8 +70,10 @@
 --   - app/scripts/verify-deploy.ts (asserts the constraint name)
 -- ============================================================================
 
+begin;
+
 -- Step 1: exclusive lock — closes the TOCTOU window for the full transaction.
--- Released at COMMIT (the implicit COMMIT Supabase CLI wraps each migration in).
+-- Released at COMMIT below.
 lock table public.exercise_sets in access exclusive mode;
 
 -- Step 2: idempotent dedupe — same CTE shape as 0002. On the already-deduped
@@ -113,3 +116,5 @@ begin
   end if;
 end
 $$;
+
+commit;
