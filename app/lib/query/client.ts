@@ -748,12 +748,23 @@ queryClient.setMutationDefaults(["set", "add"], {
     // reconciles via onSettled invalidate. Race is NOT a data-integrity risk
     // anymore because the persisted payload omits set_number entirely
     // (Migration 0004 trigger + Migration 0003 UNIQUE constraint own
-    // correctness). Same length+1 algorithm as the former D-16 client-side
-    // code in workout/[sessionId].tsx, but now scoped to the cache row only.
+    // correctness).
+    //
+    // WR-06 (05-REVIEW.md): derive from MAX(set_number)+1 across already-
+    // cached rows for this (session, exercise), NOT from `length + 1`. After
+    // a cold-start replay, the persister may have rehydrated optimistic rows
+    // from a previous session whose provisional set_numbers are non-contiguous
+    // — `length + 1` would collide with an existing provisional row and
+    // briefly render "Set 3" twice in the UI before the onSettled invalidate
+    // refetches the canonical list. MAX+1 correctly bumps past any rehydrated
+    // value regardless of cache shape. Filter excludes other exercises so we
+    // measure max within the (session, exercise) tuple the UNIQUE constraint
+    // also scopes against.
+    const filteredSetNumbers = (previous ?? [])
+      .filter((s) => s.exercise_id === vars.exercise_id)
+      .map((s) => s.set_number);
     const provisionalSetNumber =
-      vars.set_number ??
-      (previous ?? []).filter((s) => s.exercise_id === vars.exercise_id)
-        .length + 1;
+      vars.set_number ?? Math.max(...filteredSetNumbers, 0) + 1;
     // WR-03 (05-REVIEW.md): build a complete SetRow with explicit nulls/defaults
     // for optional fields. The cache row matches SetRowSchema during the
     // offline window — same shape as the post-reconciliation row from the
