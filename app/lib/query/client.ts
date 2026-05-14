@@ -31,6 +31,7 @@
 
 import { QueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import type { Database } from "@/types/database";
 import {
   PlanRowSchema,
   type PlanRow,
@@ -141,14 +142,15 @@ type SessionInsertVars = Partial<SessionRow> & {
 // — single-column UPDATE to flip finished_at from null to ISO string.
 type SessionFinishVars = { id: string; finished_at: string };
 
-// SetInsertVars: useAddSet(sessionId).mutate({ id, session_id, exercise_id, set_number, reps, weight_kg, ... })
-// — id, session_id, exercise_id, set_number, reps, weight_kg required. Optional:
+// SetInsertVars: useAddSet(sessionId).mutate({ id, session_id, exercise_id, reps, weight_kg, ... })
+// — id, session_id, exercise_id, reps, weight_kg required. Optional:
+// set_number (Migration 0004 trigger assigns server-side — SUPERSEDES D-16),
 // completed_at (defaulted DB-side), set_type (default 'working'), rpe, notes.
 type SetInsertVars = Partial<SetRow> & {
   id: string;
   session_id: string;
   exercise_id: string;
-  set_number: number;
+  set_number?: number;
   reps: number;
   weight_kg: number;
 };
@@ -714,9 +716,21 @@ queryClient.setMutationDefaults(["set", "add"], {
   mutationFn: async (vars: SetInsertVars) => {
     if (!vars.session_id)
       throw new Error("session_id required for ['set','add']");
+    // set_number may be omitted from vars; Migration 0004's
+    // assign_set_number_before_insert trigger assigns it server-side.
+    // Payload-level type made optional in SetInsertVars (sets.ts).
+    //
+    // Cast: types/database.ts gen:types doesn't surface trigger DEFAULTs so
+    // exercise_sets.Insert still types set_number as required (number).
+    // Runtime correctness is owned by Migration 0004 (trigger fills NULL→
+    // value BEFORE the NOT NULL check) + Migration 0003 (UNIQUE constraint
+    // is the data-integrity gate regardless of client UUID). Drop the cast
+    // once Supabase gen:types learns trigger-DEFAULT surfacing.
+    const upsertPayload =
+      vars as Database["public"]["Tables"]["exercise_sets"]["Insert"];
     const { data, error } = await supabase
       .from("exercise_sets")
-      .upsert(vars, { onConflict: "id", ignoreDuplicates: true })
+      .upsert(upsertPayload, { onConflict: "id", ignoreDuplicates: true })
       .select()
       .single();
     if (error) throw error;
@@ -730,6 +744,16 @@ queryClient.setMutationDefaults(["set", "add"], {
     const previous = queryClient.getQueryData<SetRow[]>(
       setsKeys.list(vars.session_id),
     );
+    // PROVISIONAL set_number for optimistic UI only — server-assigned value
+    // reconciles via onSettled invalidate. Race is NOT a data-integrity risk
+    // anymore because the persisted payload omits set_number entirely
+    // (Migration 0004 trigger + Migration 0003 UNIQUE constraint own
+    // correctness). Same length+1 algorithm as the former D-16 client-side
+    // code in workout/[sessionId].tsx, but now scoped to the cache row only.
+    const provisionalSetNumber =
+      vars.set_number ??
+      (previous ?? []).filter((s) => s.exercise_id === vars.exercise_id)
+        .length + 1;
     // WR-03 (05-REVIEW.md): build a complete SetRow with explicit nulls/defaults
     // for optional fields. The cache row matches SetRowSchema during the
     // offline window — same shape as the post-reconciliation row from the
@@ -738,7 +762,7 @@ queryClient.setMutationDefaults(["set", "add"], {
       id: vars.id,
       session_id: vars.session_id,
       exercise_id: vars.exercise_id,
-      set_number: vars.set_number,
+      set_number: provisionalSetNumber,
       reps: vars.reps,
       weight_kg: vars.weight_kg,
       rpe: vars.rpe ?? null,

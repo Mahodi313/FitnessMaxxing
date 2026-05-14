@@ -26,11 +26,17 @@ import { SetRowSchema, type SetRow } from "@/lib/schemas/sets";
 
 // ---- Mutation variable shapes ----------------------------------------------
 
+// set_number is optional — server trigger assigns it via
+// `assign_exercise_set_number` BEFORE INSERT (Migration 0004). Clients MUST
+// NOT compute set_number for the persisted payload; the slow-hydration race
+// documented in UAT 2026-05-13 (Gap #1, FIT-7) proved client-side assignment
+// is structurally unsafe under cache rehydration. SUPERSEDES D-16 (Plan 05-04
+// deviates_from).
 type SetInsertVars = {
   id: string;
   session_id: string;
   exercise_id: string;
-  set_number: number;
+  set_number?: number;
   reps: number;
   weight_kg: number;
   completed_at?: string;

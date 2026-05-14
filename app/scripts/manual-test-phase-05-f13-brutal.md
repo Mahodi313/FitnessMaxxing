@@ -159,20 +159,45 @@ Otherwise skip to Phase 8 with the session still active.
     - [ ] All `set_type = 'working'`.
     - [ ] All `completed_at` are valid ISO timestamps within the test window.
 
-41. [ ] Verify the total row count changed by exactly **+1 for `workout_sessions`** and **+25 for `exercise_sets`** since the `S0` / `E0` baseline. Re-run the Phase 1 step 4 SQL queries; the new counts MUST be `S0 + 1` and `E0 + 25` respectively.
+41. [ ] **Programmatic gate + duplicate-detection SQL (Plan 05-04 gap-closure, FIT-7)**
+
+    1. Run `cd app && npm run test:f13-brutal` — must exit 0. The script verifies:
+       - Most-recent session in the last 60 min has exactly 25 exercise_sets.
+       - `set_number` values are contiguous 1..N per `exercise_id` (FIFO replay correct).
+       - All `set_type = 'working'`.
+       - `finished_at` (if set) is >= `max(set.completed_at)`.
+       - All `completed_at` >= session `started_at` (no FK-out-of-order).
+
+    2. Run the duplicate-detection query in Supabase Studio (or via psql) — must return **ZERO rows**:
+       ```sql
+       select session_id, exercise_id, set_number, count(*)
+       from public.exercise_sets
+       where session_id = '<SESSION_ID>'
+       group by 1, 2, 3
+       having count(*) > 1;
+       ```
+
+       If this returns ANY rows, the F13 brutal-test FAILS regardless of what `verify-f13-brutal-test.ts` reports — the Migration 0003 UNIQUE constraint is the data-integrity gate, but a single failed sync that landed BEFORE the migration could still surface a historical duplicate. Investigate which session is affected before concluding the brutal-test passed.
+
+    3. Optional: run `cd app && npm run inspect:duplicate-sets` against any session you suspect, replacing the hard-coded session UUID at the top of `inspect-duplicate-sets.ts` with the suspect session id — this dumps every duplicate-`set_number` row with full details (id, weight_kg, reps, completed_at).
+
+    This step closes the F13 brutal-test programmatically. Phase 9's manual SQL queries (steps 39 + 40) remain authoritative for the human-readable session/sets review; step 41 is the gate that prevents a clean-eyeball verdict on a session that has a latent duplicate.
+
+42. [ ] Verify the total row count changed by exactly **+1 for `workout_sessions`** and **+25 for `exercise_sets`** since the `S0` / `E0` baseline. Re-run the Phase 1 step 4 SQL queries; the new counts MUST be `S0 + 1` and `E0 + 25` respectively.
 
 ## Phase 10 — Verify no FK errors or duplicates
 
-42. [ ] In Supabase Studio → Database → Logs, scan the Postgres logs for the test window. Confirm:
+43. [ ] In Supabase Studio → Database → Logs, scan the Postgres logs for the test window. Confirm:
     - [ ] **Zero** `23505` (unique_violation) errors.
     - [ ] **Zero** `23503` (foreign_key_violation) errors.
     - [ ] No 4xx/5xx HTTP errors on the PostgREST endpoints.
-43. [ ] (Phase 6 territory if Historik is built) Verify the session row appears in Historik in the app. Defer to Phase 6 verification if Historik isn't shipped yet — this Phase 5 brutal-test cares only about DB state.
+44. [ ] (Phase 6 territory if Historik is built) Verify the session row appears in Historik in the app. Defer to Phase 6 verification if Historik isn't shipped yet — this Phase 5 brutal-test cares only about DB state.
 
 ## Pass criteria
 
 All MUST be true for sign-off:
 
+- [ ] **Step 41 — `npm run test:f13-brutal` exits 0 AND duplicate-detection SQL returns zero rows** (Plan 05-04 gap-closure gate, FIT-7).
 - [ ] All **25 sets** present in Supabase with correct values.
 - [ ] **No FK errors**, **no duplicate-PK errors** in Postgres logs.
 - [ ] The `workout_sessions` row's UUID matches the **client-generated** one (URL captured in Phase 2 step 9 == DB id in Phase 9 step 39).

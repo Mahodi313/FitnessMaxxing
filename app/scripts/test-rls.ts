@@ -784,6 +784,44 @@ async function main() {
       "Phase 5 extension: B's session still has exactly 1 exercise_set (no rogue insert)",
     );
   }
+
+  // ===========================================================================
+  // Phase 5 gap-closure (FIT-7) — natural-key UNIQUE constraint on exercise_sets
+  //
+  // Migration 0003 added `exercise_sets_session_exercise_setno_uq` UNIQUE
+  // (session_id, exercise_id, set_number). The seed above already proved the
+  // FIRST INSERT with (sessB, exB.id, set_number=1) succeeds (line 267-278).
+  // This block proves that a SECOND INSERT with the same natural-key tuple
+  // fails with Postgres 23505 unique_violation regardless of the client UUID.
+  // No row-cleanup needed — cleanupTestUsers cascades the row away via
+  // workout_sessions FK.
+  // ===========================================================================
+  console.log(
+    "[test-rls] Phase 5 gap-closure (FIT-7) — natural-key UNIQUE constraint on exercise_sets…",
+  );
+
+  const { error: dupErr } = await clientB
+    .from("exercise_sets")
+    .insert({
+      session_id: sessB.id,
+      exercise_id: exB.id,
+      set_number: 1,
+      reps: 5,
+      weight_kg: 100,
+      completed_at: new Date().toISOString(),
+      set_type: "working",
+    })
+    .select();
+  if (dupErr?.code === "23505") {
+    pass(
+      "Phase 5 gap-closure: duplicate (session_id, exercise_id, set_number) rejected with 23505 unique_violation",
+    );
+  } else {
+    fail(
+      "Phase 5 gap-closure: duplicate natural-key INSERT did NOT raise 23505",
+      { code: dupErr?.code, message: dupErr?.message },
+    );
+  }
 }
 
 (async () => {
