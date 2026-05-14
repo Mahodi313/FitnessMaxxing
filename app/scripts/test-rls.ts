@@ -835,6 +835,24 @@ async function main() {
     exitCode = 1;
   } finally {
     console.log("[test-rls] cleanup (end)…");
+    // WR-03 (05-REVIEW.md): sign out the anon clients BEFORE deleting their
+    // backing auth.users rows. cleanupTestUsers below calls
+    // admin.auth.admin.deleteUser(u.id), which invalidates the user record
+    // remotely but does NOT revoke the in-memory HS256 JWT clientA/clientB
+    // still hold (valid until its `exp` claim, default 1 hour). If this
+    // script is invoked twice in the same Node process (e.g., a watch-mode
+    // test harness, or a future "rerun on failure" wrapper), any code path
+    // that touched clientA/clientB BEFORE the second main()'s signInWithPassword
+    // would attribute writes to a user that no longer exists — RLS would
+    // reject those as if blocked, surfacing as a false-pass on the assertion
+    // harness. Explicit signOut clears the in-memory session so the next
+    // invocation starts from a clean slate. .catch swallows the "no session"
+    // error that signOut throws when the client never signed in (e.g., if
+    // main() aborted before the signInWithPassword calls).
+    await Promise.allSettled([
+      clientA.auth.signOut().catch(() => {}),
+      clientB.auth.signOut().catch(() => {}),
+    ]);
     try {
       await cleanupTestUsers();
     } catch (e) {
