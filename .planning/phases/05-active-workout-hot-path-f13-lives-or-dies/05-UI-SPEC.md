@@ -286,6 +286,8 @@ After `useFinishSession` success + navigation home:
 
 **Banner is not dismissable in V1.** Adding a ✕ would hide the affordance to return to the in-progress session; the only way to remove the banner is to finish the session (Avsluta). This is intentional per PRD §F13 — data-loss prevention takes precedence over UI minimalism for the duration of an active workout.
 
+**Mount scope (Plan 05-07 / FIT-10 clarification).** The banner is mounted ONLY inside `(tabs)/_layout.tsx` (above the `<Tabs>` element, alongside `<OfflineBanner>`). It renders on the three tab screens — **Planer** (`(tabs)/index`), **Historik** (`(tabs)/history`), **Inställningar** (`(tabs)/settings`) — when `useActiveSessionQuery()` resolves to a non-null session AND the user is not on `/workout/[sessionId]`. The banner is **intentionally absent** on every non-tab `(app)` route, including `/plans/[id]` (plan-detail), `/plans/[id]/exercise-picker`, `/plans/[id]/exercise/[planExerciseId]/edit`, and `/workout/[sessionId]` itself. To see the resume affordance from a non-tab route, the user navigates back to a tab. UAT 2026-05-13 Gap #4 misread the absence on `/plans/[id]` as intermittent missing-on-tab — the static structure of `(app)/_layout.tsx` precludes that interpretation: `(tabs)` is not in the render tree when `/plans/[id]` is on top of the Stack.
+
 ### Inline error states (set-input row, all surfaces — strict Zod per CONTEXT.md D-15)
 
 Identical pattern to Phase 3 + Phase 4: red text below the field, Body size, no icons, RHF `mode: 'onSubmit'` per Phase 3 D-15 precedent (CONTEXT.md Discretion confirmed onSubmit over onChange for the set-row to avoid mid-typing "1.0 is invalid" flicker on numeric inputs).
