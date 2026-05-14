@@ -27,13 +27,13 @@ Krav för initial release. Mappade till roadmap-faser i Traceability-sektionen.
 
 ### Active Workout (kärnflöde)
 
-- [ ] **F5**: Användare kan starta ett pass från en plan
+- [x] **F5**: Användare kan starta ett pass från en plan
   - Acceptans: skapar `workout_sessions`-rad direkt vid "Starta pass"; återupptas vid app-omstart om `finished_at IS NULL`
-- [ ] **F6**: Användare kan logga set (vikt + reps) under pass
+- [x] **F6**: Användare kan logga set (vikt + reps) under pass
   - Acceptans: ≤3 sek från knapptryck till lokalt sparat; per-set persistens (inte "save on finish")
-- [ ] **F7**: Användare ser senaste värdet per övning vid loggning
+- [x] **F7**: Användare ser senaste värdet per övning vid loggning
   - Acceptans: visar set-position-aligned ("Förra: set 1: 82.5kg × 8") inte bara senaste single-värdet
-- [ ] **F8**: Användare kan avsluta och spara pass
+- [x] **F8**: Användare kan avsluta och spara pass
   - Acceptans: sätter `finished_at`; ingen "Discard workout"-knapp (data-loss-vector); återgår till hem
 
 ### History
@@ -43,7 +43,7 @@ Krav för initial release. Mappade till roadmap-faser i Traceability-sektionen.
 
 ### Offline Sync (kritisk infrastruktur)
 
-- [ ] **F13**: Pass kan loggas helt utan nät, synkar när det kommer tillbaka
+- [x] **F13**: Pass kan loggas helt utan nät, synkar när det kommer tillbaka
   - Acceptans: airplane mode + force-quit + battery-pull under 25-set-pass = alla set överlever
   - **Bumpat från Bör → Måste** (PROJECT.md beslut 2026-05-07)
 

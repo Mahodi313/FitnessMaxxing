@@ -18,6 +18,7 @@ Logga ett set och omedelbart se vad jag tog senast på samma övning — utan at
 - **F17 (set-typ schema-only)** — Validated in Phase 2: `set_type` Postgres ENUM with values `working | warmup | dropset | failure` is live in remote DB and surfaces through `app/types/database.ts` to the typed Supabase client. `is_warmup` removed everywhere. UI for toggling set type is deferred to V1.1 — V1 always writes `'working'` (default).
 - **F1** — Validated in Phase 3: email/password registration + sign-in working end-to-end with Supabase Auth + LargeSecureStore session persistence; 9/11 UAT items pass, 2 V1.1-deferred (deep-link email-confirm carry-over).
 - **F2 / F3 / F4** — Validated in Phase 4: full plan CRUD (create/archive/edit), exercise CRUD with chained create-and-add, plan_exercise CRUD with two-phase-negative-bridge drag-reorder. Offline-first TanStack v5 queue with optimistic mutations, scope.id-serialized replay, manual airplane-mode UAT signed off 2026-05-10. Code review CR-01 + CR-02 (reorder offline data-loss) closed in commit `66d0804`.
+- **F5 / F6 / F7 / F8 / F13** — Validated in Phase 5: full active-workout hot path with offline-first guarantees. Server-owned `set_number` via Postgres BEFORE INSERT trigger + UNIQUE(`session_id, exercise_id, set_number`) constraint (D-16 SUPERSEDED via Plan 05-04 / FIT-7); `PersistQueryClientProvider` with hydration-ready signal feeding "Återställer pass…" affordance on workout screen (Plan 05-05 / FIT-8); locale-tolerant weight input via `z.preprocess` comma → period normalization (Plan 05-06 / FIT-9); ActiveSessionBanner mount-scope clarified as `(tabs)`-only in UI-SPEC (Plan 05-07 / FIT-10). 10/10 source-level must-haves verified post gap-closure; 7 code-review findings (1 CR + 6 WR) fixed in `chore/05-review-fixes-post-gap-closure`; test-fixture regression closed by FIT-13. Migration 0005 (TOCTOU-safe combined dedupe + UNIQUE superseder) applied to deployed DB 2026-05-14. iPhone UAT (F13 brutal-test + Swedish-locale + hydration affordance) persisted to `05-HUMAN-UAT.md` for separate physical-device run.
 
 ### Active
 
@@ -29,12 +30,12 @@ Logga ett set och omedelbart se vad jag tog senast på samma övning — utan at
 - [x] **F2** — Skapa, redigera, ta bort träningsplaner (Phase 4)
 - [x] **F3** — Övningsbibliotek (egna övningar, ingen seed i V1) (Phase 4)
 - [x] **F4** — Lägga till och ordna om övningar i en plan (Phase 4)
-- [ ] **F5** — Starta pass från en plan
-- [ ] **F6** — Logga set (vikt + reps) under pass
-- [ ] **F7** — Visa senaste värdet per övning vid loggning
-- [ ] **F8** — Avsluta och spara pass
+- [x] **F5** — Starta pass från en plan (Phase 5)
+- [x] **F6** — Logga set (vikt + reps) under pass (Phase 5)
+- [x] **F7** — Visa senaste värdet per övning vid loggning (Phase 5)
+- [x] **F8** — Avsluta och spara pass (Phase 5)
 - [ ] **F9** — Lista historiska pass
-- [ ] **F13** — Offline-stöd: pass kan loggas utan nät, synkar när det kommer tillbaka *(bumpat från Bör → Måste pga "får aldrig förlora ett set")*
+- [x] **F13** — Offline-stöd: pass kan loggas utan nät, synkar när det kommer tillbaka *(bumpat från Bör → Måste pga "får aldrig förlora ett set")* (Phase 5; full iPhone brutal-test deferred till HUMAN-UAT)
 
 #### V1 Bör
 
@@ -118,6 +119,6 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-13 after Phase 5 (Active Workout Hot Path — F13 lives or dies) completion — F5/F6/F7/F8/F13 all wired end-to-end with offline-first guarantees: 13 setMutationDefaults registered at module top-level with FIFO scope.id replay (`session:<id>`), MMKV persister throttleTime 500ms + AppState background-flush two-belt durability, ActiveSessionBanner cross-tab + draft-resume cold-start overlay + "Passet sparat ✓" toast, `test-rls.ts` extended to 38 cross-user assertions (≥35 threshold) for workout_sessions + exercise_sets. F13 brutal-test recipe (10 phases, 244 LOC) ships at `app/scripts/manual-test-phase-05-f13-brutal.md` — full physical-iPhone run deferred as HUMAN-UAT.
+*Last updated: 2026-05-14 after Phase 5 gap-closure completion — F5/F6/F7/F8/F13 fully validated. Original Phase 5 work (Plans 05-01..05-03) shipped 2026-05-13 with 6/6 must-haves source-level passed + F13 brutal-test partial (deferred to iPhone UAT). UAT 2026-05-13 surfaced 4 gaps (FIT-7..FIT-10) closed via Plans 05-04..05-07 merged 2026-05-14: D-16 SUPERSEDED by server-owned `set_number` + UNIQUE(`session_id, exercise_id, set_number`) constraint; `PersistQueryClientProvider` hydration gate; Swedish-locale comma decimal input; ActiveSessionBanner mount-scope spec clarification. Post-gap-closure code review applied 1 CR + 6 WR fixes (`chore/05-review-fixes-post-gap-closure`) including Migration 0005 (TOCTOU-safe superseder). Migration 0005 applied to deployed DB 2026-05-14 (`Local 0005 ↔ Remote 0005`). Final state: 10/10 source-level must-haves verified, test:rls 39/39 PASS, test:set-schemas 13/13 PASS, test:last-value-query 9/9 PASS (after FIT-13 fixture fix). 3 iPhone-UAT items persisted to `05-HUMAN-UAT.md` for separate physical-device verification.
 
 *Previous update: 2026-05-09 after Phase 2 (Schema, RLS & Type Generation) completion — V1 schema deployed to remote project mokmiuifpdzwnceufduu with errata-fixed RLS, generated `types/database.ts` wired through `createClient<Database>`, cross-user RLS test harness 22/22 PASS, F17 validated, DB conventions codified in CLAUDE.md*
