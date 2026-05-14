@@ -59,15 +59,12 @@ import {
   useFocusEffect,
   useLocalSearchParams,
   useRouter,
-  type Href,
 } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 
-import { queryClient } from "@/lib/query/client";
-import { setsKeys } from "@/lib/query/keys";
 import { randomUUID } from "@/lib/utils/uuid";
 
 import { useFinishSession, useSessionQuery } from "@/lib/queries/sessions";
@@ -353,21 +350,14 @@ function ExerciseCard({
   const addSet = useAddSet(sessionId);
 
   const onKlart = (input: SetFormOutput) => {
-    // D-16: set_number from CACHE not server (client-side count + 1).
-    // Re-read live cache so concurrent optimistic appends don't collide.
-    const allLive =
-      queryClient.getQueryData<SetRow[]>(setsKeys.list(sessionId)) ?? [];
-    const liveForThisExercise = allLive.filter(
-      (s) => s.exercise_id === planExercise.exercise_id,
-    );
-    const setNumber = liveForThisExercise.length + 1;
-
+    // D-16 SUPERSEDED by Plan 05-04: server-side trigger assigns set_number;
+    // client omits it on payload. Optimistic UI uses provisional value
+    // computed in setMutationDefaults onMutate.
     addSet.mutate(
       {
         id: randomUUID(),
         session_id: sessionId,
         exercise_id: planExercise.exercise_id,
-        set_number: setNumber,
         weight_kg: input.weight_kg,
         reps: input.reps,
         completed_at: new Date().toISOString(),
