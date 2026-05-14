@@ -19,11 +19,28 @@
 //   - NO supabase.auth.* calls inside the callback (recursive lock = deadlock).
 //   - Pure JS only: useAuthStore.setState({...}). All else (queryClient.clear,
 //     navigation) lives in user-facing actions like signOut, NOT in the callback.
+//
+// FIT-5 fix — persisted-cache isolation on sign-out:
+//   queryClient.clear() clears the in-memory TanStack Query cache but does NOT
+//   clear the AsyncStorage persisted snapshot written by persistQueryClient
+//   (lib/query/persister.ts). Without also calling asyncStoragePersister
+//   .removeClient(), the next sign-in (including a completely new user) would
+//   hydrate the in-memory cache from the prior session's AsyncStorage snapshot
+//   and momentarily see the previous user's plans / exercises / sessions.
+//   Fix: call asyncStoragePersister.removeClient() alongside queryClient.clear()
+//   in both the explicit signOut action AND the SIGNED_OUT event branch of
+//   onAuthStateChange (covers session-expiry / server-side revocation).
+//
+// Load-order note: asyncStoragePersister is imported from lib/query/persister.ts.
+// app/app/_layout.tsx imports lib/query/client → lib/query/persister → lib/query/network
+// → lib/auth-store in that order, so asyncStoragePersister is always defined
+// before any code in this file runs.
 
 import { create } from "zustand";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { queryClient } from "@/lib/query/client";
+import { asyncStoragePersister } from "@/lib/query/persister";
 
 export type AuthStatus = "loading" | "authenticated" | "anonymous";
 
@@ -45,7 +62,13 @@ export const useAuthStore = create<AuthState>((set) => ({
     // protected screens have unmounted, and any in-flight queries are
     // cancelled — so clear() runs against an empty active set.
     const { error } = await supabase.auth.signOut();
+    // Clear in-memory cache AND the AsyncStorage persisted snapshot so a
+    // subsequent sign-in (including a different user) starts with a clean
+    // slate. FIT-5: removeClient() is the complement of persistQueryClient;
+    // without it stale plan/exercise/session rows from the prior account
+    // survive in AsyncStorage and re-hydrate on the next app launch.
     queryClient.clear();
+    void asyncStoragePersister.removeClient();
     if (error) {
       // Network or token-already-invalid. Listener won't fire SIGNED_OUT in
       // that case; force-clear so the user lands in (auth) regardless.
@@ -61,11 +84,21 @@ export const useAuthStore = create<AuthState>((set) => ({
 // onAuthStateChange registration. Bundler import cache + module singleton
 // pattern guarantee one-time execution; Strict-Mode dual-mount cannot duplicate
 // this. Callback MUST stay synchronous (see header comment + Pitfall §2).
-supabase.auth.onAuthStateChange((_event, session) => {
+supabase.auth.onAuthStateChange((event, session) => {
   useAuthStore.setState({
     session,
     status: session ? "authenticated" : "anonymous",
   });
+  // FIT-5: on session loss (SIGNED_OUT or TOKEN_REFRESHED with null session),
+  // fire-and-forget the AsyncStorage cache wipe so no stale cross-user data
+  // can re-hydrate on the next mount. This covers server-side token revocation
+  // and session expiry — cases where the signOut action above was never called.
+  // void (fire-and-forget) is safe here because the synchronous setState above
+  // already flips the UI to anonymous; the async IO follows independently.
+  if (!session) {
+    queryClient.clear();
+    void asyncStoragePersister.removeClient();
+  }
 });
 
 // CONTEXT.md D-06 (locked): explicit getSession() at module init. Result is
