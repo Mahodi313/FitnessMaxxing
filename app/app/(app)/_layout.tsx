@@ -22,9 +22,39 @@
 //   - headerBackButtonDisplayMode: 'minimal' hides the auto-prepended route
 //     name on iOS so navigating from (tabs)/index → plans/[id] no longer
 //     shows "(tabs)" as the back-button label (UAT 2026-05-10).
+//
+// FIT-5 fix — navigator key bound to user identity:
+//   Stack.Protected guard={!!session} does NOT unmount the (app) sub-navigator
+//   when guard flips to false on sign-out. Protected.js exports primitives.Group
+//   (no unmount logic); withLayoutContext.js filters the (app) routes from the
+//   screen list but leaves the navigator component mounted in the React tree.
+//   This means the (app) Stack's in-memory React Navigation state — including the
+//   previously active route (e.g. plans/[id]/exercise-picker from the developer's
+//   session) — persists across sign-out → sign-in cycles within the same Expo Go
+//   JS bundle instance.
+//
+//   Fix: key={session.user.id} forces React to unmount and remount the Stack
+//   component when the signed-in user changes. The new user gets a fresh navigator
+//   instance with no history, and lands at the default initial route of the (app)
+//   group: (app)/(tabs)/index (plans list).
+//
+//   The key uses session.user.id (guaranteed non-null at this point because the
+//   `if (!session) return <Redirect ... />` guard above ensures session is defined).
+//   The fallback 'anon' string is defensive-only and unreachable in normal flow.
 import { useColorScheme } from "react-native";
 import { Redirect, Stack } from "expo-router";
 import { useAuthStore } from "@/lib/auth-store";
+
+// FIT-5 Cycle 5 fix — anchor the (app) stack to (tabs) as the default route.
+// Without this, expo-router's default-route resolution can land on the FIRST
+// explicit <Stack.Screen> declared below (previously exercise-picker — a modal
+// with a required [id] param) when the URL doesn't pin a specific child route
+// after sign-in. unstable_settings.initialRouteName tells expo-router to
+// pre-anchor the stack at (tabs), so any deeper push has (tabs) as its base
+// and a no-URL initial mount lands on (tabs)/index (Planer).
+export const unstable_settings = {
+  initialRouteName: "(tabs)",
+};
 
 export default function AppLayout() {
   const session = useAuthStore((s) => s.session);
@@ -35,6 +65,7 @@ export default function AppLayout() {
   }
   return (
     <Stack
+      key={session.user.id}
       screenOptions={{
         headerShown: false,
         headerStyle: { backgroundColor: isDark ? "#111827" : "#FFFFFF" },
@@ -57,6 +88,10 @@ export default function AppLayout() {
         freezeOnBlur: true,
       }}
     >
+      {/* FIT-5 Cycle 5: (tabs) declared FIRST and explicitly so expo-router's
+          default-route resolution prefers it over the modal screens below.
+          Paired with unstable_settings.initialRouteName='(tabs)' above. */}
+      <Stack.Screen name="(tabs)" />
       {/* Modal route presentation MUST be declared at the layout level. The
           `presentation` prop on react-native-screens is static — setting it
           via <Stack.Screen options={{ presentation: 'modal' }} /> inside the
