@@ -11,15 +11,16 @@ on:
       - dev
     types: [opened, synchronize, reopened]
 
-# FIT-12: serialise runs across all branches against the shared Supabase
-# project. test-rls.ts uses fixed email prefixes (rls-test-a@..., rls-test-b@...)
+# FIT-12: shared concurrency group with dev.yml and main.yml so all
+# workflows that run test:rls against the same Supabase project serialise.
+# test-rls.ts uses fixed email prefixes (rls-test-a@..., rls-test-b@...)
 # and runs cleanupTestUsers() at start which deletes ALL rls-test-* users.
 # Without this block, two concurrent runs nuke each other's seed data mid-test
 # and produce false-positive defense-in-depth failures.
 # cancel-in-progress: false → each run completes and accurately reports its
 # own result (don't kill an in-flight run when a newer push lands).
 concurrency:
-  group: phase-branch-shared-supabase
+  group: shared-supabase-test-rls
   cancel-in-progress: false
 
 jobs:

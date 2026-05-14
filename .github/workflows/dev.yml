@@ -5,6 +5,15 @@ on:
     branches:
       - dev
 
+# FIT-12: shared concurrency group with phase-branch.yml and main.yml so all
+# workflows that run test:rls against the same Supabase project serialise.
+# test-rls.ts uses fixed email prefixes and runs cleanupTestUsers() at start,
+# which deletes ALL rls-test-* users — concurrent runs nuke each other's seed
+# data. cancel-in-progress: false so each push gets its own accurate report.
+concurrency:
+  group: shared-supabase-test-rls
+  cancel-in-progress: false
+
 jobs:
   test:
     name: Full Test Suite
