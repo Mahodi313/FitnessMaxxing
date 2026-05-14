@@ -108,10 +108,14 @@ FitnessMaxxing levereras som en personlig iPhone gym-tracker via Expo Go. Resan 
   4. Användare kan avsluta passet → `finished_at` sätts → tillbaka till hem; ingen "Discard workout"-knapp finns (data-loss-vector eliminerad)
   5. **Draft-session-recovery:** kall-start visar "Återuppta passet?" om `workout_sessions WHERE finished_at IS NULL` finns
   6. **F13 acceptance test passerar:** airplane mode + force-quit + battery-pull-simulering under 25-set-pass = alla 25 set överlever och synkar i rätt ordning vid återanslutning (idempotent via klient-genererade UUIDs + `scope.id` serial replay)
-**Plans**: 3 plans
+**Plans**: 7 plans
   - [x] 05-01-PLAN.md — Schemas + plumbing + Wave 0 verification (sessions.ts/sets.ts Zod, 5 new setMutationDefaults in client.ts, persister throttleTime:500 + AppState background-flush, 3 new tsx scripts + 2 extended for 25-set FIFO replay)
   - [x] 05-02-PLAN.md — Workout vertical slice (sessions/sets/last-value resource hooks + workout/[sessionId] screen + Starta pass CTA on plans/[id] + F7 chip + Avsluta-overlay; F5+F6+F7+F8 closed end-to-end)
   - [x] 05-03-PLAN.md — ActiveSessionBanner + draft-session-recovery overlay on (tabs)/index + Passet sparat toast + test-rls.ts cross-user extension + F13 manual brutal-test recipe + human-verify gate (closes ROADMAP success #5 + #6)
+  - [ ] 05-04-PLAN.md — [GAP-CLOSURE / P0] exercise_sets natural-key UNIQUE constraint (Migration 0003) + BEFORE INSERT trigger for server-side set_number (Migration 0004) + dedupe migration (0002) + client useAddSet cutover (set_number optional on Insert) + test-rls.ts natural-key uniqueness assertion + verify-f13-brutal-test.ts committed as npm run test:f13-brutal + duplicate-detection SQL in manual-test recipe Phase 9 step 40 + folded Href import cleanup — SUPERSEDES Phase 5 D-16 (client-side set_number race)
+  - [ ] 05-05-PLAN.md — [GAP-CLOSURE / P1] PersistQueryClientProvider (or persister hydrated-state export) closes Phase 5 D-25 LOAD-side gap; workout/[sessionId].tsx renders "Återställer pass…" affordance until cache rehydration completes; eliminates empty-card flicker on force-quit + Återuppta (UX gap, data integrity unchanged)
+  - [ ] 05-06-PLAN.md — [GAP-CLOSURE / P1] z.preprocess wrapper on setFormSchema.weight_kg normalizes "," → "." before z.coerce.number (Swedish-locale decimal-pad keyboard); 3 new test-set-schemas cases (empty-string out of scope); D-11/D-15 conventions preserved (no keyboard change, no constraint relaxation)
+  - [ ] 05-07-PLAN.md — [GAP-CLOSURE / P2] Investigation-first plan for intermittent missing ActiveSessionBanner on (tabs) back-nav from /workout/[sessionId]; instrumented reproduction → 05-07-INVESTIGATION.md → targeted fix (usePathname segments-race OR refetchOnMount cache-staleness OR both OR spec clarification)
 **UI hint**: yes
 
 ### Phase 6: History & Read-Side Polish
