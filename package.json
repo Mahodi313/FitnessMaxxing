@@ -1,0 +1,18 @@
+{
+  "name": "fitnessmaxxing",
+  "version": "1.0.0",
+  "description": "> **A personal iOS gym tracker — log a set, instantly see your last value on the same exercise, never lose a set.**",
+  "main": "index.js",
+  "scripts": {
+    "linear:issues": "tsx --env-file=app/.env.local scripts/get-linear-issues.ts",
+    "linear:create": "tsx --env-file=app/.env.local scripts/create-linear-issue.ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2"
+  }
+}

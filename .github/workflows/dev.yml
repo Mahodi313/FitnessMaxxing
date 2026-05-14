@@ -1,0 +1,118 @@
+name: Dev Branch CI
+
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+  test:
+    name: Full Test Suite
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+
+    steps:
+      - name: Checkout kod
+        uses: actions/checkout@v4
+
+      - name: Sätt upp Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: app/package-lock.json
+
+      - name: Installera dependencies
+        run: npm ci
+
+      - name: TypeScript check
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npx expo lint
+
+      - name: RLS tester
+        run: npm run test:rls
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+  expo-build:
+    name: Expo Build Check
+    runs-on: ubuntu-latest
+    needs: test
+    defaults:
+      run:
+        working-directory: app
+
+    steps:
+      - name: Checkout kod
+        uses: actions/checkout@v4
+
+      - name: Sätt upp Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: app/package-lock.json
+
+      - name: Installera dependencies
+        run: npm ci
+
+      - name: Expo export check
+        run: npx expo export --platform ios --output-dir /tmp/expo-export
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+
+  open-draft-pr-to-main:
+    name: Öppna Draft PR mot main
+    runs-on: ubuntu-latest
+    needs: [test, expo-build]
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout kod
+        uses: actions/checkout@v4
+
+      - name: Öppna Draft PR mot main (om den inte redan finns)
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const existingPRs = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              head: `${context.repo.owner}:dev`,
+              base: 'main',
+              state: 'open'
+            });
+
+            if (existingPRs.data.length > 0) {
+              const pr = existingPRs.data[0];
+              console.log('Draft PR finns redan:', pr.html_url);
+              await github.rest.pulls.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number,
+                body: pr.body + `\n- ✅ Senaste push: ${new Date().toISOString().split('T')[0]}`
+              });
+              return;
+            }
+
+            const pr = await github.rest.pulls.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🚀 V1.0 Release — dev → main',
+              head: 'dev',
+              base: 'main',
+              draft: true,
+              body: `## FitnessMaxxing V1.0\n\nDetta är en **Draft PR** som uppdateras automatiskt när kod mergas till \`dev\`.\n\n### Status\n> Mergea INTE förrän alla V1-faser är klara och testade på riktigt i gymmet.\n\n### Faser\n- [ ] Phase 1: Bootstrap & Infra\n- [ ] Phase 2: Schema, RLS & Types\n- [ ] Phase 3: Auth & Persistent Session\n- [ ] Phase 4: Träningsplaner\n- [ ] Phase 5: Logga pass (kärnflödet)\n- [ ] Phase 6: Historik & Progression\n- [ ] Phase 7: Polish\n- [ ] Phase 8: Offline-stöd\n\n### Krav för att merga\n- [ ] Alla faser verifierade av GSD\n- [ ] Testat på gymmet i minst 1 vecka\n- [ ] Inga kända buggar\n\n---\n*Automatiskt skapad av GitHub Actions*`
+            });
+
+            console.log('Draft PR skapad:', pr.data.html_url);

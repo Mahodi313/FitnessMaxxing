@@ -195,6 +195,120 @@ En personlig gym-tracker för iPhone där användaren skapar egna träningsplane
 
 <!-- GSD:conventions-end -->
 
+## Branching-strategi
+
+Committa ALDRIG direkt till `dev` eller `main`. Alltid via branch + PR.
+
+### Phase-branches (GSD hanterar automatiskt)
+- Format: `gsd/phase-XX-namn`
+- Skapas från: `dev`
+- Mergas till: `dev` via PR
+
+### Bugfix-branches (för Linear issues utanför pågående fas)
+- Format: `fix/FIT-XX-kort-beskrivning`
+- Skapas från: `dev`
+- Mergas till: `dev` via PR
+
+### Chore-branches (refaktorering, docs, config)
+- Format: `chore/kort-beskrivning`
+- Skapas från: `dev`
+- Mergas till: `dev` via PR
+
+### Skapa bugfix-branch
+```bash
+git checkout dev
+git pull origin dev
+git checkout -b fix/FIT-XX-kort-beskrivning
+# fixa buggen
+git commit -m "fix: beskrivning [FIT-XX]"
+git push origin fix/FIT-XX-kort-beskrivning
+```
+CI triggas automatiskt och öppnar PR mot dev.
+
+---
+
+## CI/CD Pipeline
+
+GitHub Actions workflows finns i `.github/workflows/`:
+- `phase-branch.yml` — triggas på push till `gsd/phase-*`, kör tsc + lint + RLS + Expo build, öppnar PR mot dev automatiskt
+- `dev.yml` — triggas på push till dev, kör samma tester, öppnar/uppdaterar Draft PR mot main
+- `main.yml` — release gate + skapar GitHub Release automatiskt
+
+### Regler
+- Pusha ALLTID branchen till origin efter commits så CI triggas
+- Inkludera Linear issue-ID i commit-meddelanden: `[FIT-XX]`
+- Skriv `Fixes FIT-XX` i PR-beskrivningar för att stänga issues automatiskt
+- Secrets ligger i GitHub — aldrig i kod eller committade .env-filer
+
+---
+
+## Linear Integration
+
+Skript i `scripts/` hanterar Linear via npm-wrappers (root `package.json` med `tsx` + `--env-file=app/.env.local`).
+`LINEAR_API_KEY` måste finnas i `app/.env.local`.
+
+### Kör ALLTID detta i början av varje session
+```bash
+npm run linear:issues
+```
+
+Om det finns Urgent/High buggar — fixa dem INNAN nästa fas startar.
+
+### Filtrera issues
+```bash
+npm run linear:issues -- --phase 5
+npm run linear:issues -- --type bug
+npm run linear:issues -- --priority urgent,high
+```
+
+### Skapa issue automatiskt när du hittar
+- Bug under verify → type=bug, priority=high
+- Deferred decision → type=deferred, priority=medium
+- Technical debt → type=debt, priority=low
+- UI BLOCKER från gsd-ui-phase → type=ui, priority=high
+- UI WARNING från gsd-ui-phase → type=ui, priority=medium
+
+```bash
+npm run linear:create -- \
+  --title "Bug: kort beskrivning" \
+  --description "detaljerad beskrivning" \
+  --type bug \
+  --priority high \
+  --phase 5
+```
+
+Skriptet skriver ut `LINEAR_ISSUE_ID=FIT-XX` — inkludera det i nästa commit.
+
+### Prioritetsregler
+| Situation | Åtgärd |
+|-----------|--------|
+| Urgent/High bug | Fixa INNAN nästa fas |
+| Medium bug | Fixa inom nuvarande fas |
+| Low/debt | Backlog, fortsätt |
+| Deferred | Notera, fortsätt |
+
+---
+
+## Komplett flöde
+
+```
+Session startar
+    ↓
+npm run linear:issues
+    ↓
+Urgent bug? → git checkout -b fix/FIT-XX → fixa → push → PR
+    ↓
+/gsd-execute-phase X
+    ↓
+Hittar bug/debt → create-linear-issue.ts → FIT-XX skapas
+    ↓
+git push origin gsd/phase-XX → CI triggas → PR öppnas mot dev
+    ↓
+Du mergar PR → Linear stänger FIT-XX automatiskt
+    ↓
+dev.yml triggas → Draft PR mot main uppdateras
+```
+
 <!-- GSD:architecture-start source:ARCHITECTURE.md -->
 ## Architecture
 

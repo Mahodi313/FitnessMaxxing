@@ -1,0 +1,128 @@
+name: Phase Branch CI
+
+on:
+  push:
+    branches:
+      - "gsd/phase-*"
+      - "fix/*"
+      - "chore/*"
+  pull_request:
+    branches:
+      - dev
+    types: [opened, synchronize, reopened]
+
+jobs:
+  test:
+    name: TypeScript + Lint + RLS Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+
+    steps:
+      - name: Checkout kod
+        uses: actions/checkout@v4
+
+      - name: Sätt upp Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: app/package-lock.json
+
+      - name: Installera dependencies
+        run: npm ci
+
+      - name: TypeScript check
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npx expo lint
+
+      - name: RLS tester
+        run: npm run test:rls
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+  expo-build:
+    name: Expo Build Check
+    runs-on: ubuntu-latest
+    needs: test
+    defaults:
+      run:
+        working-directory: app
+
+    steps:
+      - name: Checkout kod
+        uses: actions/checkout@v4
+
+      - name: Sätt upp Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: app/package-lock.json
+
+      - name: Installera dependencies
+        run: npm ci
+
+      - name: Expo export check
+        run: npx expo export --platform ios --output-dir /tmp/expo-export
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+
+  open-pr-to-dev:
+    name: Öppna PR mot dev
+    runs-on: ubuntu-latest
+    needs: [test, expo-build]
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout kod
+        uses: actions/checkout@v4
+
+      - name: Extrahera fas-namn från branch
+        id: branch-info
+        run: |
+          BRANCH="${{ github.ref_name }}"
+          PHASE=$(echo $BRANCH | sed 's/gsd\///')
+          echo "phase=$PHASE" >> $GITHUB_OUTPUT
+          echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+
+      - name: Öppna PR mot dev (om den inte redan finns)
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const branch = '${{ steps.branch-info.outputs.branch }}';
+            const phase = '${{ steps.branch-info.outputs.phase }}';
+
+            const existingPRs = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              head: `${context.repo.owner}:${branch}`,
+              base: 'dev',
+              state: 'open'
+            });
+
+            if (existingPRs.data.length > 0) {
+              console.log('PR finns redan:', existingPRs.data[0].html_url);
+              return;
+            }
+
+            const pr = await github.rest.pulls.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `feat: ${phase}`,
+              head: branch,
+              base: 'dev',
+              body: `## ${phase}\n\n### Vad ingår\nAutomatiskt genererad PR från GSD execute-fas.\n\n### CI Status\n- ✅ TypeScript check\n- ✅ Lint\n- ✅ RLS tester\n- ✅ Expo build check\n\n### Checklista\n- [ ] Testat i Expo Go på iPhone\n- [ ] GSD verify-work godkänd\n- [ ] Inga kända buggar\n\n> Mergea när GSD verify-work är klar.`
+            });
+
+            console.log('PR skapad:', pr.data.html_url);
