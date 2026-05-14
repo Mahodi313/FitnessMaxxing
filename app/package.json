@@ -10,7 +10,7 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "gen:types": "npx supabase gen types typescript --project-id mokmiuifpdzwnceufduu > types/database.ts",
-    "test:rls": "tsx scripts/test-rls.ts",
+    "test:rls": "tsx --env-file-if-exists=.env.local scripts/test-rls.ts",
     "test:auth-schemas": "tsx scripts/test-auth-schemas.ts",
     "test:plan-schemas": "tsx scripts/test-plan-schemas.ts",
     "test:exercise-schemas": "tsx scripts/test-exercise-schemas.ts",
