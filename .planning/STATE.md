@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: ready_to_plan
-stopped_at: Phase 5 UI-SPEC approved
-last_updated: "2026-05-13T17:34:09.322Z"
-last_activity: 2026-05-13 -- Phase 05 execution started
+stopped_at: Phase 5 complete (7/7) — ready to discuss Phase 6
+last_updated: "2026-05-14T19:44:00.000Z"
+last_activity: 2026-05-14 -- Phase 05 closed (gap-closure FIT-7..FIT-10 + FIT-13 fix + Migration 0005 applied)
 progress:
   total_phases: 7
-  completed_phases: 6
-  total_plans: 20
-  completed_plans: 17
-  percent: 86
+  completed_phases: 5
+  total_plans: 24
+  completed_plans: 24
+  percent: 71
 ---
 
 # Project State
@@ -21,24 +21,24 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-07)
 
 **Core value:** Logga ett set och omedelbart se vad jag tog senast på samma övning — utan att tappa data, någonsin.
-**Current focus:** Phase 05 — active-workout-hot-path-f13-lives-or-dies
+**Current focus:** Phase 06 — history-&-read-side-polish (not yet started — ready to discuss)
 
 ## Current Position
 
 Phase: 6
 Plan: Not started
-Status: Ready to plan
+Status: Ready to plan (Phase 5 closed 2026-05-14)
 Last activity: 2026-05-14
 
-Progress: [████████░░] 57%  (4/7 phases complete after Phase 4 closeout)
+Progress: [██████████░░░░] 71%  (5/7 phases complete after Phase 5 closeout)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 31 (3 in Phase 1, 6 in Phase 2, 4 in Phase 3, 4 in Phase 4)
-- Phases complete: 3 of 7 (Phase 4 ready for closeout)
-- Total execution time: ~3.5 active days (2026-05-07 → 2026-05-10)
+- Total plans completed: 24 (3 in Phase 1, 6 in Phase 2, 4 in Phase 3, 4 in Phase 4, 7 in Phase 5)
+- Phases complete: 5 of 7
+- Total execution time: ~7 active days (2026-05-07 → 2026-05-14)
 
 **By Phase:**
 
@@ -47,8 +47,8 @@ Progress: [████████░░] 57%  (4/7 phases complete after Phase
 | 1. Bootstrap & Infra Hardening | 3/3 | ✓ Complete | 2026-05-08 |
 | 2. Schema, RLS & Type Generation | 6/6 | ✓ Complete (27/27 SECURED) | 2026-05-09 |
 | 3. Auth & Persistent Session | 4/4 | ✓ Complete (UAT 9/11 pass; 2 gaps V1.1-deferred) | 2026-05-09 |
-| 4. Plans, Exercises & Offline-Queue | 4/4 | ◑ Plans complete; awaiting phase-level closeout (gsd-secure-phase 4 + gsd-verify-work 4 + phase.complete) | 2026-05-10 |
-| 5. Active Workout Hot Path | 0/TBD | ○ Not started | — |
+| 4. Plans, Exercises & Offline-Queue | 4/4 | ✓ Complete | 2026-05-10 |
+| 5. Active Workout Hot Path | 7/7 | ✓ Complete (3 original + 4 gap-closure FIT-7..FIT-10; 10/10 source-level must-haves; 3 iPhone-UAT items in 05-HUMAN-UAT.md, non-blocking) | 2026-05-14 |
 | 6. History & Read-Side Polish | 0/TBD | ○ Not started | — |
 | 7. V1 Polish Cut | 0/TBD | ○ Not started | — |
 
