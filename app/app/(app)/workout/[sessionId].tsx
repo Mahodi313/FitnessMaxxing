@@ -74,6 +74,7 @@ import {
   useSetsForSessionQuery,
   useUpdateSet,
 } from "@/lib/queries/sets";
+import { usePersistenceStore } from "@/lib/persistence-store";
 import { OfflineBanner } from "@/components/offline-banner"; // Open Q#4 (RESOLVED) — second instance inside the F13 hot path
 import { useLastValueQuery } from "@/lib/queries/last-value";
 import { usePlanExercisesQuery } from "@/lib/queries/plan-exercises";
@@ -131,6 +132,29 @@ export default function WorkoutScreen() {
   // cache entry under setsKeys.list(sessionId).
   const { data: setsData } = useSetsForSessionQuery(session?.id ?? "");
   const loggedSetCount = setsData?.length ?? 0;
+
+  // Plan 05-05 (FIT-8): hydration gate. PersistQueryClientProvider in
+  // _layout.tsx fires onSuccess → setHydrated(true) once AsyncStorage
+  // round-trip completes. Before that, useSetsForSessionQuery returns
+  // undefined (offlineFirst, no cache yet) and exercise cards render
+  // empty — the F13 brutal-test UAT (2026-05-13) observed this as
+  // perceived data loss. On a warm app, hydrated is already true so
+  // this affordance renders for 0 frames; on cold-start after force-
+  // quit, it shows for the hydration window (~hundreds of ms).
+  const hydrated = usePersistenceStore((s) => s.hydrated);
+
+  if (!hydrated) {
+    return (
+      <SafeAreaView className="flex-1 bg-white dark:bg-gray-900">
+        <Stack.Screen options={{ headerShown: true, title: "Pass" }} />
+        <View className="flex-1 items-center justify-center">
+          <Text className="text-base text-gray-500 dark:text-gray-400">
+            Återställer pass…
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   // Loading gate: gate on `!session` (NOT isPending) per Phase 4 plans/[id]
   // pattern — initialData seeding from sessionsKeys.active() makes
