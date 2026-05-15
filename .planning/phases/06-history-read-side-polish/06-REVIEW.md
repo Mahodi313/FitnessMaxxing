@@ -19,10 +19,17 @@ files_reviewed_list:
   - app/supabase/migrations/0006_phase6_chart_rpcs.sql
 findings:
   critical: 0
+  warning: 0
+  info: 6
+  total: 6
+findings_original:
+  critical: 0
   warning: 5
   info: 6
   total: 11
-status: issues_found
+status: fixed
+fixed_at: 2026-05-15T00:00:00Z
+fix_log_entries: 5
 ---
 
 # Phase 6: Code Review Report
@@ -30,7 +37,7 @@ status: issues_found
 **Reviewed:** 2026-05-15T00:00:00Z
 **Depth:** standard
 **Files Reviewed:** 13
-**Status:** issues_found
+**Status:** fixed (all 5 warnings closed 2026-05-15 — see Fix Log)
 
 ## Summary
 
@@ -247,3 +254,51 @@ tooltipDateText: DerivedValue<string>;
 _Reviewed: 2026-05-15T00:00:00Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
+
+---
+
+## Fix Log
+
+**Fixed at:** 2026-05-15
+**Fixer:** Claude (gsd-code-fixer)
+**Scope:** Critical + Warning only — Info findings deferred to V1.1 follow-up
+
+**Summary:**
+- Findings in scope: 5 (all Warnings)
+- Fixed: 5
+- Skipped: 0
+- Verification gates: `npx tsc --noEmit` (0 errors) + `npx expo lint` (0 errors) after each commit; full regression suite (`npm run test:rls` 45/45 + `npm run test:exercise-chart` 13/13) green after final fix.
+
+### Commits
+
+1. **WR-03** — `54bd9ae` `fix(06-03): WR-03 move tooltip text formatting off Reanimated worklet [FIT-65]`
+   File: `app/app/(app)/exercise/[exerciseId]/chart.tsx`
+   Pre-format both tooltip strings (value + date) into parallel arrays on the JS thread via `useMemo` (deps: `[chartQuery.data, metric]` for the value array, `[chartQuery.data]` for the date array — preserves the D-21 contract). The two `useDerivedValue` worklets now only index by `pressState.matchedIndex.value`, no non-worklet JS is referenced inside the worklet body. Pre-formatted-array approach was chosen over `useAnimatedReaction + runOnJS` because it keeps the SkiaText props as SharedValues (preserves UI-thread tooltip animation) while sourcing the strings from JS-thread state.
+
+2. **WR-04** — `cd43021` `fix(06-03): WR-04 narrow exerciseId route param (parity with history/[sessionId].tsx) [FIT-65]`
+   File: `app/app/(app)/exercise/[exerciseId]/chart.tsx`
+   Mirrored the `history/[sessionId].tsx:99-105` narrowing pattern verbatim — read `rawParams`, narrow to `string | undefined` via `typeof === "string"`, dropped the four `exerciseId!` non-null assertions, and passed `exerciseId ?? ""` to each query hook (safe because the hooks' `enabled: !!exerciseId` gate short-circuits the fetch).
+
+3. **WR-01** — `d500614` `fix(06-02): WR-01 move post-delete toast to destination route [FIT-64]`
+   Files: `app/app/(app)/history/[sessionId].tsx`, `app/app/(app)/(tabs)/history.tsx`
+   The toast was mounted on the detail screen but `router.replace` synchronously blurred that screen before the next paint. Moved the toast to the destination route: `[sessionId].tsx` now fires `router.replace({ pathname: '/(tabs)/history', params: { toast: 'deleted' } })`; the list screen consumes the param on mount via `useLocalSearchParams`, renders the Reanimated `FadeIn`/`FadeOut` toast, and calls `router.setParams({ toast: undefined })` immediately so a tab-switch does not re-fire it. UI-SPEC §Post-delete toast (line 508) explicitly permits this approach ("either is acceptable; planner picks"). The error banner stays on the detail screen — closing that visibility gap (rare paused-mutation failure after navigation) is V1.1 polish.
+
+4. **WR-02** — `75e96ca` `fix(06-02): WR-02 clear toast dismiss-timer on unmount [FIT-64]`
+   File: `app/app/(app)/(tabs)/history.tsx`
+   Stored the `setTimeout` id in `toastTimerRef` (`useRef<ReturnType<typeof setTimeout> | null>`). Added a `useEffect(() => () => clearTimeout(toastTimerRef.current), [])` cleanup. Also clears any in-flight timer before scheduling a fresh one to handle the rare back-to-back delete flow inside the 2.2s window.
+
+5. **WR-05** — `d7e668a` `fix(06-02): WR-05 correct exercise-card iteration-order comment [FIT-64]`
+   File: `app/app/(app)/history/[sessionId].tsx`
+   Option (a) — documentation fix. Updated the comment block at lines 147-149 to state the actual behavior: Map iteration order reflects UUID-alphabetic order of `exercise_id`, NOT `plan_exercises.order_index` and NOT chronological log-order. Documented the deviation from Phase 5's active-workout screen (which orders by `order_index`) and flagged the closing fix (join `order_index` in or order by `min(completed_at)`) as V1.1 polish.
+
+### Files modified across this fix pass
+
+- `app/app/(app)/history/[sessionId].tsx` — WR-01 (toast removed), WR-05 (comment)
+- `app/app/(app)/(tabs)/history.tsx` — WR-01 (toast added), WR-02 (timer cleanup)
+- `app/app/(app)/exercise/[exerciseId]/chart.tsx` — WR-03 (worklet purity), WR-04 (param narrowing)
+
+### Info-tier findings — deliberately skipped this pass
+
+IN-01 through IN-06 remain documented above for the next pass. None block phase advancement (they are ergonomics, parity, and minor code-quality drift per the scope rule "Critical + Warning only"). IN-02 (shared `formatNumber` extraction) is the most likely V1.1 candidate since it touches three files.
+
+_Fix-pass completed: 2026-05-15 — Claude (gsd-code-fixer)_
