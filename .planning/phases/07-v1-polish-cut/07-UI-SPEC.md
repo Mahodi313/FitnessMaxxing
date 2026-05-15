@@ -74,7 +74,7 @@ Declared values (all multiples of 4, mapped to Tailwind v3 default spacing token
 - **Tema segmented-control segments**: inherits Phase 6 `<SegmentedControl>` `flex-1 py-2 px-3` + parent `p-1` + `hitSlop={{ top: 4, bottom: 4 }}` → 44pt effective vertical.
 - **AvslutaOverlay TextInput (notes capture, D-N2)**: `minHeight: 80` → 80pt content + 16pt KeyboardAvoidingView padding → exceeds 44pt floor handily.
 
-Exceptions: none — all values are 4-multiples.
+Exception: `py-3` / `px-3` (12px, Tailwind spacing-3) used for inner input vertical padding on RPE TextInput, notes-block container, and edit-overlay TextInput. Chosen to match the existing Vikt/Reps inline-row vertical rhythm established in Phase 5; 4-multiple but outside the declared 7-token set. Contained to input-padding contexts only — does not propagate to layout spacing.
 
 ---
 
@@ -89,7 +89,7 @@ Tailwind v3 default `fontSize` scale, restricted to four roles. **Identical role
 | Heading | 24px | `text-2xl` | 600 (semibold) | `font-semibold` | 1.33 (Tailwind ships `lh-8` = 32px) |
 | Display | 30px | `text-3xl` | 600 (semibold) | `font-semibold` | 1.2 (Tailwind ships `lh-9` = 36px) |
 
-**Counter (notes char-count) exception:** `text-xs` (12px) used ONLY for the `{notes.length}/500` counter under the AvslutaOverlay TextInput and the edit-notes-overlay TextInput. This is a recognized counter-affordance pattern — counter copy is intentionally subordinate to the input itself. Color flips between Muted (`text-gray-500 dark:text-gray-400`) and Destructive (`text-red-600 dark:text-red-400`) at `length > 480` per D-N2. The `text-xs` use is the only sub-Body type-size in Phase 7 and is contained to two instances (capture overlay + edit overlay) — does NOT propagate to other surfaces.
+**Counter (notes char-count) sizing:** The `{notes.length}/500` counter uses **`text-sm` (Label role)** — 14px, smaller than Body (16px) so it visually subordinates to the input above it, but still within the standard 4-size scale (no exception entry). Color flips between Muted (`text-gray-500 dark:text-gray-400`) and Destructive (`text-red-600 dark:text-red-400`) at `length > 480` per D-N2. Used in two instances (AvslutaOverlay capture + history edit-overlay) — both consume the same Label size.
 
 **Two weights only:** `font-normal` (400) for body, field input text, RPE-suffix on history set-rows, notes text in history notes-block, and edit-overlay TextInput value; `font-semibold` (600) for labels, headings, the display, primary CTA labels (Klart, Spara), tema-section heading "Tema", currently-selected SegmentedControl segment label, and "Inställningar" screen heading. No `font-bold`, no `font-medium`, no `font-light`.
 
@@ -102,13 +102,13 @@ Tailwind v3 default `fontSize` scale, restricted to four roles. **Identical role
 | `workout/[sessionId].tsx` inline-row | RPE inline error `"RPE 0 eller högre"` / `"RPE 10 eller lägre"` | Body (`text-base font-normal text-red-600 dark:text-red-400 mt-1 px-1`) — matches Vikt/Reps inline-error pattern verbatim |
 | `workout/[sessionId].tsx` AvslutaOverlay | Notes TextInput value | Body (`text-base text-gray-900 dark:text-gray-50`) |
 | `workout/[sessionId].tsx` AvslutaOverlay | Notes TextInput placeholder `"Anteckningar (valfri)"` | Body — placeholder color `#9CA3AF` |
-| `workout/[sessionId].tsx` AvslutaOverlay | Char counter `"123/500"` | **`text-xs`** (counter exception) — `text-gray-500 dark:text-gray-400` default; flips to `text-red-600 dark:text-red-400` when `notes.length > 480` |
+| `workout/[sessionId].tsx` AvslutaOverlay | Char counter `"123/500"` | **Label (`text-sm`)** — `text-gray-500 dark:text-gray-400` default; flips to `text-red-600 dark:text-red-400` when `notes.length > 480` |
 | `history/[sessionId].tsx` set-row | RPE-suffix `· RPE {rpe}` (when not null) | Body (`text-base font-normal text-gray-500 dark:text-gray-400`) — Muted because it's metadata appended after the primary `Set N: weight × reps`; the leading `·` separator (middle dot, U+00B7) is part of the suffix, not standalone |
 | `history/[sessionId].tsx` notes-block | Notes display text (when `notes !== null`) | Body (`text-base font-normal text-gray-900 dark:text-gray-50`) — primary text color because the user's anteckning is content, not metadata |
 | `history/[sessionId].tsx` notes-block | Add-anteckning label `"Lägg till anteckning"` (when `notes === null`) | Body (`text-base font-normal text-gray-500 dark:text-gray-400`) — Muted because it's an empty-state affordance |
 | `history/[sessionId].tsx` edit-overlay | Title `"Redigera anteckning"` | Heading (`text-2xl font-semibold text-gray-900 dark:text-gray-50`) — matches Phase 4/6 destructive-confirm-overlay title weight |
 | `history/[sessionId].tsx` edit-overlay | TextInput value | Body (`text-base text-gray-900 dark:text-gray-50`) |
-| `history/[sessionId].tsx` edit-overlay | Char counter `"123/500"` | `text-xs` (counter exception) — same color rules as AvslutaOverlay counter |
+| `history/[sessionId].tsx` edit-overlay | Char counter `"123/500"` | **Label (`text-sm`)** — same color rules as AvslutaOverlay counter |
 | `history/[sessionId].tsx` edit-overlay | Avbryt button label | Body (`text-base font-semibold text-gray-900 dark:text-gray-50`) — neutral on `bg-gray-200 dark:bg-gray-700` surface |
 | `history/[sessionId].tsx` edit-overlay | Spara button label | Body (`text-base font-semibold text-white`) on accent (`bg-blue-600 dark:bg-blue-500`) |
 | `(tabs)/settings.tsx` | Section heading `"Tema"` | Body bumped to **`text-base font-semibold text-gray-900 dark:text-gray-50`** — section header within the Inställningar Display "Inställningar" hierarchy; not a standalone Heading because Inställningar already owns the Display + this is a sub-section label |
@@ -238,6 +238,8 @@ All copy in Swedish per PROJECT.md, CONTEXT.md, and continued from Phase 3 D-15.
 | Edit-overlay Avbryt button | `Avbryt` (matches Phase 4 destructive-confirm Avbryt — neutral) |
 | Edit-overlay Spara button | `Spara` (matches Phase 3 sign-in/sign-up primary CTA convention) |
 
+**Cross-phase CTA convention (D-15 / Phase 3/4/5/6 inheritance):** `Spara` and `Avbryt` are intentionally single-word visible labels matching the established convention from Phase 3 sign-in/sign-up and Phase 4 destructive-confirm rows. Context is unambiguous from the overlay title (`Redigera anteckning`); accessibilityLabel for `Spara` is `Spara anteckning` (noun present for screen readers).
+
 **Save-empty-text behavior:** Saving the edit-overlay with an empty/whitespace-only TextInput → `notes = null` (D-N3 normalize repeated for the update path in `useUpdateSessionNotes`). The notes-block re-renders the add-affordance (`+ Lägg till anteckning`) on next render. **No "Are you sure?"-confirm** for clearing notes — clearing is recoverable by typing it back; matches Phase 4 WR-05 "non-destructive UI changes do not require confirms".
 
 **Notes-text overflow:** Notes max 500 chars (server-enforced + client-enforced via `maxLength=500`). At ~500 chars, the notes-block height grows to ~10 lines on iPhone SE. No "Visa mer / Visa mindre"-toggle in V1 — full text is always shown. Long-text scroll is absorbed by the parent ScrollView on `history/[sessionId].tsx`.
@@ -300,6 +302,8 @@ Final inline-row layout post-Phase 7 (left to right):
 
 Parent: `<View className="flex-row items-center gap-2 mt-3">` (existing — preserved).
 
+**Focal point:** The Klart button — it is the action that commits the set; Vikt/Reps are the inputs that lead to it; RPE is intentionally the most subordinate column (narrow, optional, no error-state highlight unless out-of-range).
+
 iPhone SE width math: 320 (content) − 16 padding × 2 = 288 available − 8 gap × 3 = 264 for inputs. Vikt + Reps = 2 × flex-1 = 132 each. RPE = 64 fixed. Klart = 64 fixed. Total = 132 + 132 + 64 + 64 = 392 — exceeds 264 because flex-1 absorbs the budget; effective Vikt/Reps width = (264 − 64 − 64) / 2 = 68pt each. Acceptable: 68pt fits 3-digit weights (`120`) and 2-digit reps (`12`) at `text-base font-semibold` with the existing `px-3` padding (effective inner = 56pt — still legible). On iPhone 14 Pro (390pt content) the budget is more generous; Vikt/Reps grow to ~103pt each. No iPhone in V1 scope falls below SE width.
 
 **Inline-error stacking:** RPE error (when present) renders BELOW the RPE TextInput within the column-wrapped `<View className="w-16">` (matches Vikt/Reps Controller pattern verbatim). Error pushes the RPE column taller; siblings (Vikt/Reps/Klart) stay aligned at top via `items-center` on the outer flex-row (alignment preserved by the existing items-center; siblings stay vertically centered in the now-taller row — verified pattern in Phase 5 inline-row).
@@ -325,6 +329,8 @@ iPhone SE width math: 320 (content) − 16 padding × 2 = 288 available − 8 ga
 ```
 
 Position: ABOVE the SummaryHeader-chiparna in `history/[sessionId].tsx` (per SPEC §4 acceptance + CONTEXT.md `<canonical_refs>` Source-of-truth diff target).
+
+**Focal point:** When notes are empty, the accent-tinted `+ Lägg till anteckning` add-affordance; when notes exist, the notes Body text itself (the pencil icon is intentionally muted and discoverable, not dominant).
 
 `mutedColor` = `useColorScheme().colorScheme === 'dark' ? '#9CA3AF' : '#6B7280'` — Muted text role hex (Tailwind gray-400 / gray-500).
 `accentColor` = `useColorScheme().colorScheme === 'dark' ? '#60A5FA' : '#2563EB'` — Accent role hex (Tailwind blue-400 / blue-600). Both `useColorScheme` imports MUST be from `'nativewind'` per D-T4.
@@ -358,7 +364,7 @@ Backdrop + inner card + KeyboardAvoidingView wrap. Structure mirrors Phase 4 inl
             accessibilityLabel="Anteckningar för passet, valfri"
             className="rounded-md bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 px-3 py-2 text-base text-gray-900 dark:text-gray-50"
           />
-          <Text className={`text-xs text-right ${draftNotes.length > 480 ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}`}>
+          <Text className={`text-sm text-right ${draftNotes.length > 480 ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}`}>
             {`${draftNotes.length}/500`}
           </Text>
           <View className="flex-row gap-3">
@@ -386,6 +392,8 @@ Backdrop + inner card + KeyboardAvoidingView wrap. Structure mirrors Phase 4 inl
 )}
 ```
 
+**Focal point:** The TextInput body — `autoFocus` opens the keyboard immediately; the `Redigera anteckning` heading anchors the surface but is visually subordinate to the input area; Spara/Avbryt sit at the bottom as terminal actions.
+
 `autoFocus` defaults to TRUE (CONTEXT.md `<decisions>` Claude's Discretion). If iOS-rendering shows mount-timing collision with KeyboardAvoidingView (e.g. keyboard pops before the card finishes positioning), the planner may set `autoFocus={false}` and instead call `inputRef.current?.focus()` from a `useEffect` after `setShowEditNotesOverlay(true)` resolves — same UX, more deterministic mount-order.
 
 ### D. Tema-toggle layout (settings.tsx, F15)
@@ -409,6 +417,8 @@ Replace lines 38-40 of current settings.tsx (placeholder Text) with:
 ```
 
 Position: between the email-row (`text-base text-gray-500 dark:text-gray-400` showing user email) and the `<View className="flex-1" />` spacer above the Logga ut button. Section heading `"Tema"` carries `gap-6` separation from the email-row above (inherited from existing `gap-6` on the outer container).
+
+**Focal point:** The SegmentedControl — it is the only interactive element in the section; the `Tema` label is a plain section header.
 
 `stored` state via `useState<'system' | 'light' | 'dark'>('system')` synced from AsyncStorage on mount; `onChange` calls `setStored(v)` + `setColorScheme(v)` + `AsyncStorage.setItem('fm:theme', v)`. The state-snippet is reproduced verbatim in CONTEXT.md `<specifics>` block.
 
@@ -447,8 +457,7 @@ Phase 7 introduces **zero new design tokens** — every spacing value, type size
 
 1. **Geometry**: RPE column = `w-16`, Klart shrink = `w-20`→`w-16`, notes TextInput minHeight=80/maxHeight=160 (D-R1, D-N2 — load-bearing for iPhone SE fit + multi-line UX).
 2. **StatusBar mode**: `style="auto"` → `style={isDark ? 'light' : 'dark'}` (D-T3 — load-bearing for manual-override correctness).
-3. **Counter type-size exception**: `text-xs` for `{n}/500` counter (the only sub-Body type in Phase 7; contained to two instances).
-4. **Three new copy strings**: `"Tema"`, `"System"`/`"Ljust"`/`"Mörkt"`, `"Lägg till anteckning"` / `"Redigera anteckning"` / `"Anteckningar (valfri)"` / `"Anteckningar för passet, valfri"` / `"RPE"` / `"Upplevd ansträngning, valfri"` / `"RPE 0 eller högre"` / `"RPE 10 eller lägre"`.
+3. **Three new copy strings**: `"Tema"`, `"System"`/`"Ljust"`/`"Mörkt"`, `"Lägg till anteckning"` / `"Redigera anteckning"` / `"Anteckningar (valfri)"` / `"Anteckningar för passet, valfri"` / `"RPE"` / `"Upplevd ansträngning, valfri"` / `"RPE 0 eller högre"` / `"RPE 10 eller lägre"`.
 
 Everything else — typography roles, color roles, spacing scale, touch-target floor, status-bar pattern, `useFocusEffect` reset, inline-overlay structure, accessibility floor — is verbatim Phase 1–6 inheritance. **The contract is intentionally derivative because Phase 7 is a polish-cut, not a redesign.**
 
