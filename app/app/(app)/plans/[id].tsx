@@ -525,6 +525,9 @@ export default function PlanDetailScreen() {
                     `/plans/${plan.id}/exercise/${planExercise.id}/edit` as Href,
                   )
                 }
+                onShowChart={() =>
+                  router.push(`/exercise/${planExercise.exercise_id}/chart`)
+                }
                 onRemove={() =>
                   removePlanExercise.mutate({
                     id: planExercise.id,
@@ -532,6 +535,7 @@ export default function PlanDetailScreen() {
                   })
                 }
                 muted={muted}
+                accent={accent}
               />
             </ScaleDecorator>
           )}
@@ -740,16 +744,20 @@ function PlanExerciseRow({
   drag,
   isActive,
   onEdit,
+  onShowChart,
   onRemove,
   muted,
+  accent,
 }: {
   planExercise: PlanExerciseRowShape;
   exerciseName: string;
   drag: () => void;
   isActive: boolean;
   onEdit: () => void;
+  onShowChart: () => void;
   onRemove: () => void;
   muted: string;
+  accent: string;
 }) {
   const targetChip = formatTargetChip(planExercise);
   return (
@@ -790,6 +798,22 @@ function PlanExerciseRow({
         className="p-2 active:opacity-80"
       >
         <Ionicons name="chevron-forward" size={20} color={muted} />
+      </Pressable>
+      {/* Phase 6 D-24 chart-icon entry-point — inserted BETWEEN edit and
+          remove per UI-SPEC §Visuals JSX lines 671-684. UI-SPEC line 287
+          prose says "rightmost"; the JSX is the authoritative contract
+          (WARN-5 — prose-patch tracked as paperwork). hitSlop={6} per
+          UI-SPEC line 286 + line 677 (WARN-6 fix). p-3 padding around
+          22pt icon = 46pt hit-target ≥44pt (D-24 + Pitfall 6.1). */}
+      <Pressable
+        onPress={onShowChart}
+        accessibilityRole="button"
+        accessibilityLabel={`Visa graf för ${exerciseName}`}
+        accessibilityHint="Tryck för att se progressionsgraf"
+        hitSlop={6}
+        className="p-3 active:opacity-80"
+      >
+        <Ionicons name="stats-chart" size={22} color={accent} />
       </Pressable>
       <Pressable
         onPress={onRemove}

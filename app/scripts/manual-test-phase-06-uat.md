@@ -190,35 +190,132 @@ If any of the above fail, **STOP** and fix before running the manual flow.
       session-detail screen surfaces `Något gick fel. Försök igen.`
       because `useSessionQuery` returns no data under RLS.
 
-## Plan 06-03 TODO — F10 chart + Senaste 10 passen + entry-points
+## F10 Chart route entry-points (D-24, D-25, D-26)
 
-> Plan 06-03 fills in this section. Skeleton:
+> Plan 06-03 ships the `/exercise/[exerciseId]/chart` route file and the
+> chart-icon affordance on `plans/[id].tsx` between the edit and remove
+> Pressables (UI-SPEC §Visuals JSX lines 671-684; WARN-5 deviation
+> documented in 06-03 chart.tsx file header). Plan 06-02's session-detail
+> card-header cross-link (D-25) becomes a live link once Plan 06-03 lands.
 
-- [ ] Open Planer → tap a plan → tap the chart-icon (stats-chart) on a
-      plan_exercise row → routes to `/exercise/<exerciseId>/chart`.
-- [ ] Chart route loads — Stack header title = exercise name.
-- [ ] Two segmented controls: metric (Vikt / Volym) defaulting to Vikt;
-      window (1M / 3M / 6M / 1Y / All) defaulting to 3M per D-15.
-- [ ] Chart renders via Victory Native XL `<CartesianChart>` — line +
-      scatter + tooltip on press; theme-aware accent.
-- [ ] Toggle metric: chart re-fetches; cache key includes (exerciseId,
-      metric, window).
-- [ ] Toggle window: same.
-- [ ] Empty-state (D-17 two-state):
-  - [ ] "Inga pass än för den här övningen" + caption "Logga minst 2 set
-        för att se trend." — when ZERO data ever.
-  - [ ] "Ingen data i valt tidsfönster — prova All" — when data exists
-        but current window is empty.
-- [ ] Senaste 10 passen list below chart: one row per source session,
-      ordered DESC by `completed_at`, showing
-      `${format(completed_at, "d MMM yyyy")}` + `${weight_kg} kg × ${reps} reps`.
-- [ ] Tap a row → routes to `/history/<session_id>` (D-20).
-- [ ] Cross-user attempt blocked (RLS — exercise-chart RPC returns empty for
-      another user's exercise_id; UI surfaces empty-state).
-- [ ] Single-point case (1 day of data): chart renders the dot
-      automatically; no crash.
-- [ ] Plans/[id] chart-icon Pressable does NOT bubble drag/edit/remove on
-      siblings (06-RESEARCH.md Pitfall 8).
+- [ ] From `plans/[id]` — tap the chart-icon (stats-chart, accent color)
+      between the edit and remove icons on any plan_exercise row → expect
+      navigation to `/exercise/<exerciseId>/chart`.
+- [ ] From `history/[sessionId]` — tap an exercise-card header → expect
+      same navigation (D-25 cross-link resolves; the `as Href` cast in
+      Plan 06-02's session-detail file is now redundant when the dev server
+      regenerates `router.d.ts`).
+- [ ] Verify Stack header title shows `exercise.name` (e.g. `Bänkpress`).
+      Fallback `Övning` only renders if the exercise was deleted or the
+      exercises cache hasn't hydrated (cold deep-link path).
+- [ ] Manual finger-test on iPhone: the chart-icon hit-target is ≥ 44pt
+      (UI-SPEC line 286 — `hitSlop={6}` + `p-3` padding = 46pt effective).
+      Tapping the chart-icon does NOT trigger the drag/edit/remove sibling
+      affordances (06-RESEARCH Pitfall 8 — sibling-Pressable independence).
+
+## F10 Metric + Window toggles (D-14, D-15)
+
+> Plan 06-03's chart-route uses two `<SegmentedControl>` instances: one for
+> metric (Max vikt / Total volym), one for window (1M / 3M / 6M / 1Y / All).
+
+- [ ] Open the chart route for the first time → expect `Max vikt` segment
+      selected (D-14 default) AND `3M` segment selected (D-15 default).
+- [ ] Tap `Total volym` → the chart line redraws with new y-values; the
+      segmented-control highlights the new tile via the white/gray-700
+      shadow.
+- [ ] Tap `1M` → chart shrinks (fewer x-axis ticks). Tap `All` → chart
+      expands (more x-axis ticks; year may appear on year-boundary ticks).
+      Tap `3M` → cache-hit, no loading spinner.
+- [ ] Re-tap `Max vikt` + `3M` → cache-hit, instant render.
+
+## F10 Memoization verified (ROADMAP success #3 + D-21 + WARN-7)
+
+> The useMemo dep array over `chartQuery.data` is EXACTLY
+> `[chartQuery.data]` — metric/window already live in the queryKey so
+> they would only cause redundant recomputes.
+
+- [ ] Open the chart route → tap the metric toggle 5× rapidly (back and
+      forth between Max vikt and Total volym).
+- [ ] Verify the chart line transitions smoothly between metrics with no
+      full re-mount flicker (the canvas does NOT flash empty between
+      transitions).
+- [ ] If the line re-mounts on every tap (visible "blink" or animation
+      restart) → FAIL: the dep array is probably wrong; check that
+      `[chartQuery.data]` is the EXACT array in chart.tsx.
+
+## F10 Graceful degrade — two-state empty-state (D-17, BLOCKER-3)
+
+> Two-state empty rendering: window-empty vs all-time-empty. A second
+> `useExerciseChartQuery(id, metric, 'All')` query disambiguates the cases.
+
+- [ ] Pick an exercise with 0 logged sets — navigate to its chart →
+      verify ALL-TIME-EMPTY state: `Ionicons stats-chart-outline` icon +
+      heading `Inga pass än för den här övningen` + body
+      `Logga minst 2 set för att se trend.`
+- [ ] Seed (via Studio or app) 2 working sets for that exercise on a date
+      6 months ago (outside the 3M window). Re-open the chart → expect
+      WINDOW-EMPTY state: heading `Inga pass i detta intervall` + body
+      `Byt till All för att se hela historiken.`
+- [ ] Tap the `All` window segment → expect the chart to render the 2
+      data points (the disambiguation worked).
+- [ ] Pick an exercise with ≥ 2 working sets in the 3M window → verify
+      the full line chart renders with axes + dots + line.
+- [ ] Pick an exercise with EXACTLY 1 data point in the window → verify
+      the single dot renders + a caption appears under the canvas:
+      `Logga ett pass till för att se trend.`
+
+## F10 Tap-and-hold Skia tooltip (D-19, BLOCKER-1, Pitfall 2)
+
+> Plan 06-03's chart.tsx renders a FULL Skia tooltip callout
+> (RoundedRect + two SkiaText nodes) via the ChartPressCallout sub-
+> component — NOT a placeholder highlight.
+
+- [ ] Open a chart with ≥ 3 data points → tap-and-hold on a data point →
+      expect BOTH the highlight Circle AND the rounded-rect tooltip
+      callout to appear at/near the tapped point.
+- [ ] Verify tooltip content:
+  - Top line shows `${weight} kg` for Max vikt (e.g. `82.5 kg`).
+  - Top line shows formatted-number kg for Total volym (e.g.
+    `3 240 kg`).
+  - Bottom line shows the date in Swedish format (e.g. `14 maj 2026`).
+- [ ] Drag the finger across the chart → both tooltip and highlight
+      follow the nearest data point.
+- [ ] Verify the tooltip rect stays INSIDE the chart canvas at the left
+      and right edges (`chartBounds` clamping prevents off-canvas clip).
+- [ ] Lift the finger → tooltip and highlight disappear within ~1 frame.
+
+## F10 Theme awareness (D-23 + Phase 1 F15)
+
+- [ ] In light mode → chart line is `#2563EB` (blue-600); tooltip
+      background `#FFFFFF`; axis labels `#6B7280` (gray-500).
+- [ ] iOS Settings → Display → Dark → return to app → chart line is
+      `#60A5FA` (blue-400); tooltip background `#1F2937` (gray-800); axis
+      labels `#9CA3AF` (gray-400). All theme bindings come from one
+      `useColorScheme()` call at the top of the chart component (D-23).
+
+## F10 Senaste 10 passen list — tappable rows with reps preservation (D-20, BLOCKER-2)
+
+> Plan 06-03 wires `useExerciseTopSetsQuery` against the
+> `get_exercise_top_sets` RPC Plan 06-01a deployed. The chart-aggregated
+> RPC cannot deliver reps per source session; the top-sets RPC closes
+> the gap (BLOCKER-2 dual-RPC design).
+
+- [ ] Below the chart on an exercise with ≥ 1 day of data → expect a
+      section header `Senaste 10 passen` + a list of up to 10 rows.
+- [ ] Each row primary line shows the formatted date (e.g.
+      `14 maj 2026`); secondary line shows
+      `${weight_kg} kg × ${reps}` (e.g. `82.5 kg × 8`). Reps are
+      preserved as int through the `TopSetRowSchema.parse` boundary.
+- [ ] **Tap any row → expect navigation to /history/<that-session-id>**
+      — the source session opens with all sets visible (Plan 06-02 owns
+      the destination route).
+- [ ] Verify the `Senaste 10 passen` section is OMITTED entirely when
+      either of the chart-empty-state paths is active (window-empty OR
+      all-time-empty).
+- [ ] Cross-user RLS attempt: while signed in as User A, paste User B's
+      `exercise_id` into the deep link `fitnessmaxxing://exercise/<b-id>/chart`
+      → expect ALL-TIME-EMPTY state (RPC returns 0 rows under RLS;
+      Senaste 10 section is omitted).
 
 ## Cleanup
 

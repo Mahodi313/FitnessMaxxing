@@ -67,3 +67,49 @@ export const lastValueKeys = {
   byExercise: (exerciseId: string) =>
     [...lastValueKeys.all, "by-exercise", exerciseId] as const,
 };
+
+// ---------------------------------------------------------------------------
+// Phase 6 — F10 per-exercise progressionsgraf cache slots.
+//
+// `exerciseChartKeys.byExercise(exerciseId, metric, window)` makes each
+// (exercise, metric, window) tuple its own cache slot so toggling Max vikt /
+// Total volym or 1M / 3M / 6M / 1Y / All produces a distinct queryKey. Re-
+// selecting a previously fetched combination is an instant cache hit (D-14,
+// D-15, 06-CONTEXT.md).
+//
+// `exerciseTopSetsKeys.byExercise(exerciseId, window)` powers the "Senaste
+// 10 passen" list under the chart. The tuple deliberately EXCLUDES `metric`
+// because the top-sets list is metric-agnostic — the same source-session
+// rows surface regardless of which metric the chart renders (D-20 + BLOCKER-2
+// fix).
+// ---------------------------------------------------------------------------
+
+export const exerciseChartKeys = {
+  all: ["exercise-chart"] as const,
+  byExercise: (
+    exerciseId: string,
+    metric: "weight" | "volume",
+    window: "1M" | "3M" | "6M" | "1Y" | "All",
+  ) =>
+    [
+      ...exerciseChartKeys.all,
+      "by-exercise",
+      exerciseId,
+      metric,
+      window,
+    ] as const,
+};
+
+export const exerciseTopSetsKeys = {
+  all: ["exercise-top-sets"] as const,
+  byExercise: (
+    exerciseId: string,
+    window: "1M" | "3M" | "6M" | "1Y" | "All",
+  ) =>
+    [
+      ...exerciseTopSetsKeys.all,
+      "by-exercise",
+      exerciseId,
+      window,
+    ] as const,
+};
