@@ -61,12 +61,62 @@ async function main() {
 
   console.log("\n=== Functions in public ===");
   const functions = await sql`
-    select proname, pg_get_function_result(oid) as ret
+    select proname, pg_get_function_result(oid) as ret, prosecdef, proconfig
     from pg_proc
     where pronamespace = 'public'::regnamespace
     order by proname
   `;
-  for (const f of functions) console.log(`  ${f.proname.padEnd(20)} returns ${f.ret}`);
+  for (const f of functions) {
+    const cfg = Array.isArray(f.proconfig) ? f.proconfig.join(",") : (f.proconfig ?? "");
+    const secLabel = f.prosecdef ? "DEFINER " : "INVOKER ";
+    console.log(`  ${f.proname.padEnd(28)} ${secLabel} returns ${f.ret}  proconfig=[${cfg}]`);
+  }
+
+  // -------------------------------------------------------------------------
+  // Phase 6 (Migration 0006) — assert all three new RPC functions exist with
+  // SECURITY INVOKER (prosecdef = false) and search_path = '' (proconfig
+  // contains 'search_path=' substring). Mirror the pg_proc pattern used by
+  // Phase 5 for assign_exercise_set_number.
+  // -------------------------------------------------------------------------
+  console.log("\n=== Phase 6 RPC verification (Migration 0006) ===");
+  const phase6Functions = [
+    "get_session_summaries",
+    "get_exercise_chart",
+    "get_exercise_top_sets",
+  ];
+  let phase6Failures = 0;
+  for (const fname of phase6Functions) {
+    const rows = await sql`
+      select proname, prosecdef, proconfig
+      from pg_proc
+      where pronamespace = 'public'::regnamespace
+        and proname = ${fname}
+    `;
+    if (rows.length === 0) {
+      console.log(`  FAIL: ${fname} — function not deployed`);
+      phase6Failures += 1;
+      continue;
+    }
+    const row = rows[0];
+    const cfg = Array.isArray(row.proconfig) ? row.proconfig.join(",") : (row.proconfig ?? "");
+    const hasSecurityInvoker = row.prosecdef === false;
+    const hasSearchPath = cfg.includes("search_path=");
+    if (hasSecurityInvoker && hasSearchPath) {
+      console.log(`  PASS: ${fname} — SECURITY INVOKER + search_path set`);
+    } else {
+      console.log(
+        `  FAIL: ${fname} — prosecdef=${row.prosecdef} proconfig=[${cfg}]`,
+      );
+      phase6Failures += 1;
+    }
+  }
+  if (phase6Failures > 0) {
+    console.error(
+      `\nPhase 6 verify-deploy FAILED — ${phase6Failures} function(s) missing or misconfigured`,
+    );
+    await sql.end();
+    process.exit(1);
+  }
 
   console.log("\n=== ENUMs in public ===");
   const enums = await sql`
