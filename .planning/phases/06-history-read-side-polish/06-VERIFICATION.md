@@ -1,8 +1,9 @@
 ---
 phase: 06-history-read-side-polish
 verified: 2026-05-15T00:00:00Z
-status: human_needed
-score: 4/4 must-haves verified (automated tier)
+status: passed
+score: 4/4 must-haves verified (automated + human tier)
+human_uat_resolved: "2026-05-15 — all 6 items in 06-HUMAN-UAT.md passed on iPhone via Expo Go (commit 4c7b38d). BLOCKER-1 surfaced two latent bugs during human UAT (FIT-66 SegmentedControl crash, FIT-67 Skia useFont(null) returns null + tooltip bg blends into chart container in dark mode); both shipped as commits 6d50486, ee91578, 826cd01 before the final pass."
 overrides_applied: 0
 mode_note: "ROADMAP marks phase mode=mvp but goal is in Swedish prose, not formal User Story (As a..., I want to..., so that...). The 4 ROADMAP Success Criteria are explicit and have been used as the verification contract. Recommend reformatting the goal via `/gsd mvp-phase 6` for Phase 7+ consistency, but the criteria themselves are testable as-is."
 human_verification:
