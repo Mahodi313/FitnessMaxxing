@@ -32,15 +32,23 @@
 //
 // Reusable across V1.1+; co-located with active-session-banner.tsx and
 // offline-banner.tsx under app/components/.
+//
+// FIT-66 bug-fix (2026-05-15): the original implementation joined dynamic
+// NativeWind classes via a `cn(...)` helper (`active:opacity-80` on every
+// segment, `shadow-sm` on the selected segment). On iPhone via Expo Go the
+// chart screen crashed with "Couldn't find a navigation context" — the
+// react-native-css-interop 0.2.3 `printUpgradeWarning` codepath recursed
+// through the React fiber tree (~24 String.replace + JSON.stringify steps)
+// to attribute the warning and hit React Navigation's NavigationStateContext
+// default-value sentinel, which throws when read outside a NavigationContainer.
+//
+// Fix: drop the two NativeWind classes that trigger the warning recursion.
+//   - `active:opacity-80` → Pressable's native `style={({ pressed }) => …}` callback
+//   - `shadow-sm`         → explicit iOS shadow style props (V1 is iOS-only)
+// All other styling stays on NativeWind className — the pressed-state and
+// shadow are the only properties css-interop is unsafe with here.
 
 import { Pressable, Text, View } from "react-native";
-
-// Inline cn helper — no project-wide @/lib/utils utility exists (verified via
-// grep app/lib/ app/components/ 2026-05-15). Filter falsy values + join with
-// space; matches the conventional NativeWind className-builder shape.
-function cn(...classes: (string | false | null | undefined)[]): string {
-  return classes.filter(Boolean).join(" ");
-}
 
 type Option<T extends string> = { label: string; value: T };
 
@@ -50,6 +58,15 @@ type Props<T extends string> = {
   onChange: (v: T) => void;
   accessibilityLabel: string;
 };
+
+// iOS shadow style for the selected segment — matches Tailwind's shadow-sm
+// visual (small, soft, low-offset). V1 is iOS-only so elevation is omitted.
+const selectedShadow = {
+  shadowColor: "#000",
+  shadowOffset: { width: 0, height: 1 },
+  shadowOpacity: 0.05,
+  shadowRadius: 2,
+} as const;
 
 export function SegmentedControl<T extends string>({
   options,
@@ -73,18 +90,22 @@ export function SegmentedControl<T extends string>({
             accessibilityState={{ selected }}
             accessibilityLabel={option.label}
             hitSlop={{ top: 4, bottom: 4 }}
-            className={cn(
-              "flex-1 py-2 px-3 rounded-md items-center justify-center active:opacity-80",
-              selected && "bg-white dark:bg-gray-700 shadow-sm",
-            )}
+            className={
+              selected
+                ? "flex-1 py-2 px-3 rounded-md items-center justify-center bg-white dark:bg-gray-700"
+                : "flex-1 py-2 px-3 rounded-md items-center justify-center"
+            }
+            style={({ pressed }) => [
+              selected ? selectedShadow : null,
+              pressed ? { opacity: 0.8 } : null,
+            ]}
           >
             <Text
-              className={cn(
-                "text-sm font-semibold",
+              className={
                 selected
-                  ? "text-gray-900 dark:text-gray-50"
-                  : "text-gray-500 dark:text-gray-400",
-              )}
+                  ? "text-sm font-semibold text-gray-900 dark:text-gray-50"
+                  : "text-sm font-semibold text-gray-500 dark:text-gray-400"
+              }
             >
               {option.label}
             </Text>
