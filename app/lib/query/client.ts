@@ -701,6 +701,12 @@ queryClient.setMutationDefaults(["session", "finish"], {
     // back sessions' F7 chips surface this session's working sets without
     // waiting for the 15-min staleTime to expire.
     void queryClient.invalidateQueries({ queryKey: lastValueKeys.all });
+    // Phase 6 A8: finishing a session must surface it in history without
+    // waiting for staleTime. The F9 listInfinite cache slot is distinct from
+    // active/detail/list so it requires its own invalidate (06-RESEARCH §A8).
+    void queryClient.invalidateQueries({
+      queryKey: sessionsKeys.listInfinite(),
+    });
   },
   retry: 1,
 });
