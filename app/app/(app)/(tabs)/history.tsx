@@ -171,7 +171,7 @@ function HistoryListRow({ session }: { session: SessionSummary }) {
         router.push({
           pathname: "/history/[sessionId]",
           params: { sessionId: session.id },
-        } as Href)
+        } as unknown as Href)
       }
       accessibilityRole="button"
       accessibilityLabel={`Öppna pass från ${formattedDate}, ${planLabel}, ${session.set_count} set, ${formatNumber(session.total_volume_kg)} kg`}
