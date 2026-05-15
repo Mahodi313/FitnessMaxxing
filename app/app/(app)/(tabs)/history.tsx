@@ -52,8 +52,8 @@
 //   - 06-CONTEXT.md D-01, D-03, D-08
 //   - 06-RESEARCH.md §Pattern 1, §Example 5, §Pitfall 3
 
-import { useMemo } from "react";
-import { useRouter, type Href } from "expo-router";
+import { useEffect, useMemo, useState } from "react";
+import { useLocalSearchParams, useRouter, type Href } from "expo-router";
 import {
   View,
   Text,
@@ -65,6 +65,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale";
 import {
@@ -81,6 +82,7 @@ export default function HistoryTab() {
   const scheme = useColorScheme();
   const isDark = scheme === "dark";
   const accent = isDark ? "#60A5FA" : "#2563EB";
+  const router = useRouter();
 
   const {
     data,
@@ -91,6 +93,25 @@ export default function HistoryTab() {
     refetch,
     status,
   } = useSessionsListInfiniteQuery();
+
+  // WR-01: post-delete toast surfaces here, not on the detail screen.
+  // history/[sessionId].tsx fires router.replace with `?toast=deleted` after
+  // a successful delete; we read the param on mount, show the toast for
+  // 2.2s, then clear the param via router.setParams so a re-mount (e.g.
+  // tab-switch back to Historik) does not re-show it. setTimeout cleanup
+  // is added in the WR-02 follow-up.
+  const params = useLocalSearchParams<{ toast?: string }>();
+  const [showToast, setShowToast] = useState(false);
+  useEffect(() => {
+    if (params.toast === "deleted") {
+      setShowToast(true);
+      // Clear the URL param immediately so navigating back into the tab
+      // does not re-fire the toast.
+      router.setParams({ toast: undefined });
+      setTimeout(() => setShowToast(false), 2200);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.toast]);
 
   // Flatten the InfiniteQuery `{ pages, pageParams }` envelope. Memo keyed on
   // `data?.pages` so the FlatList data prop stays referentially stable
@@ -148,6 +169,27 @@ export default function HistoryTab() {
         }
         renderItem={({ item }) => <HistoryListRow session={item} />}
       />
+
+      {/* Post-delete toast (UI-SPEC §Post-delete toast) — Reanimated
+          FadeIn/FadeOut on Animated.View; bg-blue accent per UI-SPEC
+          (delete is neutral, not celebratory; success-green is reserved
+          for "Passet sparat ✓" in Phase 5). Surfaced here, not on the
+          detail screen, because router.replace synchronously blurs the
+          detail screen and a toast mounted there would never be visible
+          (WR-01 in 06-REVIEW.md). */}
+      {showToast && (
+        <Animated.View
+          entering={FadeIn.duration(200)}
+          exiting={FadeOut.duration(300)}
+          className="absolute bottom-20 self-center bg-blue-600 dark:bg-blue-500 rounded-full px-6 py-3"
+          accessibilityRole="alert"
+          accessibilityLiveRegion="polite"
+        >
+          <Text className="text-base font-semibold text-white">
+            Passet borttaget
+          </Text>
+        </Animated.View>
+      )}
     </SafeAreaView>
   );
 }

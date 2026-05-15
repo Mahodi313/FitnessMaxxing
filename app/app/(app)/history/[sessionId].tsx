@@ -21,9 +21,11 @@
 //   - Inline-overlay delete-confirm (Phase 4 commit e07029a pattern); body
 //     shows the exact set-count + total-volume so the user sees what is
 //     being deleted (D-07).
-//   - Toast on success (Phase 5 pattern from (tabs)/index.tsx — Reanimated
-//     FadeIn/FadeOut on Animated.View; bg-blue-600/blue-500 per UI-SPEC
-//     §Post-delete toast).
+//   - Toast on success — emitted on the destination route via
+//     router.replace({ params: { toast: "deleted" } }); the list screen
+//     (tabs)/history.tsx renders the toast on mount and clears the param.
+//     Mounting it here (WR-01 in 06-REVIEW.md) was a visibility dead-zone
+//     because router.replace synchronously blurs the detail screen.
 //
 // useFocusEffect cleanup resets the two overlay-state flags on blur so
 // freezeOnBlur (Phase 4 D-08) does not leave a ghost overlay on re-focus
@@ -75,7 +77,6 @@ import {
   type Href,
 } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { differenceInMinutes, format } from "date-fns";
 import { sv } from "date-fns/locale";
 
@@ -114,11 +115,13 @@ export default function SessionDetailScreen() {
   const exercisesQuery = useExercisesQuery();
   const deleteSession = useDeleteSession(sessionId);
 
-  // Overlay state + transient banner-error + post-delete toast.
+  // Overlay state + transient banner-error. The post-delete toast was
+  // moved to (tabs)/history.tsx (WR-01 fix) — emitting it here was a
+  // visibility dead-zone because router.replace fires synchronously and the
+  // user never sees a toast mounted on the (now blurred) detail screen.
   const [showOverflowMenu, setShowOverflowMenu] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [bannerError, setBannerError] = useState<string | null>(null);
-  const [showToast, setShowToast] = useState(false);
 
   // Pitfall 7 (06-RESEARCH.md): freezeOnBlur retains React state across
   // navigation; reset overlay flags on blur so a re-focus does not flash a
@@ -208,12 +211,20 @@ export default function SessionDetailScreen() {
     );
   }
 
-  // Delete handler — fires the toast + optimistic remove + navigation
-  // synchronously. setMutationDefaults['session','delete'].onMutate (block
-  // 14 in client.ts) walks the listInfinite envelope to filter the deleted
-  // session before the mutation resolves, so the user sees the row gone
-  // immediately on /(tabs)/history. Paused mutations under
-  // networkMode:'offlineFirst' queue and replay on reconnect.
+  // Delete handler — fires the optimistic remove + navigation synchronously.
+  // setMutationDefaults['session','delete'].onMutate (block 14 in client.ts)
+  // walks the listInfinite envelope to filter the deleted session before the
+  // mutation resolves, so the user sees the row gone immediately on
+  // /(tabs)/history. Paused mutations under networkMode:'offlineFirst' queue
+  // and replay on reconnect.
+  //
+  // WR-01: the post-delete toast is emitted on the LIST route via the
+  // `?toast=deleted` query param; the list screen consumes + clears it on
+  // mount. Mounting the toast here was a dead-zone — router.replace
+  // synchronously blurs this screen so the user never sees it. The error
+  // banner stays here because mutation failure surfaces (rarely) after the
+  // user has navigated away, which is its own UX gap; closing that gap is
+  // tracked separately (V1.1 polish).
   const onDeleteConfirm = () => {
     setShowDeleteConfirm(false);
     deleteSession.mutate(
@@ -223,9 +234,10 @@ export default function SessionDetailScreen() {
           setBannerError("Kunde inte ta bort passet. Försök igen."),
       },
     );
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 2200);
-    router.replace("/(tabs)/history" as Href);
+    router.replace({
+      pathname: "/(tabs)/history",
+      params: { toast: "deleted" },
+    } as unknown as Href);
   };
 
   const formattedTitle = format(new Date(session.started_at), "d MMM yyyy", {
@@ -497,24 +509,7 @@ export default function SessionDetailScreen() {
         </Pressable>
       )}
 
-      {/* Post-delete toast (UI-SPEC §Post-delete toast) — Reanimated
-          FadeIn/FadeOut on Animated.View; bg-blue accent per UI-SPEC
-          (delete is neutral, not celebratory; success-green is reserved
-          for "Passet sparat ✓" in Phase 5). Visible 2.2s before unmount
-          (setTimeout in onDeleteConfirm). */}
-      {showToast && (
-        <Animated.View
-          entering={FadeIn.duration(200)}
-          exiting={FadeOut.duration(300)}
-          className="absolute bottom-20 self-center bg-blue-600 dark:bg-blue-500 rounded-full px-6 py-3"
-          accessibilityRole="alert"
-          accessibilityLiveRegion="polite"
-        >
-          <Text className="text-base font-semibold text-white">
-            Passet borttaget
-          </Text>
-        </Animated.View>
-      )}
+      {/* Post-delete toast — moved to (tabs)/history.tsx (WR-01 fix). */}
     </SafeAreaView>
   );
 }
