@@ -427,7 +427,7 @@ Downstream agents MUST read `07-SPEC.md` before planning or implementing. Requir
           accessibilityLabel="Anteckningar för passet, valfri"
           className="rounded-md bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 px-3 py-2 text-base text-gray-900 dark:text-gray-50"
         />
-        <Text className={`text-xs text-right ${notes.length > 480 ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}`}>
+        <Text className={`text-sm text-right ${notes.length > 480 ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}`}>
           {`${notes.length}/500`}
         </Text>
         {/* Knappar (befintliga) */}
