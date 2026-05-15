@@ -73,25 +73,122 @@ If any of the above fail, **STOP** and fix before running the manual flow.
 - [ ] Network tab in Studio / app logs: exactly 2 RPC calls fired
       (`get_session_summaries` with `p_cursor=null` and `p_cursor=<page1.last.started_at>`).
 
-## Plan 06-02 TODO — session-detail + delete flow
+## F9 Session-detail open + read (ROADMAP success #2)
 
-> Plan 06-02 fills in this section. Skeleton:
+> Plan 06-02 wires this. Pre-condition: ≥ 3 finished sessions exist (seed
+> via dev account if soak data not present, including the empty 0-set
+> session from Pre-test setup).
 
-- [ ] Tap a finished session in Historik → session-detail screen loads.
-- [ ] Summary chip-header shows `${set_count} set · ${total_volume_kg} kg ·
-      ${duration} min` (duration = `differenceInMinutes(finished_at,
-      started_at)`; `'—'` when finished_at is null per D-10).
-- [ ] Card-per-exercise list renders; tapping a card-header routes to
-      `/exercise/<exerciseId>/chart` (Plan 06-03 chart route).
-- [ ] Overflow menu (ellipsis-horizontal) opens → "Ta bort pass" → inline
-      overlay confirm `Ta bort detta pass?` with summary copy.
-- [ ] Cancel: dismisses overlay.
-- [ ] Confirm: optimistic delete (row gone from list), navigate back to
-      Historik, FK on-delete-cascade purges exercise_sets server-side.
-- [ ] Airplane-mode delete + force-quit: queued mutation replays on
-      reconnect; row stays gone in Historik AND Studio.
-- [ ] Cross-user attempt blocked (test-rls.ts Phase 6 extension covers; UAT
-      visually confirms a wrong user_id never appears).
+- [ ] Open Historik tab → tap any row → expect navigation to
+      `/history/<id>`.
+- [ ] Verify Stack header shows the formatted date (e.g. `14 maj 2026`)
+      with swedish locale.
+- [ ] Verify summary-header chip row renders three chips: `${set_count}
+      set`, `${formatNumber(total_volume_kg)} kg`, `${duration} min`.
+- [ ] Verify each exercise-card shows: exercise name + chip row
+      (`${set_count} set` + `${max_weight} kg`) + N set-rows in order
+      (`Set 1: 82.5 × 8`, `Set 2: 82.5 × 8`, …).
+- [ ] Verify the card-header right-edge has the `stats-chart` Ionicon in
+      accent color (cross-link affordance to F10 chart route — D-11/D-25).
+- [ ] Verify empty-pass (0 sets but `finished_at IS NOT NULL` — D-13)
+      renders `0 set · 0 kg · X min` summary and shows zero exercise-cards.
+- [ ] Verify back-button returns to Historik tab.
+- [ ] Verify loading state surfaces `Laddar…` Body Muted when cache is
+      cold (rare path — usually initialData from the list cache seeds the
+      detail synchronously per D-12).
+- [ ] Verify error state surfaces `Något gick fel. Försök igen.` when
+      `useSessionQuery` returns error (deep-link to RLS-denied id).
+
+## F9 Delete-pass online flow (D-07)
+
+> Plan 06-02 wires this. Pre-condition: at least one disposable test
+> session you are willing to delete.
+
+- [ ] From session-detail → tap header-right `…` icon → overflow menu
+      appears at top-right.
+- [ ] Verify menu item `Ta bort pass` renders in red destructive color.
+- [ ] Tap `Ta bort pass` → overflow menu closes + delete-confirm overlay
+      appears.
+- [ ] Verify confirmation body shows exact count + volume:
+      `${count} set och ${formatNumber(volume)} kg total volym försvinner
+      permanent. Det går inte att ångra.`
+- [ ] Tap `Avbryt` → overlay dismisses, screen still on session-detail.
+- [ ] Re-tap `…` → `Ta bort pass` → tap on scrim (outside the dialog) →
+      overlay dismisses (parity with plans/[id] archive-confirm UX).
+- [ ] Re-tap `…` → `Ta bort pass` → `Ta bort` → expect:
+  - Optimistic remove from list cache (the row disappears from Historik
+    before the network roundtrip completes — Pitfall 6 envelope mapping).
+  - `router.replace` lands the user on the Historik tab.
+  - `Passet borttaget` toast renders bottom-center on accent-blue
+    background (`bg-blue-600` light / `bg-blue-500` dark) for ~2s before
+    fading out.
+- [ ] Verify in Supabase Studio: the `workout_sessions` row is gone +
+      all associated `exercise_sets` rows are gone via the FK on-delete
+      cascade.
+- [ ] Verify history-list does NOT show the deleted session even after
+      pull-to-refresh.
+
+## F9 Delete-pass OFFLINE flow (networkMode:'offlineFirst' + Phase 4 queue replay)
+
+> Plan 06-02 wires this. Pre-condition: at least two disposable test
+> sessions.
+
+- [ ] Online → tap delete on a test session → verify deletion lands in
+      Supabase Studio.
+- [ ] On a different test session: enable Airplane Mode → tap delete →
+      verify optimistic remove from list + `Passet borttaget` toast both
+      appear immediately (mutation is paused under
+      networkMode:'offlineFirst' but the UI is synchronous).
+- [ ] Force-quit Expo Go via app switcher → reopen offline → verify
+      session is still gone from Historik (cache restored from
+      AsyncStorage via TanStack persister).
+- [ ] Toggle Airplane Mode off → wait ~10s for `resumePausedMutations`
+      to fire (NetInfo + AppState wiring from Plan 04-01) → check
+      Supabase Studio: the deleted session is also gone server-side
+      (mutation replayed).
+- [ ] Verify the FK on-delete cascade purged the orphan
+      `exercise_sets` rows server-side after the offline replay.
+
+## F9 freezeOnBlur overlay-reset (Pitfall 7 regression test)
+
+> Plan 06-02 wires this via `useFocusEffect` cleanup. Pitfall 7 in
+> 06-RESEARCH.md documents the failure mode (freezeOnBlur retains React
+> state across navigation, so an open overlay re-appears on re-focus).
+
+- [ ] Open a session-detail → tap `…` → confirm overflow menu visible.
+- [ ] Swipe back to Historik → swipe forward (or tap row again) to return
+      to session-detail → expect overflow menu is NOT visible
+      (useFocusEffect cleanup ran on blur).
+- [ ] Same with delete-confirm overlay: open `…` → `Ta bort pass` →
+      delete-confirm overlay visible → swipe back → swipe forward →
+      expect overlay is NOT visible.
+
+## F9 Cross-link to chart (D-11 + D-25)
+
+> Plan 06-02 wires the Pressable; Plan 06-03 ships the destination route.
+
+- [ ] From session-detail → tap an exercise-card header (the exercise name
+      area with the stats-chart icon) → expect navigation to
+      `/exercise/<id>/chart`.
+- [ ] **Before Plan 06-03 ships:** the tap is wired (the path literal
+      compiles via the `as Href` cast) but the dev server resolves to a
+      404 because the route file does not exist yet — this is expected
+      and resolves when Plan 06-03's `chart.tsx` commit lands.
+
+## F9 Cross-user RLS gate (visual confirm; assertion already covered)
+
+> The `app/scripts/test-rls.ts` Phase 6 extension shipped in Plan 06-01a
+> already asserts cross-user DELETE is blocked (T-06-03 + T-06-12). The
+> UAT step below is a visual smoke check — it does NOT replace the
+> automated assertion.
+
+- [ ] If you have a second Supabase account, sign in as User B in a
+      separate browser to Supabase Studio. Confirm User A's
+      `workout_sessions.id` is NOT visible from User B's anon client.
+- [ ] Optional: paste User A's session-id into a deep link
+      (`fitnessmaxxing://history/<a-id>`) while signed in as User B →
+      session-detail screen surfaces `Något gick fel. Försök igen.`
+      because `useSessionQuery` returns no data under RLS.
 
 ## Plan 06-03 TODO — F10 chart + Senaste 10 passen + entry-points
 
