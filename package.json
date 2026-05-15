@@ -6,6 +6,7 @@
   "scripts": {
     "linear:issues": "tsx --env-file=app/.env.local scripts/get-linear-issues.ts",
     "linear:create": "tsx --env-file=app/.env.local scripts/create-linear-issue.ts",
+    "linear:sync-phase": "tsx --env-file=app/.env.local scripts/sync-phase-to-linear.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
