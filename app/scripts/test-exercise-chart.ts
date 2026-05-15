@@ -306,7 +306,7 @@ async function main() {
   console.log("[test-exercise-chart] (A) Happy path 5 sessions…");
   {
     const { data, error } = await clientA.rpc("get_session_summaries", {
-      p_cursor: null,
+      p_cursor: null as unknown as string,
       p_page_size: 20,
     });
     if (error) {
@@ -363,7 +363,7 @@ async function main() {
     // Page 1 — cursor=null, page_size=20 → 20 rows
     const { data: p1, error: p1err } = await clientA.rpc(
       "get_session_summaries",
-      { p_cursor: null, p_page_size: 20 },
+      { p_cursor: null as unknown as string, p_page_size: 20 },
     );
     if (p1err) {
       fail("(B) Page 1 RPC error", { error: p1err });
@@ -420,7 +420,7 @@ async function main() {
   // generous page_size and assert the draft is not present.
   {
     const { data, error } = await clientA.rpc("get_session_summaries", {
-      p_cursor: null,
+      p_cursor: null as unknown as string,
       p_page_size: 100,
     });
     if (error) {
@@ -460,7 +460,7 @@ async function main() {
   );
   {
     const { data, error } = await clientA.rpc("get_session_summaries", {
-      p_cursor: null,
+      p_cursor: null as unknown as string,
       p_page_size: 100,
     });
     if (error) {
@@ -485,7 +485,7 @@ async function main() {
   console.log("[test-exercise-chart] (E) Cross-user RLS on get_session_summaries…");
   {
     const { data, error } = await clientB.rpc("get_session_summaries", {
-      p_cursor: null,
+      p_cursor: null as unknown as string,
       p_page_size: 100,
     });
     if (error) {
@@ -532,7 +532,7 @@ async function main() {
     const { data, error } = await clientA.rpc("get_exercise_chart", {
       p_exercise_id: chartExerciseId,
       p_metric: "weight",
-      p_since: null,
+      p_since: null as unknown as string,
     });
     if (error) {
       fail("(F) RPC error", { error });
@@ -563,7 +563,7 @@ async function main() {
     const { data, error } = await clientA.rpc("get_exercise_chart", {
       p_exercise_id: chartExerciseId,
       p_metric: "volume",
-      p_since: null,
+      p_since: null as unknown as string,
     });
     if (error) {
       fail("(G) RPC error", { error });
@@ -701,7 +701,7 @@ async function main() {
       {
         p_exercise_id: sinceExerciseId,
         p_metric: "weight",
-        p_since: null,
+        p_since: null as unknown as string,
       },
     );
     if (errAll) {
@@ -723,7 +723,7 @@ async function main() {
     const { data, error } = await clientB.rpc("get_exercise_chart", {
       p_exercise_id: chartExerciseId,
       p_metric: "weight",
-      p_since: null,
+      p_since: null as unknown as string,
     });
     if (error) {
       fail("(J) clientB RPC error", { error });
@@ -798,7 +798,7 @@ async function main() {
   {
     const { data, error } = await clientA.rpc("get_exercise_top_sets", {
       p_exercise_id: topSetsExerciseId,
-      p_since: null,
+      p_since: null as unknown as string,
       p_limit: 10,
     });
     if (error) {
@@ -864,7 +864,7 @@ async function main() {
   {
     const { data, error } = await clientA.rpc("get_exercise_top_sets", {
       p_exercise_id: topSetsExerciseId,
-      p_since: null,
+      p_since: null as unknown as string,
       p_limit: 10,
     });
     if (error) {
@@ -895,7 +895,7 @@ async function main() {
   {
     const { data, error } = await clientB.rpc("get_exercise_top_sets", {
       p_exercise_id: topSetsExerciseId,
-      p_since: null,
+      p_since: null as unknown as string,
       p_limit: 10,
     });
     if (error) {
