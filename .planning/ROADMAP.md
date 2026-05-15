@@ -18,8 +18,8 @@ FitnessMaxxing levereras som en personlig iPhone gym-tracker via Expo Go. Resan 
 - [x] **Phase 1: Bootstrap & Infra Hardening** - Locked stack installerad med rätt pins, NativeWind-smoke-test renderar på iPhone, dark-mode-konvention etablerad *(2026-05-08)*
 - [x] **Phase 2: Schema, RLS & Type Generation** - Korrigerat schema applicerat i Supabase med både `using` och `with check`, cross-user-fixturer passerar (22/22), TS-typer genererade, 27/27 SECURED *(2026-05-09)*
 - [x] **Phase 3: Auth & Persistent Session** - Användare kan registrera, logga in, och sessioner överlever app-restart via LargeSecureStore
-- [x] **Phase 4: Plans, Exercises & Offline-Queue Plumbing** - Användare kan skapa planer och övningar offline; airplane-mode-test bekräftar att kön persisterar och replayas korrekt (completed 2026-05-10)
-- [x] **Phase 5: Active Workout Hot Path (F13 lives or dies)** - Användare loggar set under pass; varje set överlever airplane mode + force-quit + battery-pull (completed 2026-05-14)
+- [x] **Phase 4: Plans, Exercises & Offline-Queue Plumbing** - Användare kan skapa planer och övningar offline; airplane-mode-test bekräftar att kön persisterar och replayas korrekt (completed 2026-05-10)
+- [x] **Phase 5: Active Workout Hot Path (F13 lives or dies)** - Användare loggar set under pass; varje set överlever airplane mode + force-quit + battery-pull (completed 2026-05-14)
 - [ ] **Phase 6: History & Read-Side Polish** - Användare ser passhistorik och progressionsgraf per övning
 - [ ] **Phase 7: V1 Polish Cut** - RPE, anteckningar och dark-mode-toggle färdiga; V1 redo för 4-veckors personlig validering
 
@@ -128,7 +128,10 @@ FitnessMaxxing levereras som en personlig iPhone gym-tracker via Expo Go. Resan 
   2. Användare kan öppna ett historiskt pass och se alla loggade set per övning
   3. Användare kan se en graf (max vikt eller total volym över tid) per övning via `<CartesianChart>` från victory-native; data är memoiserad så grafen inte re-mountar vid varje render
   4. Historik-listan funkar offline (TanStack Query-cache hydrerad från AsyncStorage)
-**Plans**: TBD
+**Plans**: 3 plans
+  - [ ] 06-01-PLAN.md — F9 history-list vertical slice + shared Phase 6 RPC (Migration 0006 deploys get_session_summaries + get_exercise_chart RPCs with SECURITY INVOKER + set search_path = ''; gen:types regenerates database.ts; Wave 0 fixtures: test-exercise-chart.ts NEW + test-rls.ts Phase 6 extension with 4 cross-user assertions + manual UAT markdown; sessions.ts adds useSessionsListInfiniteQuery with SessionSummary Zod schema; keys.ts adds sessionsKeys.listInfinite; client.ts existing ['session','finish'] onSettled adds sessionsKeys.listInfinite invalidation per A8 executor-trap; (tabs)/history.tsx becomes cursor-paginated FlatList with pull-to-refresh + empty-state)
+  - [ ] 06-02-PLAN.md — F9 session-detail + delete vertical slice (sessions.ts adds useDeleteSession(sessionId?) scope-bound hook; client.ts adds block 14 ['session','delete'] setMutationDefaults handling InfiniteQuery { pages, pageParams } envelope per Pitfall 6; new /history/[sessionId].tsx route — summary-header chips + card-per-exercise read-only with sets inline + Stack header right ellipsis-horizontal trigger + inline-overlay overflow menu + inline-overlay delete-confirm via Phase 4 commit e07029a + Reanimated toast "Passet borttaget" + useFocusEffect overlay reset per Pitfall 7; manual UAT markdown extended with delete-pass online + offline + freezeOnBlur sections)
+  - [ ] 06-03-PLAN.md — F10 per-exercise chart slice (keys.ts adds exerciseChartKeys.byExercise(id, metric, window); new lib/queries/exercise-chart.ts with useExerciseChartQuery hook + ChartRowSchema Zod parse + windowToSince helper; new components/segmented-control.tsx NativeWind-baserat reusable; new /exercise/[exerciseId]/chart.tsx route — MetricToggle (Max vikt / Total volym) + WindowToggle (1M/3M/6M/1Y/All, default 3M) + memoized CartesianChart per D-21 + Skia useChartPressState tap-and-hold highlight + ChartEmptyState 0-pt + sparse-state 1-pt caption + Senaste 10 passen list; plans/[id].tsx PlanExerciseRow inserts chart-icon Pressable between edit and remove affordances per D-24; manual UAT markdown extended with 6 chart sections)
 **UI hint**: yes
 
 ### Phase 7: V1 Polish Cut
@@ -179,10 +182,10 @@ Phases execute sequentially: 1 → 2 → 3 → 4 → 5 → 6 → 7. Phase 5 må*
 | 3. Auth & Persistent Session | 4/4 | ✓ Complete (UAT 9/11 pass; 2 gaps accepted-deferred to V1.1 — email-confirmation deep-link) | 2026-05-09 |
 | 4. Plans, Exercises & Offline-Queue Plumbing | 4/4 | Complete    | 2026-05-10 |
 | 5. Active Workout Hot Path | 7/7 | Complete    | 2026-05-14 |
-| 6. History & Read-Side Polish | 0/TBD | ○ Not started | — |
+| 6. History & Read-Side Polish | 0/3 | ○ Planned (ready to execute) | — |
 | 7. V1 Polish Cut | 0/TBD | ○ Not started | — |
 
-**Project progress:** 3 of 7 phases complete (~43%); Phase 4 plans 4/4 complete and awaiting phase-level closeout (gsd-secure-phase 4 → gsd-verify-work 4 → phase.complete). 17 of 17 known plans summarised. Phase 3 closed 2026-05-09 with 2 accepted-deferred V1.1 gaps (email-confirmation deep-link handler — code path already maps the relevant Supabase error codes; deferral is environmental). Phase 4 Plan 01 complete 2026-05-10 (offline-queue plumbing + 7 Wave 0 verification scripts; 8/8 tests green). Phase 4 Plan 02 complete 2026-05-10 (tabs skeleton + Planer list + plans/new + OfflineBanner; F2 CREATE-side closed end-to-end). Phase 4 Plan 03 complete 2026-05-10 (plan-detail + exercise-picker with chained create-and-add scope binding + plan_exercise targets edit modal; F2 EDIT/ARCHIVE + F3 + F4 ADD-side closed end-to-end). Phase 4 Plan 04 complete 2026-05-10 (drag-reorder via DraggableFlatList + Phase 4 cross-user RLS gate — 29 assertions PASS — + manual airplane-mode UAT signed off `approved`; F4 reorder-side closes; all 5 ROADMAP Phase 4 success criteria MET). Phases 5-7 plan counts pending discuss/plan.
+**Project progress:** 3 of 7 phases complete (~43%); Phase 4 plans 4/4 complete and awaiting phase-level closeout (gsd-secure-phase 4 → gsd-verify-work 4 → phase.complete). 17 of 17 known plans summarised. Phase 3 closed 2026-05-09 with 2 accepted-deferred V1.1 gaps (email-confirmation deep-link handler — code path already maps the relevant Supabase error codes; deferral is environmental). Phase 4 Plan 01 complete 2026-05-10 (offline-queue plumbing + 7 Wave 0 verification scripts; 8/8 tests green). Phase 4 Plan 02 complete 2026-05-10 (tabs skeleton + Planer list + plans/new + OfflineBanner; F2 CREATE-side closed end-to-end). Phase 4 Plan 03 complete 2026-05-10 (plan-detail + exercise-picker with chained create-and-add scope binding + plan_exercise targets edit modal; F2 EDIT/ARCHIVE + F3 + F4 ADD-side closed end-to-end). Phase 4 Plan 04 complete 2026-05-10 (drag-reorder via DraggableFlatList + Phase 4 cross-user RLS gate — 29 assertions PASS — + manual airplane-mode UAT signed off `approved`; F4 reorder-side closes; all 5 ROADMAP Phase 4 success criteria MET). Phase 6 planned 2026-05-15 (3 plans for F9 list slice + F9 session-detail + F10 chart slice; vertical slicing per MVP_MODE — each plan delivers a demoable user-visible feature; depends on Plan 01 RPC migration before Plans 02/03 ship). Phase 7 plan counts pending discuss/plan.
 
 ## Phase Ordering Rationale
 
@@ -207,4 +210,4 @@ V2-faser som kräver research vid planering:
 
 ---
 *Roadmap created: 2026-05-07*
-*Last updated: 2026-05-07 after initial creation*
+*Last updated: 2026-05-15 after Phase 6 planning (3 plans)*
