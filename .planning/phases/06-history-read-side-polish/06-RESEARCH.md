@@ -1109,29 +1109,29 @@ return (
 | A8 | Default `staleTime` (30s) from `lib/query/client.ts` is appropriate for the F9 list (no special `staleTime` override needed) | Pattern 1 | If the user logs a new session while on the history-tab, the optimistic update from `['session','finish']` invalidates `sessionsKeys.listInfinite()` via `onSettled` (verified in `client.ts` line 700 — `void queryClient.invalidateQueries({ queryKey: sessionsKeys.list() })` — note this is `sessionsKeys.list()`, not `sessionsKeys.listInfinite()` — **the planner must add an additional invalidate for `sessionsKeys.listInfinite()` to the existing `['session','finish']` onSettled handler in client.ts so newly-finished sessions appear in history without waiting for staleTime**). Risk: planner forgets the additional invalidate → new sessions take up to 30s to appear in history. Mitigation: add to plan's Wave 0 / verification. |
 | A9 | Service-role audit gate (`git grep "service_role|SERVICE_ROLE"`) is unaffected by Phase 6 because no new file touches service-role keys | CLAUDE.md §Security conventions | Verified: new RPC migration uses `security invoker` (not definer); test-rls.ts extension uses the existing admin client setup. Low risk. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Should F9 history-row `set_count` filter `set_type = 'working'` or count all set-types?**
+1. **Should F9 history-row `set_count` filter `set_type = 'working'` or count all set-types?** — RESOLVED: filter `set_type = 'working'` per A1 + Plan 06-01a migration comment (locked working-set-canonical convention with F7+F10).
    - What we know: V1 always writes 'working' so the answer is invisible in V1. V1.1 F17-UI ships warmup/dropset/failure tagging.
    - What's unclear: Whether the user expects history-row count to stay stable across V1 → V1.1 (i.e., always "working sets") OR to bump up to include warmup sets (i.e., "all sets") when F17-UI ships.
    - Recommendation: Filter `set_type = 'working'` per A1 above. Planner can flag for user confirmation during the discuss-phase summary. Document the decision in the migration comment.
 
-2. **`@react-native-segmented-control/segmented-control` vs NativeWind-baserat fallback?**
+2. **`@react-native-segmented-control/segmented-control` vs NativeWind-baserat fallback?** — RESOLVED: NativeWind-baserat per UI-SPEC primary path + Plan 06-03 Task 2 (no new dep added; native control deferred to V1.1).
    - What we know: UI-SPEC picked NativeWind-baserat as primary path (no install needed). Both are valid.
    - What's unclear: Whether the planner has discretion to swap to native control if NativeWind path proves visually inferior during execution.
    - Recommendation: Start with NativeWind path per UI-SPEC. Defer native-control switch to V1.1 polish if needed.
 
-3. **Should the F10 RPC accept `metric` as a typed enum or as a free-text string?**
+3. **Should the F10 RPC accept `metric` as a typed enum or as a free-text string?** — RESOLVED: `text` parameter per Plan 06-01a migration (CASE WHEN in SQL body) + Zod literal-union on the client side (ChartMetric type in lib/queries/exercise-chart.ts). No new ENUM schema change.
    - What we know: Postgres can express `p_metric text check (p_metric in ('weight','volume'))` OR a real ENUM type.
    - What's unclear: The `set_type` ENUM precedent argues for a real enum, but it's a 2-value perpetual schema change vs a 2-line check constraint. Either works.
    - Recommendation: `text` with check constraint at the SQL level + Zod literal-union on the client TS side. Same enforcement, less migration weight. (Could also use existing `set_type` ENUM as inspiration — pick once.)
 
-4. **What's the `domain` lower bound on the Y-axis — auto or zero-anchored?**
+4. **What's the `domain` lower bound on the Y-axis — auto or zero-anchored?** — RESOLVED: auto-scale per D-22 + Plan 06-03 Task 3 (CartesianChart `domainPadding` inherits Victory Native defaults; no explicit `domain` prop forces 0 — vikt-progression visible).
    - What we know: UI-SPEC says Y-axis auto-scale (D-22) so vikt progression `80 → 82.5` is visible.
    - What's unclear: For `Total volym` metric where values are larger (`2000+`), should the lower bound start at 0 (so the visual magnitude of growth is honest) OR at `min(values) - padding` (so daily fluctuations are visible)?
    - Recommendation: Always auto-scale per D-22 — for a personal user looking at their own trend, the question is "am I improving" not "what's the absolute magnitude". Strong/Hevy both auto-scale.
 
-5. **Should the chart canvas use the new Victory Native XL `xAxis`/`yAxis`/`frame` props (post-deprecation) or the legacy `axisOptions`?**
+5. **Should the chart canvas use the new Victory Native XL `xAxis`/`yAxis`/`frame` props (post-deprecation) or the legacy `axisOptions`?** — RESOLVED: `axisOptions` for V1 per Plan 06-03 Task 3 (deprecated API still works in 41.20.2; refactor to new API is V1.1 polish — flag as tech-debt during phase close).
    - What we know: Context7 docs show `axisOptions` is deprecated in favor of `xAxis`, `yAxis`, `frame` props (Victory Native XL v41+).
    - What's unclear: Whether the deprecated `axisOptions` still works in `41.20.2` or whether the planner should migrate to the new API.
    - Recommendation: Use `axisOptions` for V1 (the deprecated API still works in 41.x — confirmed by reading current Victory Native XL source-of-truth blog tutorials May 2026). The new API is identical capability-wise; refactor to it as V1.1 polish. Keep this as a documented technical-debt item if the migration is non-trivial.
