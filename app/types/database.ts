@@ -237,7 +237,35 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_exercise_chart: {
+        Args: { p_exercise_id: string; p_metric: string; p_since: string }
+        Returns: {
+          day: string
+          value: number
+        }[]
+      }
+      get_exercise_top_sets: {
+        Args: { p_exercise_id: string; p_limit?: number; p_since: string }
+        Returns: {
+          completed_at: string
+          reps: number
+          session_id: string
+          weight_kg: number
+        }[]
+      }
+      get_session_summaries: {
+        Args: { p_cursor: string; p_page_size?: number }
+        Returns: {
+          finished_at: string
+          id: string
+          plan_id: string
+          plan_name: string
+          set_count: number
+          started_at: string
+          total_volume_kg: number
+          user_id: string
+        }[]
+      }
     }
     Enums: {
       set_type: "working" | "warmup" | "dropset" | "failure"

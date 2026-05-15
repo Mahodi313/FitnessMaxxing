@@ -17,6 +17,7 @@
     "test:plan-exercise-schemas": "tsx scripts/test-plan-exercise-schemas.ts",
     "test:session-schemas": "tsx scripts/test-session-schemas.ts",
     "test:set-schemas": "tsx scripts/test-set-schemas.ts",
+    "test:exercise-chart": "tsx --env-file=.env.local scripts/test-exercise-chart.ts",
     "test:last-value-query": "tsx scripts/test-last-value-query.ts",
     "test:reorder-constraint": "tsx scripts/test-reorder-constraint.ts",
     "test:upsert-idempotency": "tsx scripts/test-upsert-idempotency.ts",
