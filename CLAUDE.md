@@ -305,6 +305,27 @@ npm run linear:sync-phase -- --phase 6 --dry-run
 
 **Skillnad mot `linear:create`:** `linear:create` är för buggar/debt/deferred/UI-findings under arbete. `linear:sync-phase` är för plan-strukturen efter `/gsd-plan-phase` — håll dem separata.
 
+### Automatisk Linear-tagging vid execute-phase
+
+När `/gsd-execute-phase N` körs efter `linear:sync-phase`, taggas commits automatiskt:
+
+- **gsd-executor** läser `.linear-sync.json` vid plan-start och extraherar `LINEAR_ISSUE_ID` för aktuell plan
+- Varje per-task-commit, TDD `test/feat/refactor`-commit, och SUMMARY-commit får suffixet ` [FIT-XX]` i meddelandet
+- Om manifest saknas eller är ur synk → commits händer ändå men UTAN Linear-tagg (varning printas, ingen krasch)
+
+**CI gör resten:**
+- `phase-branch.yml` läser manifestet vid PR-creation och injicerar en `## Linear` sektion i PR-bodyn med `Parent epic: FIT-X` + `Fixes FIT-Y` per sub-issue
+- Vid PR-merge stängs alla sub-issues automatiskt via GitHub→Linear integration
+- Linear stänger parent-epicen automatiskt när alla sub-issues är stängda
+
+**Helper-skript:** `npm run linear:plan-id -- --phase N --plan PLAN_ID` slår upp sub-issue ID:t från manifestet (används av executor + CI; kan också köras manuellt vid debugging).
+
+```bash
+npm run linear:plan-id -- --phase 6 --plan 01a       # → FIT-62
+npm run linear:plan-id -- --phase 6 --epic           # → FIT-61
+npm run linear:plan-id -- --phase 6 --format pr-body # → Fixes FIT-62\nFixes FIT-63\n...
+```
+
 ### Prioritetsregler
 | Situation | Åtgärd |
 |-----------|--------|
