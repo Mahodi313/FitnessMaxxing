@@ -59,9 +59,9 @@ import {
 } from "victory-native";
 import {
   Circle,
+  matchFont,
   RoundedRect,
   Text as SkiaText,
-  useFont,
 } from "@shopify/react-native-skia";
 import { useDerivedValue, useSharedValue } from "react-native-reanimated";
 
@@ -109,7 +109,10 @@ export default function ExerciseChartScreen() {
   const accent = isDark ? "#60A5FA" : "#2563EB";
   const axisColor = muted;
   const gridColor = isDark ? "#374151" : "#E5E7EB";
-  const tooltipBg = isDark ? "#1F2937" : "#FFFFFF";
+  // FIT-67 follow-up: dark-mode tooltipBg was `#1F2937` (gray-800) which
+  // matched the chart container's `bg-gray-800` → tooltip blended into the
+  // background. Bump to gray-700 (`#374151`) for an elevated-surface look.
+  const tooltipBg = isDark ? "#374151" : "#FFFFFF";
 
   // Local state — D-14 default Max vikt; D-15 default 3M.
   const [metric, setMetric] = useState<ChartMetric>("weight");
@@ -178,9 +181,18 @@ export default function ExerciseChartScreen() {
     [chartQuery.data],
   );
 
-  // Skia font for axis labels + tooltip text. useFont(null, 12) returns a
-  // system-font Skia font synchronously (RESEARCH A4 — fallback acceptable).
-  const font = useFont(null, 12);
+  // Skia font for axis labels + tooltip text.
+  //
+  // FIT-67 root-cause fix: the prior `useFont(null, 12)` returned `null` on
+  // @shopify/react-native-skia@2.2.12 because Skia 2.x removed the default
+  // system-font fallback for null typefaces (RESEARCH A4 was outdated for
+  // Skia 1.x — verified by symptom: NO axis labels rendered on iPhone, and
+  // tooltip text was invisible alongside the tooltip RoundedRect blending
+  // into the chart-container background). `matchFont` resolves a system
+  // typeface via `Skia.FontMgr.System().matchFamilyStyle(...)` synchronously
+  // and returns a non-null SkFont — Helvetica is iOS's canonical system
+  // font (V1 is iOS-only so the default-platform branch is unreachable).
+  const font = matchFont({ fontFamily: "Helvetica", fontSize: 12 });
 
   // useChartPressState init shape MUST mirror yKeys=['y'] so state.y.y.position
   // is defined (RESEARCH Pitfall 2). Init shape literal: { x: 0, y: { y: 0 } }
@@ -415,7 +427,7 @@ type ChartPressCalloutProps = {
     typeof useChartPressState<{ x: number; y: { y: number } }>
   >["state"];
   chartBounds: { left: number; right: number; top: number; bottom: number };
-  font: ReturnType<typeof useFont>;
+  font: ReturnType<typeof matchFont>;
   tooltipBg: string;
   tooltipValueText: ReturnType<typeof useDerivedValue<string>>;
   tooltipDateText: ReturnType<typeof useDerivedValue<string>>;
