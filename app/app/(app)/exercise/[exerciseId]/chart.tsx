@@ -38,7 +38,7 @@
 //   - 06-UI-SPEC.md §Chart screen container + §ChartPressCallout
 //   - 06-PATTERNS.md "app/app/(app)/exercise/[exerciseId]/chart.tsx"
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -63,7 +63,7 @@ import {
   Text as SkiaText,
   useFont,
 } from "@shopify/react-native-skia";
-import { useDerivedValue } from "react-native-reanimated";
+import { useDerivedValue, useSharedValue } from "react-native-reanimated";
 
 import { useExercisesQuery } from "@/lib/queries/exercises";
 import {
@@ -186,17 +186,39 @@ export default function ExerciseChartScreen() {
   // is defined (RESEARCH Pitfall 2). Init shape literal: { x: 0, y: { y: 0 } }
   const { state: pressState, isActive } = useChartPressState({ x: 0, y: { y: 0 } });
 
+  // FIT-67 bug-fix (2026-05-15): UI-thread tooltip text was always empty
+  // (rectangle rendered, text did not) because the `useDerivedValue` worklet
+  // captured `tooltipValueTexts` / `tooltipDateTexts` from the first render
+  // (when `chartQuery.data` was still undefined → memo returned `[]`).
+  // Reanimated 4 + Worklets 0.5 does not reliably re-capture JS-thread
+  // closure variables across renders for `useDerivedValue` — re-execution
+  // is driven by SharedValue reads, not by closure-variable reference
+  // changes. Pattern: mirror the JS-thread arrays into SharedValues via
+  // useEffect, then have the worklets read `.value` (which IS reactive).
+  const valueTextsSV = useSharedValue<string[]>(tooltipValueTexts);
+  const dateTextsSV = useSharedValue<string[]>(tooltipDateTexts);
+  useEffect(() => {
+    valueTextsSV.value = tooltipValueTexts;
+  }, [tooltipValueTexts, valueTextsSV]);
+  useEffect(() => {
+    dateTextsSV.value = tooltipDateTexts;
+  }, [tooltipDateTexts, dateTextsSV]);
+
   // Tooltip text via useDerivedValue (Reanimated worklet — runs on UI thread
   // to follow the press gesture smoothly). Worklet ONLY indexes into the
-  // pre-formatted arrays above; no non-worklet JS is invoked here.
+  // SharedValue-mirrored arrays; no non-worklet JS is invoked here. Reads
+  // are reactive via `valueTextsSV.value` so JS-thread data updates flow
+  // to the UI thread without re-creating the worklet.
   const tooltipValueText = useDerivedValue(() => {
     const idx = pressState.matchedIndex.value;
-    return tooltipValueTexts[idx] ?? "";
+    const arr = valueTextsSV.value;
+    return idx >= 0 && idx < arr.length ? arr[idx] : "";
   });
 
   const tooltipDateText = useDerivedValue(() => {
     const idx = pressState.matchedIndex.value;
-    return tooltipDateTexts[idx] ?? "";
+    const arr = dateTextsSV.value;
+    return idx >= 0 && idx < arr.length ? arr[idx] : "";
   });
 
   const formatYAxisLabel = (n: number) =>
