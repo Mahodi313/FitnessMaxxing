@@ -138,6 +138,35 @@ export default function ExerciseChartScreen() {
     [chartQuery.data],
   );
 
+  // Pre-format tooltip strings on the JS thread (WR-03 fix). The previous
+  // implementation called `Number.prototype.toLocaleString` and `date-fns
+  // .format()` inside `useDerivedValue` worklets — neither is a worklet, so
+  // under Reanimated 4 those calls either threw "Tried to synchronously call
+  // a non-worklet function on the UI thread" or silently fell back to JS-
+  // thread evaluation. Pre-formatting into parallel arrays here, then having
+  // the worklets index by `pressState.matchedIndex.value`, keeps the press-
+  // tracking on the UI thread without referencing any non-worklet JS.
+  // Dep array follows the D-21 contract: chartQuery.data is the data
+  // identity; metric is already in the queryKey so chartQuery.data is a
+  // fresh reference when metric changes, but the formatter branch on metric
+  // ('volume' vs 'weight') means we still must list metric explicitly.
+  const tooltipValueTexts = useMemo(
+    () =>
+      (chartQuery.data ?? []).map((row) =>
+        metric === "volume"
+          ? `${formatNumber(row.value)} kg`
+          : `${row.value} kg`,
+      ),
+    [chartQuery.data, metric],
+  );
+  const tooltipDateTexts = useMemo(
+    () =>
+      (chartQuery.data ?? []).map((row) =>
+        format(new Date(row.day), "d MMM yyyy", { locale: sv }),
+      ),
+    [chartQuery.data],
+  );
+
   // Skia font for axis labels + tooltip text. useFont(null, 12) returns a
   // system-font Skia font synchronously (RESEARCH A4 — fallback acceptable).
   const font = useFont(null, 12);
@@ -147,16 +176,16 @@ export default function ExerciseChartScreen() {
   const { state: pressState, isActive } = useChartPressState({ x: 0, y: { y: 0 } });
 
   // Tooltip text via useDerivedValue (Reanimated worklet — runs on UI thread
-  // to follow the press gesture smoothly).
+  // to follow the press gesture smoothly). Worklet ONLY indexes into the
+  // pre-formatted arrays above; no non-worklet JS is invoked here.
   const tooltipValueText = useDerivedValue(() => {
-    const v = pressState.y.y.value.value;
-    return metric === "volume" ? `${formatNumber(v)} kg` : `${v} kg`;
+    const idx = pressState.matchedIndex.value;
+    return tooltipValueTexts[idx] ?? "";
   });
 
   const tooltipDateText = useDerivedValue(() => {
-    return format(new Date(pressState.x.value.value), "d MMM yyyy", {
-      locale: sv,
-    });
+    const idx = pressState.matchedIndex.value;
+    return tooltipDateTexts[idx] ?? "";
   });
 
   const formatYAxisLabel = (n: number) =>
