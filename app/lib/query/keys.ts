@@ -49,6 +49,12 @@ export const sessionsKeys = {
   list: () => [...sessionsKeys.all, "list"] as const,
   detail: (id: string) => [...sessionsKeys.all, "detail", id] as const,
   active: () => [...sessionsKeys.all, "active"] as const,
+  // Phase 6 — F9 cursor-paginated infinite list (06-CONTEXT.md D-03,
+  // 06-RESEARCH §Pattern 1). Distinct from `list()` so the existing 30s
+  // stale-time and any future single-page consumers stay isolated from the
+  // useInfiniteQuery cache slot (which has a `{ pages, pageParams }`
+  // envelope — see Pitfall 6 in 06-RESEARCH).
+  listInfinite: () => [...sessionsKeys.all, "list-infinite"] as const,
 };
 
 export const setsKeys = {
