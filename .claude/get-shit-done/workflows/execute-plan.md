@@ -240,9 +240,9 @@ End with: **Total deviations:** N auto-fixed (breakdown). **Impact:** assessment
 For `type: tdd` plans — RED-GREEN-REFACTOR:
 
 1. **Infrastructure** (first TDD plan only): detect project, install framework, config, verify empty suite
-2. **RED:** Read `<behavior>` → failing test(s) → run (MUST fail) → commit: `test({phase}-{plan}): add failing test for [feature]`
-3. **GREEN:** Read `<implementation>` → minimal code → run (MUST pass) → commit: `feat({phase}-{plan}): implement [feature]`
-4. **REFACTOR:** Clean up → tests MUST pass → commit: `refactor({phase}-{plan}): clean up [feature]`
+2. **RED:** Read `<behavior>` → failing test(s) → run (MUST fail) → commit: `test({phase}-{plan}): add failing test for [feature]${LINEAR_ISSUE_ID:+ [$LINEAR_ISSUE_ID]}`
+3. **GREEN:** Read `<implementation>` → minimal code → run (MUST pass) → commit: `feat({phase}-{plan}): implement [feature]${LINEAR_ISSUE_ID:+ [$LINEAR_ISSUE_ID]}`
+4. **REFACTOR:** Clean up → tests MUST pass → commit: `refactor({phase}-{plan}): clean up [feature]${LINEAR_ISSUE_ID:+ [$LINEAR_ISSUE_ID]}`
 
 Errors: RED doesn't fail → investigate test/existing feature. GREEN doesn't pass → debug, iterate. REFACTOR breaks → undo.
 

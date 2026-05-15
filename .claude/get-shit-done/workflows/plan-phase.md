@@ -1661,6 +1661,29 @@ Verification: {Passed | Passed with override | Skipped}
 
 ───────────────────────────────────────────────────────────────
 
+## ⚡ Synka till Linear INNAN du fortsätter
+
+Phase 6:s 4 planer behöver Linear-lappar så commits kan referera dem och PR:n kan stänga dem automatiskt. Kör **från repo-roten**:
+
+```
+npm run linear:sync-phase -- --phase {X}
+```
+
+Detta skapar:
+- En **parent-epic** "Phase {X}: {Name}" i Linear
+- En **sub-issue per plan** (taggade med label `Plan`, länkade till Linear-projektet "Phase {X} — {Name}")
+- Manifestet `.planning/phases/{phase-dir}/.linear-sync.json` så re-körning **uppdaterar** existerande lappar istället för att skapa dubbletter
+
+Vill du först granska planerna utan att skapa lappar? Kör `--dry-run`:
+
+```
+npm run linear:sync-phase -- --phase {X} --dry-run
+```
+
+**Commit-konvention:** referera **sub-issue ID:t** (`[FIT-XX]`) i commit-meddelandet — inte epic-ID:t. PR-body: `Fixes FIT-XX` per sub-issue; Linear stänger parent-epicen automatiskt när alla subs är stängda.
+
+───────────────────────────────────────────────────────────────
+
 ## ▶ Next Up — [${PROJECT_CODE}] ${PROJECT_TITLE}
 
 **Execute Phase {X}** — run all {N} plans
@@ -1676,6 +1699,7 @@ Verification: {Passed | Passed with override | Skipped}
 - /gsd-plan-phase {X} --research — re-research first
 - /gsd-review --phase {X} --all — peer review plans with external AIs
 - /gsd-plan-phase {X} --reviews — replan incorporating review feedback
+- npm run linear:sync-phase -- --phase {X} --dry-run — preview Linear-lapparna utan att skapa dem
 
 ───────────────────────────────────────────────────────────────
 </offer_next>

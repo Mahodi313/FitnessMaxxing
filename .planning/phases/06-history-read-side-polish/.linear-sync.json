@@ -1,0 +1,24 @@
+{
+  "phase": "6",
+  "plans": {
+    "01a": {
+      "issue_id": "FIT-62",
+      "linear_id": "39990be7-341b-45b4-8a8a-823ca6b8eb3c"
+    },
+    "01b": {
+      "issue_id": "FIT-63",
+      "linear_id": "c3ca90f0-3a17-4746-85e3-f065e8d462ee"
+    },
+    "02": {
+      "issue_id": "FIT-64",
+      "linear_id": "6a2f643c-313e-4811-a0c0-bfdf9c1b55bf"
+    },
+    "03": {
+      "issue_id": "FIT-65",
+      "linear_id": "a3110c02-a34b-4c56-b8ff-4b8175e35a8e"
+    }
+  },
+  "epic_issue_id": "FIT-61",
+  "epic_linear_id": "beb03041-ccb8-4155-8254-1b993f4a65eb",
+  "last_synced": "2026-05-15T15:40:07.456Z"
+}

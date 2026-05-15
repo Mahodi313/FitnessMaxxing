@@ -90,6 +90,27 @@ Parse: frontmatter (phase, plan, type, autonomous, wave, depends_on), objective,
 **If plan references CONTEXT.md:** Honor user's vision throughout execution.
 </step>
 
+<step name="load_linear_issue_id">
+**FitnessMaxxing-specific.** After loading the plan, look up the Linear sub-issue ID
+for this plan so every task-commit can tag it.
+
+```bash
+LINEAR_ISSUE_ID=$(npm run --silent linear:plan-id -- --phase "${PHASE}" --plan "${PLAN}" 2>/dev/null || echo "")
+if [ -n "$LINEAR_ISSUE_ID" ]; then
+  echo "✓ Linear sub-issue för plan ${PHASE}.${PLAN}: ${LINEAR_ISSUE_ID}"
+else
+  echo "⚠ Ingen .linear-sync.json hittad för Phase ${PHASE} plan ${PLAN}."
+  echo "  Commits kommer INTE att tagga någon Linear-issue."
+  echo "  Kör 'npm run linear:sync-phase -- --phase ${PHASE}' efter exit om du vill koppla dem."
+fi
+```
+
+`LINEAR_ISSUE_ID` is empty-string-safe: shell expansion `${LINEAR_ISSUE_ID:+ [$LINEAR_ISSUE_ID]}`
+in the commit-template (see task_commit_protocol) becomes a no-op when the variable
+is empty. This guarantees executor never crashes if the manifest is missing or out of date —
+commits still happen, just without the Linear-tag.
+</step>
+
 <step name="record_start_time">
 ```bash
 PLAN_START_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
@@ -333,11 +354,11 @@ When executing task with `tdd="true"`:
 
 **1. Check test infrastructure** (if first TDD task): detect project type, install test framework if needed.
 
-**2. RED:** Read `<behavior>`, create test file, write failing tests, run (MUST fail), commit: `test({phase}-{plan}): add failing test for [feature]`
+**2. RED:** Read `<behavior>`, create test file, write failing tests, run (MUST fail), commit: `test({phase}-{plan}): add failing test for [feature]${LINEAR_ISSUE_ID:+ [$LINEAR_ISSUE_ID]}`
 
-**3. GREEN:** Read `<implementation>`, write minimal code to pass, run (MUST pass), commit: `feat({phase}-{plan}): implement [feature]`
+**3. GREEN:** Read `<implementation>`, write minimal code to pass, run (MUST pass), commit: `feat({phase}-{plan}): implement [feature]${LINEAR_ISSUE_ID:+ [$LINEAR_ISSUE_ID]}`
 
-**4. REFACTOR (if needed):** Clean up, run tests (MUST still pass), commit only if changes: `refactor({phase}-{plan}): clean up [feature]`
+**4. REFACTOR (if needed):** Clean up, run tests (MUST still pass), commit only if changes: `refactor({phase}-{plan}): clean up [feature]${LINEAR_ISSUE_ID:+ [$LINEAR_ISSUE_ID]}`
 
 **Error handling:** RED doesn't fail ��� investigate. GREEN doesn't pass → debug/iterate. REFACTOR breaks → undo.
 
@@ -467,15 +488,22 @@ git add src/types/user.ts
 
 **4. Commit:**
 
+**Linear-tag suffix.** All commit messages MUST include the Linear sub-issue suffix
+`${LINEAR_ISSUE_ID:+ [$LINEAR_ISSUE_ID]}` at the end of the subject line. When
+`LINEAR_ISSUE_ID` is set (typical case after `npm run linear:sync-phase`), this expands
+to e.g. ` [FIT-62]`. When empty (no manifest or out of date), it expands to nothing —
+the commit still happens, just without the tag. Linear's GitHub integration scans
+commit messages for issue IDs and attaches them to the referenced issue's timeline.
+
 **If `sub_repos` is configured (non-empty array from init context):** Use `commit-to-subrepo` to route files to their correct sub-repo:
 ```bash
-gsd-sdk query commit-to-subrepo "{type}({phase}-{plan}): {concise task description}" --files file1 file2 ...
+gsd-sdk query commit-to-subrepo "{type}({phase}-{plan}): {concise task description}${LINEAR_ISSUE_ID:+ [$LINEAR_ISSUE_ID]}" --files file1 file2 ...
 ```
 Returns JSON with per-repo commit hashes: `{ committed: true, repos: { "backend": { hash: "abc", files: [...] }, ... } }`. Record all hashes for SUMMARY.
 
 **Otherwise (standard single-repo):**
 ```bash
-git commit -m "{type}({phase}-{plan}): {concise task description}
+git commit -m "{type}({phase}-{plan}): {concise task description}${LINEAR_ISSUE_ID:+ [$LINEAR_ISSUE_ID]}
 
 - {key change 1}
 - {key change 2}
@@ -658,11 +686,13 @@ gsd-sdk query state.add-blocker "Blocker description"
 
 <final_commit>
 ```bash
-gsd-sdk query commit "docs({phase}-{plan}): complete [plan-name] plan" --files \
+gsd-sdk query commit "docs({phase}-{plan}): complete [plan-name] plan${LINEAR_ISSUE_ID:+ [$LINEAR_ISSUE_ID]}" --files \
   .planning/phases/XX-name/{phase}-{plan}-SUMMARY.md .planning/STATE.md .planning/ROADMAP.md .planning/REQUIREMENTS.md
 ```
 
-Separate from per-task commits — captures execution results only.
+Separate from per-task commits — captures execution results only. The Linear-tag
+suffix `${LINEAR_ISSUE_ID:+ [$LINEAR_ISSUE_ID]}` ensures the SUMMARY-commit is
+attached to the same Linear sub-issue as the per-task commits.
 </final_commit>
 
 <completion_format>

@@ -279,6 +279,53 @@ npm run linear:create -- \
 
 Skriptet skriver ut `LINEAR_ISSUE_ID=FIT-XX` — inkludera det i nästa commit.
 
+### Synka fas-planer till Linear (efter `/gsd-plan-phase`)
+
+När en fas är planerad och alla gates är gröna — skapa en parent-epic per fas + en sub-issue per plan så att commits kan referera dem och PR:n kan stänga dem automatiskt:
+
+```bash
+npm run linear:sync-phase -- --phase 6
+```
+
+Detta gör:
+- **Parent-epic** "Phase 6: History & Read-Side Polish" (en Linear-issue)
+- **Sub-issue per plan** med `parentId: <epic_id>` (`Phase 6.01a — ...`, `Phase 6.01b — ...`, osv.)
+- Båda länkas till Linear-projektet "Phase 6 — History & Read-Side Polish" (om det finns; annars varnar skriptet och fortsätter)
+- Plan-issues taggas med label `Plan`
+- Sub-issue-descriptions innehåller objective, requirements, wave, depends_on, files_modified, och en markdown-checklist över alla tasks
+
+**Idempotent:** ett manifest sparas på `.planning/phases/<phase-dir>/.linear-sync.json` — re-körning **uppdaterar** befintliga issues istället för att skapa dubbletter. Säkert att köra igen efter `/gsd-plan-phase X --gaps` eller andra revisioner.
+
+**Preview först:**
+```bash
+npm run linear:sync-phase -- --phase 6 --dry-run
+```
+
+**Commit-konvention:** referera **sub-issue ID:t** i commit-meddelandet (t.ex. `[FIT-17]`) — inte epic-ID:t. PR-body: `Fixes FIT-17` per sub-issue. Linear stänger parent-epicen automatiskt när alla subs är stängda.
+
+**Skillnad mot `linear:create`:** `linear:create` är för buggar/debt/deferred/UI-findings under arbete. `linear:sync-phase` är för plan-strukturen efter `/gsd-plan-phase` — håll dem separata.
+
+### Automatisk Linear-tagging vid execute-phase
+
+När `/gsd-execute-phase N` körs efter `linear:sync-phase`, taggas commits automatiskt:
+
+- **gsd-executor** läser `.linear-sync.json` vid plan-start och extraherar `LINEAR_ISSUE_ID` för aktuell plan
+- Varje per-task-commit, TDD `test/feat/refactor`-commit, och SUMMARY-commit får suffixet ` [FIT-XX]` i meddelandet
+- Om manifest saknas eller är ur synk → commits händer ändå men UTAN Linear-tagg (varning printas, ingen krasch)
+
+**CI gör resten:**
+- `phase-branch.yml` läser manifestet vid PR-creation och injicerar en `## Linear` sektion i PR-bodyn med `Parent epic: FIT-X` + `Fixes FIT-Y` per sub-issue
+- Vid PR-merge stängs alla sub-issues automatiskt via GitHub→Linear integration
+- Linear stänger parent-epicen automatiskt när alla sub-issues är stängda
+
+**Helper-skript:** `npm run linear:plan-id -- --phase N --plan PLAN_ID` slår upp sub-issue ID:t från manifestet (används av executor + CI; kan också köras manuellt vid debugging).
+
+```bash
+npm run linear:plan-id -- --phase 6 --plan 01a       # → FIT-62
+npm run linear:plan-id -- --phase 6 --epic           # → FIT-61
+npm run linear:plan-id -- --phase 6 --format pr-body # → Fixes FIT-62\nFixes FIT-63\n...
+```
+
 ### Prioritetsregler
 | Situation | Åtgärd |
 |-----------|--------|
@@ -298,13 +345,19 @@ npm run linear:issues
     ↓
 Urgent bug? → git checkout -b fix/FIT-XX → fixa → push → PR
     ↓
+/gsd-plan-phase X
+    ↓
+npm run linear:sync-phase -- --phase X   ← skapar epic + sub-issues per plan
+    ↓
 /gsd-execute-phase X
     ↓
-Hittar bug/debt → create-linear-issue.ts → FIT-XX skapas
+Hittar bug/debt → create-linear-issue.ts → FIT-XX skapas (separat från plan-issues)
     ↓
 git push origin gsd/phase-XX → CI triggas → PR öppnas mot dev
     ↓
-Du mergar PR → Linear stänger FIT-XX automatiskt
+PR-body: "Fixes FIT-A, Fixes FIT-B, ..." (sub-issue IDs per plan)
+    ↓
+Du mergar PR → Linear stänger sub-issues → parent-epic stängs automatiskt
     ↓
 dev.yml triggas → Draft PR mot main uppdateras
 ```
