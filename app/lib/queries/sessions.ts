@@ -221,3 +221,30 @@ export function useSessionsListInfiniteQuery() {
     enabled: !!userId,
   });
 }
+
+// ---------------------------------------------------------------------------
+// Phase 6 — F9 delete-pass mutation hook (06-CONTEXT.md D-07,
+// 06-RESEARCH.md §Pattern 6).
+//
+// Pitfall 8.1 — hook owns ONLY mutationKey + scope.id. The mutationFn +
+// onMutate/onError/onSettled live in lib/query/client.ts setMutationDefaults
+// block 14 so paused mutations re-hydrate with the same logic on cold-start
+// (Pitfall 8.2 + 8.12). scope.id = `session:${sessionId}` matches the Phase 5
+// session-scope so any in-flight ['set','add']/['set','update']/['set','remove']
+// mutations for this session replay FIFO with the trailing delete on
+// reconnect.
+//
+// V1: Delete cascades to exercise_sets via FK on delete cascade (migration
+// 0001 line 74; verified in Plan 06-01a Wave 0 cascade assertion) — no
+// client-side set-cleanup needed. RLS scopes server-side (Plan 06-01a
+// test-rls.ts cross-user assertion).
+// ---------------------------------------------------------------------------
+
+type SessionDeleteVars = { id: string };
+
+export function useDeleteSession(sessionId?: string) {
+  return useMutation<void, Error, SessionDeleteVars>({
+    mutationKey: ["session", "delete"] as const,
+    scope: sessionId ? { id: `session:${sessionId}` } : undefined,
+  });
+}
