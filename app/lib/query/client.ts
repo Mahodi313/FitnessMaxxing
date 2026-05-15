@@ -162,6 +162,35 @@ type SetUpdateVars = { id: string; session_id: string } & Partial<
 // SetRemoveVars: useRemoveSet(sessionId).mutate({ id, session_id })
 type SetRemoveVars = { id: string; session_id: string };
 
+// ---- Phase 6 type aliases (session delete) ---------------------------------
+// SessionDeleteVars: useDeleteSession(sessionId).mutate({ id }) — DELETE the
+// workout_sessions row; FK on delete cascade (migration 0001) handles
+// exercise_sets cleanup server-side.
+type SessionDeleteVars = { id: string };
+
+// SessionSummary is the shape of rows in the sessionsKeys.listInfinite()
+// cache slot (returned by get_session_summaries RPC, parsed via
+// SessionSummarySchema in lib/queries/sessions.ts). It is a SUPERSET of
+// SessionRow with plan_name + per-session aggregates joined in.
+//
+// Inlined here rather than imported from "@/lib/queries/sessions" — that
+// module already imports `queryClient` from this file, so importing the type
+// back would create a circular import (TS handles type-only imports without
+// runtime cycles, but tooling chains downstream of erasable-syntax flags
+// occasionally hiccup; inlining is the safer same-version-of-the-truth path
+// because both declarations are exported from their respective modules and
+// must stay in lock-step regardless).
+type SessionSummary = {
+  id: string;
+  user_id: string;
+  plan_id: string | null;
+  started_at: string;
+  finished_at: string | null;
+  plan_name: string | null;
+  set_count: number;
+  total_volume_kg: number;
+};
+
 // ---------------------------------------------------------------------------
 // Mutation defaults — register all 8 keys at MODULE TOP-LEVEL.
 //
@@ -900,6 +929,116 @@ queryClient.setMutationDefaults(["set", "remove"], {
   onSettled: (_d, _e, vars) => {
     void queryClient.invalidateQueries({
       queryKey: setsKeys.list(vars.session_id),
+    });
+  },
+  retry: 1,
+});
+
+// ===========================================================================
+// Phase 6: 1 new mutationDefault for F9 delete-pass (06-CONTEXT.md D-07,
+// 06-RESEARCH.md §Pattern 6).
+//
+// Module-load-order invariant (Pitfall 1): MUST register at module top-level
+// BEFORE persister.ts hydrates paused mutations from AsyncStorage — a paused
+// ['session','delete'] from a previous app session re-hydrated with no
+// mutationFn would silently never replay (= dead row in cache, never deleted
+// server-side).
+//
+// scope.id contract (Phase 6 addition): useDeleteSession in
+// lib/queries/sessions.ts bakes `scope: { id: 'session:<sessionId>' }` at
+// useMutation() construction time so the delete replays in FIFO order with
+// any in-flight session-scoped mutations (e.g. a queued ['set','add'] before
+// the delete lands so the server-side cascade still purges it correctly —
+// not strictly necessary since cascade handles any order, but keeps the
+// scope-discipline uniform with Phase 5).
+// ===========================================================================
+
+// ===========================================================================
+// 14) ['session','delete'] — workout_sessions DELETE.
+// Optimistic onMutate removes the deleted session from the
+// sessionsKeys.listInfinite() cache slot. The listInfinite cache holds a
+// `{ pages, pageParams }` envelope (useInfiniteQuery shape — distinct from
+// flat `list()` cache used by ['plan','archive']) so the filter MUST walk
+// `pages.map(page => page.filter(...))` rather than a flat `.filter()` —
+// Pitfall 6 in 06-RESEARCH.md documents the common mistake.
+//
+// Also clears sessionsKeys.detail(id) so any back-button navigation does
+// not render a stale session, and invalidates setsKeys.list(id) onSettled
+// so the now-orphaned per-session set cache is purged (FK on delete cascade
+// already removed the rows server-side; we just clear the client cache).
+//
+// retry: 1 — single retry on transient network failure between paused and
+// finally-committed; second failure surfaces to user as Supabase error.
+// ===========================================================================
+queryClient.setMutationDefaults(["session", "delete"], {
+  mutationFn: async (vars: SessionDeleteVars) => {
+    const { error } = await supabase
+      .from("workout_sessions")
+      .delete()
+      .eq("id", vars.id);
+    if (error) throw error;
+    return undefined as void;
+  },
+  // scope.id is set at call-site via mutate() options — pass `scope: { id: 'session:<sessionId>' }`.
+  onMutate: async (vars: SessionDeleteVars) => {
+    await queryClient.cancelQueries({
+      queryKey: sessionsKeys.listInfinite(),
+    });
+    await queryClient.cancelQueries({
+      queryKey: sessionsKeys.detail(vars.id),
+    });
+    // Pitfall 6 (06-RESEARCH.md): useInfiniteQuery cache slot has shape
+    // `{ pages, pageParams }`, NOT a flat array. A `.filter()` on the slot
+    // wipes the entire envelope. The correct optimistic update is
+    // `pages.map(page => page.filter(...))` — preserves pageParams so
+    // hasNextPage / fetchNextPage continue working after the optimistic
+    // remove.
+    const previousList = queryClient.getQueryData<{
+      pages: SessionSummary[][];
+      pageParams: (string | null)[];
+    }>(sessionsKeys.listInfinite());
+    const previousDetail = queryClient.getQueryData<SessionRow>(
+      sessionsKeys.detail(vars.id),
+    );
+    if (previousList) {
+      queryClient.setQueryData(sessionsKeys.listInfinite(), {
+        ...previousList,
+        pages: previousList.pages.map((page) =>
+          page.filter((s) => s.id !== vars.id),
+        ),
+      });
+    }
+    // Clear detail cache so a back-navigation does not flash a stale session.
+    queryClient.setQueryData(sessionsKeys.detail(vars.id), undefined);
+    return { previousList, previousDetail };
+  },
+  onError: (_err, vars, ctx) => {
+    const c = ctx as
+      | {
+          previousList?: {
+            pages: SessionSummary[][];
+            pageParams: (string | null)[];
+          };
+          previousDetail?: SessionRow;
+        }
+      | undefined;
+    if (c?.previousList)
+      queryClient.setQueryData(sessionsKeys.listInfinite(), c.previousList);
+    if (c?.previousDetail !== undefined)
+      queryClient.setQueryData(sessionsKeys.detail(vars.id), c.previousDetail);
+  },
+  onSettled: (_d, _e, vars) => {
+    void queryClient.invalidateQueries({
+      queryKey: sessionsKeys.listInfinite(),
+    });
+    void queryClient.invalidateQueries({
+      queryKey: sessionsKeys.detail(vars.id),
+    });
+    // FK on delete cascade purged the rows server-side; clear the client
+    // cache so the now-orphaned per-session set list cannot resurrect from
+    // a stale subscriber.
+    void queryClient.invalidateQueries({
+      queryKey: setsKeys.list(vars.id),
     });
   },
   retry: 1,
