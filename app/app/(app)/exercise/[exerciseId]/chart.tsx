@@ -91,7 +91,15 @@ const formatNumber = (n: number) => n.toLocaleString("sv-SE");
 
 export default function ExerciseChartScreen() {
   const router = useRouter();
-  const { exerciseId } = useLocalSearchParams<{ exerciseId: string }>();
+  // useLocalSearchParams' generic is a TYPE ASSERTION, not a runtime guard
+  // (parity with history/[sessionId].tsx — workout/[sessionId].tsx WR-07).
+  // A malformed deep-link can land here with exerciseId as a string array
+  // which would poison the queryKey and produce an invalid Postgres UUID at
+  // the RPC boundary. Narrow explicitly; the `enabled: !!exerciseId` gate
+  // on the hooks below stops the queries from firing with undefined.
+  const rawParams = useLocalSearchParams<{ exerciseId: string }>();
+  const exerciseId =
+    typeof rawParams.exerciseId === "string" ? rawParams.exerciseId : undefined;
   const scheme = useColorScheme();
   const isDark = scheme === "dark";
 
@@ -112,10 +120,11 @@ export default function ExerciseChartScreen() {
   // cold deep-link with empty exercises cache).
   const exercisesQuery = useExercisesQuery();
   const exerciseName = useMemo(() => {
+    if (!exerciseId) return "Övning";
     const map = new Map(
       (exercisesQuery.data ?? []).map((e) => [e.id, e.name] as const),
     );
-    return map.get(exerciseId!) ?? "Övning";
+    return map.get(exerciseId) ?? "Övning";
   }, [exercisesQuery.data, exerciseId]);
 
   // Two queries (BLOCKER-3 — disambiguate window-empty vs all-time-empty):
@@ -123,9 +132,11 @@ export default function ExerciseChartScreen() {
   //   allTimeChartQuery → window='All' fallback for the empty-state branch
   // The second query is cache-shared so future All-window selections are
   // instant; it costs one fetch per (exerciseId, metric) tuple on cold cache.
-  const chartQuery = useExerciseChartQuery(exerciseId!, metric, chartWindow);
-  const allTimeChartQuery = useExerciseChartQuery(exerciseId!, metric, "All");
-  const topSetsQuery = useExerciseTopSetsQuery(exerciseId!, chartWindow, 10);
+  // The `?? ""` placeholder is harmless because `enabled: !!exerciseId`
+  // inside each hook short-circuits the fetch when narrowing failed.
+  const chartQuery = useExerciseChartQuery(exerciseId ?? "", metric, chartWindow);
+  const allTimeChartQuery = useExerciseChartQuery(exerciseId ?? "", metric, "All");
+  const topSetsQuery = useExerciseTopSetsQuery(exerciseId ?? "", chartWindow, 10);
 
   // D-21 memoization contract — dep array is EXACTLY [chartQuery.data]; do
   // not add metric/window deps since they are in the queryKey.
