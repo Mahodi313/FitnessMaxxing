@@ -146,7 +146,12 @@ FitnessMaxxing levereras som en personlig iPhone gym-tracker via Expo Go. Resan 
   3. Användare kan toggla dark mode manuellt i Settings-fliken; valet persisterar via `expo-secure-store` eller AsyncStorage
   4. Användare kan ta hela kärnflödet (skapa plan → starta pass → logga set → avsluta → se historik) på ≤2 minuter utan fel
   5. V1 är redo för 4-veckors soak-test mot kriterier i PRD §8 (1 bug/vecka, alla pass loggade utan papper)
-**Plans**: TBD
+**Plans**: 5 plans
+  - [ ] 07-01-PLAN.md — Theme toggle (F15) — useColorScheme migration (10 files atomic), Tema-sektion in Inställningar with SegmentedControl + AsyncStorage, ThemeBootstrap in root layout + dynamic StatusBar
+  - [ ] 07-02-PLAN.md — RPE inline input + history-suffix (F11) — setFormSchema.rpe schema-stretch (preprocess + bounds), third Controller in workout inline-row + Klart-button shrink, conditional · RPE suffix on history set-rows
+  - [ ] 07-03-PLAN.md — Notes capture in AvslutaOverlay (F12) — widen useFinishSession payload + amend setMutationDefaults block 10 with optimistic notes cache write; AvslutaOverlay TextInput + KeyboardAvoidingView + counter + handleConfirm payload
+  - [ ] 07-04-PLAN.md — Notes view + edit in history-detail (F12) — new useUpdateSessionNotes hook + 15th setMutationDefaults block; notes-block above SummaryHeader with two-mode affordance + inline-overlay edit pattern + useFocusEffect cleanup
+  - [ ] 07-05-PLAN.md — Core-flow ≤2 min UAT + Phase closeout — author 07-HUMAN-UAT.md + run pre-flight code gates + checkpoint:human-verify for manual iPhone UAT on all 19 SPEC acceptance rows + 3 timed core-flow runs
 **UI hint**: yes
 
 ## V1.1 (Future — Not Mapped to V1 Phases)
@@ -184,7 +189,7 @@ Phases execute sequentially: 1 → 2 → 3 → 4 → 5 → 6 → 7. Phase 5 må*
 | 4. Plans, Exercises & Offline-Queue Plumbing | 4/4 | Complete    | 2026-05-10 |
 | 5. Active Workout Hot Path | 7/7 | Complete    | 2026-05-14 |
 | 6. History & Read-Side Polish | 0/3 | ○ Planned (ready to execute) | — |
-| 7. V1 Polish Cut | 0/TBD | ○ Not started | — |
+| 7. V1 Polish Cut | 0/5 | ○ Planned (ready to execute) | — |
 
 **Project progress:** 3 of 7 phases complete (~43%); Phase 4 plans 4/4 complete and awaiting phase-level closeout (gsd-secure-phase 4 → gsd-verify-work 4 → phase.complete). 17 of 17 known plans summarised. Phase 3 closed 2026-05-09 with 2 accepted-deferred V1.1 gaps (email-confirmation deep-link handler — code path already maps the relevant Supabase error codes; deferral is environmental). Phase 4 Plan 01 complete 2026-05-10 (offline-queue plumbing + 7 Wave 0 verification scripts; 8/8 tests green). Phase 4 Plan 02 complete 2026-05-10 (tabs skeleton + Planer list + plans/new + OfflineBanner; F2 CREATE-side closed end-to-end). Phase 4 Plan 03 complete 2026-05-10 (plan-detail + exercise-picker with chained create-and-add scope binding + plan_exercise targets edit modal; F2 EDIT/ARCHIVE + F3 + F4 ADD-side closed end-to-end). Phase 4 Plan 04 complete 2026-05-10 (drag-reorder via DraggableFlatList + Phase 4 cross-user RLS gate — 29 assertions PASS — + manual airplane-mode UAT signed off `approved`; F4 reorder-side closes; all 5 ROADMAP Phase 4 success criteria MET). Phase 6 planned 2026-05-15 (3 plans for F9 list slice + F9 session-detail + F10 chart slice; vertical slicing per MVP_MODE — each plan delivers a demoable user-visible feature; depends on Plan 01 RPC migration before Plans 02/03 ship). Phase 7 plan counts pending discuss/plan.
 
