@@ -22,10 +22,8 @@ awaiting: user response
 
 ### 1. Skia tooltip renders on tap-and-hold (BLOCKER-1 device confirm)
 expected: Tap-and-hold a data point on `/exercise/<id>/chart` → see RoundedRect tooltip with value-line (`82.5 kg` for Max vikt, `3 240 kg` for Total volym) + date-line (`14 maj 2026`) above the pressed point; rect clamped to chartBounds at edges; highlight Circle follows the press; lift finger → tooltip + circle disappear.
-result: issue
-reported: "ERROR: Couldnt find a navigation context. Have you wrapped your app with NavigationContainer? — fires inside SegmentedControl options.map via react-native-css-interop printUpgradeWarning recursing through NavigationStateContext.js. Reproduced when opening the chart screen and pressing tid-intervall (WindowToggle)."
-severity: blocker
-linear: FIT-66
+result: [pending]
+note: "Initial run blocked by FIT-66 (SegmentedControl crash on tid-intervall press). Fix shipped in 6d50486; user confirmed crash gone — retesting tooltip."
 
 ### 2. Offline cache hydration (ROADMAP success #4)
 expected: (a) Open Historik tab online → list populates from network. (b) Enable Airplane Mode → force-quit Expo Go → reopen → list still visible (hydrated from AsyncStorage via PersistQueryClientProvider). OfflineBanner shows.
@@ -51,23 +49,25 @@ result: [pending]
 
 total: 6
 passed: 0
-issues: 1
-pending: 5
+issues: 0
+pending: 6
 skipped: 0
 blocked: 0
 
 ## Gaps
 
 - truth: "Skia tooltip renders on tap-and-hold on `/exercise/<id>/chart`"
-  status: failed
+  status: resolved
   reason: "User reported: ERROR Couldn't find a navigation context — fires inside SegmentedControl options.map via react-native-css-interop printUpgradeWarning recursing through NavigationStateContext.js. Reproduced when opening the chart screen and pressing tid-intervall (WindowToggle)."
   severity: blocker
   test: 1
   linear: FIT-66
-  root_cause: "react-native-css-interop@0.2.3 emits an upgrade warning for one of SegmentedControl's NativeWind classes (suspects: shadow-sm on the selected segment, active:opacity-80 on every segment). The warning printer (printUpgradeWarning → stringify → 24+ String.replace recursion) walks the React fiber tree to attribute the warning, hitting NavigationStateContext's defaultValue sentinel and throwing the navigation-context error before the SegmentedControl can mount."
+  resolved_in: "6d50486 — fix(06-03): SegmentedControl crash on chart screen"
+  root_cause: "react-native-css-interop@0.2.3 emits an upgrade warning for one of SegmentedControl's NativeWind classes (`shadow-sm` on the selected segment, `active:opacity-80` on every segment). The warning printer (printUpgradeWarning → stringify → 24+ String.replace recursion) walks the React fiber tree to attribute the warning, hitting NavigationStateContext's defaultValue sentinel and throwing the navigation-context error before the SegmentedControl can mount."
   artifacts:
     - path: "app/components/segmented-control.tsx"
-      issue: "Uses NativeWind `shadow-sm` + `active:opacity-80` whose css-interop processing triggers the printUpgradeWarning recursion"
-  missing:
-    - "Replace `shadow-sm` className with explicit iOS shadow style props (RN scope = iOS-only V1)"
-    - "Replace `active:opacity-80` className with Pressable's `style={({ pressed }) => ({ opacity: pressed ? 0.8 : 1 })}` native callback"
+      issue: "Used NativeWind `shadow-sm` + `active:opacity-80` whose css-interop processing triggered the printUpgradeWarning recursion"
+  fix:
+    - "Replaced `shadow-sm` className with explicit iOS shadow style props (RN scope = iOS-only V1)"
+    - "Replaced `active:opacity-80` className with Pressable's `style={({ pressed }) => ({ opacity: pressed ? 0.8 : 1 })}` native callback"
+  verified: "User confirmed `pass` 2026-05-15 — crash no longer reproduces; tid-intervall + metric-toggle now interact cleanly. Tooltip behavior (Test 1's actual content) re-tested below."
