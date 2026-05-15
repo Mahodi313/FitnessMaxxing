@@ -52,7 +52,7 @@
 //   - 06-CONTEXT.md D-01, D-03, D-08
 //   - 06-RESEARCH.md §Pattern 1, §Example 5, §Pitfall 3
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocalSearchParams, useRouter, type Href } from "expo-router";
 import {
   View,
@@ -95,23 +95,43 @@ export default function HistoryTab() {
   } = useSessionsListInfiniteQuery();
 
   // WR-01: post-delete toast surfaces here, not on the detail screen.
-  // history/[sessionId].tsx fires router.replace with `?toast=deleted` after
-  // a successful delete; we read the param on mount, show the toast for
-  // 2.2s, then clear the param via router.setParams so a re-mount (e.g.
-  // tab-switch back to Historik) does not re-show it. setTimeout cleanup
-  // is added in the WR-02 follow-up.
+  // history/[sessionId].tsx fires router.replace with `?toast=deleted`
+  // after a successful delete; we read the param on mount, show the toast
+  // for 2.2s, then clear the param via router.setParams so a re-mount
+  // (e.g. tab-switch back to Historik) does not re-show it.
+  //
+  // WR-02: the dismiss timer id is held in a ref and cleared on unmount
+  // (or before reassigning) so the timer cannot fire after the screen
+  // tears down — React would otherwise log "Can't perform a React state
+  // update on an unmounted component" if the tab is replaced or the app
+  // is signed-out inside the 2.2s window.
   const params = useLocalSearchParams<{ toast?: string }>();
   const [showToast, setShowToast] = useState(false);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (params.toast === "deleted") {
       setShowToast(true);
       // Clear the URL param immediately so navigating back into the tab
       // does not re-fire the toast.
       router.setParams({ toast: undefined });
-      setTimeout(() => setShowToast(false), 2200);
+      // Clear any in-flight timer before scheduling a fresh one (rare
+      // case: two delete flows queue before the first toast finishes).
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = setTimeout(() => {
+        setShowToast(false);
+        toastTimerRef.current = null;
+      }, 2200);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.toast]);
+  // Cleanup the dismiss timer on unmount so a teardown mid-2.2s window
+  // cannot fire setShowToast on a torn-down fiber.
+  useEffect(
+    () => () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    },
+    [],
+  );
 
   // Flatten the InfiniteQuery `{ pages, pageParams }` envelope. Memo keyed on
   // `data?.pages` so the FlatList data prop stays referentially stable
