@@ -147,9 +147,15 @@ export default function SessionDetailScreen() {
     return m;
   }, [exercisesQuery.data]);
 
-  // Group sets by exercise_id (insertion order = order of first appearance
-  // in the sets query, which is already exercise_id-grouped by
-  // useSetsForSessionQuery's ORDER BY exercise_id ASC, set_number ASC).
+  // Group sets by exercise_id. Iteration order of the resulting Map is
+  // Map-insertion order, which here is the first-seen exercise_id from
+  // useSetsForSessionQuery's `ORDER BY exercise_id ASC, set_number ASC`
+  // — i.e. UUID-alphabetic order of exercise_id, NOT plan_exercises
+  // .order_index and NOT chronological set-logging order. The active-
+  // workout screen (Phase 5) orders by plan_exercises.order_index, so
+  // this is a deviation. Closing that gap (joining order_index in or
+  // ordering by min(completed_at)) is V1.1 polish — WR-05 in 06-REVIEW
+  // .md documents the trade-off.
   const setsByExercise = useMemo(() => {
     const m = new Map<string, SetRow[]>();
     for (const s of setsQuery.data ?? []) {
