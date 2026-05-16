@@ -590,6 +590,11 @@ function ExerciseCard({
             <Text className="text-base font-semibold text-gray-900 dark:text-gray-50">
               {`${set.weight_kg} × ${set.reps}`}
             </Text>
+            {set.rpe != null && (
+              <Text className="text-base text-gray-500 dark:text-gray-400">
+                {` · RPE ${set.rpe}`}
+              </Text>
+            )}
           </View>
         ))}
       </View>
