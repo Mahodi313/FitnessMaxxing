@@ -40,7 +40,7 @@
 //     §5 (FK-safe replay), §8.5 (do-not-nest-scrollers Pitfall)
 //   - PITFALLS §8.1, §8.13
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback } from "react";
 import {
   View,
   Text,
@@ -172,6 +172,20 @@ export default function PlanDetailScreen() {
     }, []),
   );
 
+  // FIT-6 fix (2026-05-16): replace `defaultValues + useEffect-with-reset`
+  // with RHF v7's `values` + `resetOptions.keepDirtyValues`. The previous
+  // shape called reset() whenever the cached `plan` object reference
+  // changed (which TanStack does on refetch even when data is identical),
+  // wiping any in-progress user input. Symptom (FIT-6): user navigates
+  // out to exercise-picker and back; subsequent typing in name/description
+  // appeared to do nothing because each keystroke's render coincided with
+  // a stale `plan`-reference-driven reset() that overwrote the field.
+  //
+  // RHF's `values` prop is the canonical "form syncs with async data"
+  // pattern: it keeps the form in step with the cache automatically AND
+  // respects keepDirtyValues so dirty fields are NOT overwritten by sync.
+  // After a successful save we still call reset() in onSaveMeta so isDirty
+  // flips back to false and the Spara button hides.
   const {
     control,
     handleSubmit,
@@ -180,18 +194,11 @@ export default function PlanDetailScreen() {
   } = useForm<PlanFormInput>({
     resolver: zodResolver(planFormSchema),
     mode: "onSubmit",
-    defaultValues: { name: plan?.name ?? "", description: plan?.description ?? "" },
+    values: plan
+      ? { name: plan.name, description: plan.description ?? "" }
+      : undefined,
+    resetOptions: { keepDirtyValues: true },
   });
-
-  // Hydrate RHF defaults once the plan loads from the cache. useEffect with the
-  // plan-identity tuple as dep keeps reset() from firing on every render. After
-  // a successful save we also call reset() in onSaveMeta so isDirty flips back
-  // to false and the Spara button hides.
-  useEffect(() => {
-    if (plan) {
-      reset({ name: plan.name, description: plan.description ?? "" });
-    }
-  }, [plan?.id, plan?.name, plan?.description, plan, reset]);
 
   const planNameTruncated = (plan?.name ?? "").slice(0, 24);
 
