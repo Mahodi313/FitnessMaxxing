@@ -40,7 +40,7 @@
 //     §5 (FK-safe replay), §8.5 (do-not-nest-scrollers Pitfall)
 //   - PITFALLS §8.1, §8.13
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback } from "react";
 import {
   View,
   Text,
@@ -48,8 +48,8 @@ import {
   Pressable,
   KeyboardAvoidingView,
   Platform,
-  useColorScheme,
 } from "react-native";
+import { useColorScheme } from "nativewind";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   Stack,
@@ -102,8 +102,8 @@ type PlanExerciseRowShape = {
 export default function PlanDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const scheme = useColorScheme();
-  const isDark = scheme === "dark";
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
   const muted = isDark ? "#9CA3AF" : "#6B7280";
   const accent = isDark ? "#60A5FA" : "#2563EB";
 
@@ -172,6 +172,20 @@ export default function PlanDetailScreen() {
     }, []),
   );
 
+  // FIT-6 fix (2026-05-16): replace `defaultValues + useEffect-with-reset`
+  // with RHF v7's `values` + `resetOptions.keepDirtyValues`. The previous
+  // shape called reset() whenever the cached `plan` object reference
+  // changed (which TanStack does on refetch even when data is identical),
+  // wiping any in-progress user input. Symptom (FIT-6): user navigates
+  // out to exercise-picker and back; subsequent typing in name/description
+  // appeared to do nothing because each keystroke's render coincided with
+  // a stale `plan`-reference-driven reset() that overwrote the field.
+  //
+  // RHF's `values` prop is the canonical "form syncs with async data"
+  // pattern: it keeps the form in step with the cache automatically AND
+  // respects keepDirtyValues so dirty fields are NOT overwritten by sync.
+  // After a successful save we still call reset() in onSaveMeta so isDirty
+  // flips back to false and the Spara button hides.
   const {
     control,
     handleSubmit,
@@ -180,18 +194,11 @@ export default function PlanDetailScreen() {
   } = useForm<PlanFormInput>({
     resolver: zodResolver(planFormSchema),
     mode: "onSubmit",
-    defaultValues: { name: plan?.name ?? "", description: plan?.description ?? "" },
+    values: plan
+      ? { name: plan.name, description: plan.description ?? "" }
+      : undefined,
+    resetOptions: { keepDirtyValues: true },
   });
-
-  // Hydrate RHF defaults once the plan loads from the cache. useEffect with the
-  // plan-identity tuple as dep keeps reset() from firing on every render. After
-  // a successful save we also call reset() in onSaveMeta so isDirty flips back
-  // to false and the Spara button hides.
-  useEffect(() => {
-    if (plan) {
-      reset({ name: plan.name, description: plan.description ?? "" });
-    }
-  }, [plan?.id, plan?.name, plan?.description, plan, reset]);
 
   const planNameTruncated = (plan?.name ?? "").slice(0, 24);
 
@@ -525,6 +532,9 @@ export default function PlanDetailScreen() {
                     `/plans/${plan.id}/exercise/${planExercise.id}/edit` as Href,
                   )
                 }
+                onShowChart={() =>
+                  router.push(`/exercise/${planExercise.exercise_id}/chart`)
+                }
                 onRemove={() =>
                   removePlanExercise.mutate({
                     id: planExercise.id,
@@ -532,6 +542,7 @@ export default function PlanDetailScreen() {
                   })
                 }
                 muted={muted}
+                accent={accent}
               />
             </ScaleDecorator>
           )}
@@ -740,16 +751,20 @@ function PlanExerciseRow({
   drag,
   isActive,
   onEdit,
+  onShowChart,
   onRemove,
   muted,
+  accent,
 }: {
   planExercise: PlanExerciseRowShape;
   exerciseName: string;
   drag: () => void;
   isActive: boolean;
   onEdit: () => void;
+  onShowChart: () => void;
   onRemove: () => void;
   muted: string;
+  accent: string;
 }) {
   const targetChip = formatTargetChip(planExercise);
   return (
@@ -790,6 +805,22 @@ function PlanExerciseRow({
         className="p-2 active:opacity-80"
       >
         <Ionicons name="chevron-forward" size={20} color={muted} />
+      </Pressable>
+      {/* Phase 6 D-24 chart-icon entry-point — inserted BETWEEN edit and
+          remove per UI-SPEC §Visuals JSX lines 671-684. UI-SPEC line 287
+          prose says "rightmost"; the JSX is the authoritative contract
+          (WARN-5 — prose-patch tracked as paperwork). hitSlop={6} per
+          UI-SPEC line 286 + line 677 (WARN-6 fix). p-3 padding around
+          22pt icon = 46pt hit-target ≥44pt (D-24 + Pitfall 6.1). */}
+      <Pressable
+        onPress={onShowChart}
+        accessibilityRole="button"
+        accessibilityLabel={`Visa graf för ${exerciseName}`}
+        accessibilityHint="Tryck för att se progressionsgraf"
+        hitSlop={6}
+        className="p-3 active:opacity-80"
+      >
+        <Ionicons name="stats-chart" size={22} color={accent} />
       </Pressable>
       <Pressable
         onPress={onRemove}

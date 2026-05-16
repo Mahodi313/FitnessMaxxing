@@ -784,6 +784,234 @@ async function main() {
       "Phase 5 extension: B's session still has exactly 1 exercise_set (no rogue insert)",
     );
   }
+
+  // ===========================================================================
+  // Phase 5 gap-closure (FIT-7) — natural-key UNIQUE constraint on exercise_sets
+  //
+  // Migration 0003 added `exercise_sets_session_exercise_setno_uq` UNIQUE
+  // (session_id, exercise_id, set_number). The seed above already proved the
+  // FIRST INSERT with (sessB, exB.id, set_number=1) succeeds (line 267-278).
+  // This block proves that a SECOND INSERT with the same natural-key tuple
+  // fails with Postgres 23505 unique_violation regardless of the client UUID.
+  // No row-cleanup needed — cleanupTestUsers cascades the row away via
+  // workout_sessions FK.
+  // ===========================================================================
+  console.log(
+    "[test-rls] Phase 5 gap-closure (FIT-7) — natural-key UNIQUE constraint on exercise_sets…",
+  );
+
+  const { error: dupErr } = await clientB
+    .from("exercise_sets")
+    .insert({
+      session_id: sessB.id,
+      exercise_id: exB.id,
+      set_number: 1,
+      reps: 5,
+      weight_kg: 100,
+      completed_at: new Date().toISOString(),
+      set_type: "working",
+    })
+    .select();
+  if (dupErr?.code === "23505") {
+    pass(
+      "Phase 5 gap-closure: duplicate (session_id, exercise_id, set_number) rejected with 23505 unique_violation",
+    );
+  } else {
+    fail(
+      "Phase 5 gap-closure: duplicate natural-key INSERT did NOT raise 23505",
+      { code: dupErr?.code, message: dupErr?.message },
+    );
+  }
+
+  // =========================================================================
+  // Phase 6 extension — explicit cross-user assertions for the new Phase 6
+  // read-side surface (Migration 0006 RPCs + the F9 delete-pass path).
+  //
+  // Phase 6 adds three RPC functions, all SECURITY INVOKER so RLS on the
+  // underlying tables (workout_sessions, exercise_sets, workout_plans) auto-
+  // applies:
+  //   - get_session_summaries (F9 history list)
+  //   - get_exercise_chart (F10 chart aggregate)
+  //   - get_exercise_top_sets (F10 'Senaste 10 passen' BLOCKER-2 list)
+  //
+  // Plus a new write path: User-A-owned DELETE of workout_sessions (F9
+  // delete-pass action). The Phase 2 block already covers the cross-user
+  // attempt (line ~402); we restate explicitly + add the positive owner-DELETE
+  // path that proves the FK on delete cascade purges exercise_sets per
+  // migration 0001 line 74.
+  //
+  // Closes CLAUDE.md "Cross-user verification is a gate" for Phase 6; covers
+  // threat-register IDs T-06-01, T-06-02, T-06-03, T-06-04, T-06-12.
+  // =========================================================================
+  console.log(
+    "[test-rls] Phase 6 extension — history-list + chart RPCs + delete-session cross-user gates…",
+  );
+
+  // ---- workout_sessions DELETE cross-user (T-06-03, T-06-12) ---------------
+  // A's anon client attempts to DELETE B's session. RLS USING clause on
+  // workout_sessions blocks at the DB layer.
+  assertWriteBlocked(
+    "Phase 6 extension: A cannot DELETE B's workout_session (F9 delete cross-user)",
+    await clientA
+      .from("workout_sessions")
+      .delete()
+      .eq("id", sessB.id)
+      .select(),
+  );
+
+  // ---- get_session_summaries cross-user RPC (T-06-01) ----------------------
+  // A's anon client calls get_session_summaries — RLS scopes server-side to
+  // A's sessions only; B's sessB.id must NOT appear in the response.
+  {
+    const { data: summariesAsA, error: summariesErr } =
+      await clientA.rpc("get_session_summaries", { p_cursor: null as unknown as string, p_page_size: 100 });
+    if (summariesErr) {
+      fail(
+        "Phase 6 extension: get_session_summaries RPC returned error for A",
+        { error: summariesErr },
+      );
+    } else if (
+      summariesAsA?.some((s: { id: string }) => s.id === sessB.id)
+    ) {
+      fail(
+        "Phase 6 extension: A's get_session_summaries leaked B's session",
+        { sessBId: sessB.id },
+      );
+    } else {
+      pass(
+        "Phase 6 extension: A's get_session_summaries does not surface B's sessions",
+      );
+    }
+  }
+
+  // ---- get_exercise_chart cross-user RPC (T-06-02, T-06-04) ----------------
+  // A calls get_exercise_chart with B's exercise_id — RLS on exercise_sets +
+  // workout_sessions scopes via parent-FK EXISTS, so result is empty (not
+  // error).
+  {
+    const { data: chartAsA, error: chartErr } =
+      await clientA.rpc("get_exercise_chart", { p_exercise_id: exB.id, p_metric: "weight", p_since: null as unknown as string });
+    if (chartErr) {
+      fail(
+        "Phase 6 extension: get_exercise_chart RPC returned error for A on B's exercise",
+        { error: chartErr },
+      );
+    } else if (chartAsA && chartAsA.length > 0) {
+      fail(
+        "Phase 6 extension: A's get_exercise_chart leaked B's exercise sets",
+        { count: chartAsA.length },
+      );
+    } else {
+      pass(
+        "Phase 6 extension: A's get_exercise_chart on B's exercise returns empty (RLS-filtered)",
+      );
+    }
+  }
+
+  // ---- get_exercise_top_sets cross-user RPC (T-06-02 — BLOCKER-2 RLS) -----
+  // Same parent-FK EXISTS chain as get_exercise_chart; the NEW RPC needs its
+  // own cross-user assertion so the test-rls.ts gate covers all three Phase 6
+  // RPCs without a gap.
+  {
+    const { data: topAsA, error: topErr } =
+      await clientA.rpc("get_exercise_top_sets", { p_exercise_id: exB.id, p_since: null as unknown as string, p_limit: 10 });
+    if (topErr) {
+      fail(
+        "Phase 6 extension: get_exercise_top_sets RPC returned error for A on B's exercise",
+        { error: topErr },
+      );
+    } else if (topAsA && topAsA.length > 0) {
+      fail(
+        "Phase 6 extension: A's get_exercise_top_sets leaked B's exercise sets",
+        { count: topAsA.length },
+      );
+    } else {
+      pass(
+        "Phase 6 extension: A's get_exercise_top_sets on B's exercise returns empty (RLS-filtered)",
+      );
+    }
+  }
+
+  // ---- Defense-in-depth: B's session survives A's delete attempt -----------
+  console.log(
+    "[test-rls] Phase 6 extension — defense-in-depth: B's session survives…",
+  );
+  {
+    const { data: sessBStillThere, error: sessBErr } = await admin
+      .from("workout_sessions")
+      .select("id")
+      .eq("id", sessB.id)
+      .maybeSingle();
+    if (sessBErr || !sessBStillThere) {
+      fail(
+        "Phase 6 extension: B's session was deleted by A's attempt",
+        { error: sessBErr },
+      );
+    } else {
+      pass(
+        "Phase 6 extension: B's session survived A's DELETE attempt",
+      );
+    }
+  }
+
+  // ---- FK on delete cascade (positive owner path — D-07 + T-06-12) ---------
+  // Seed (cascadeSessionId, cascadeSetId) for User A via admin (bypass RLS for
+  // fixture setup), then clientA.delete() the session as the owner. Assert
+  // the cascadeSetId is gone (FK on delete cascade from migration 0001 line
+  // 74). This is the positive path Plan 06-02's useDeleteSession depends on.
+  {
+    const cascadeSessionId = randomUUID();
+    {
+      const { error } = await admin.from("workout_sessions").insert({
+        id: cascadeSessionId,
+        user_id: userA.id,
+        plan_id: null,
+        started_at: new Date().toISOString(),
+        finished_at: new Date().toISOString(),
+      });
+      if (error)
+        throw new Error(`seed cascade session: ${error.message}`);
+    }
+    const cascadeSetId = randomUUID();
+    {
+      const { error } = await admin.from("exercise_sets").insert({
+        id: cascadeSetId,
+        session_id: cascadeSessionId,
+        exercise_id: exA.id,
+        set_number: 1,
+        reps: 5,
+        weight_kg: 100,
+        set_type: "working",
+      });
+      if (error) throw new Error(`seed cascade set: ${error.message}`);
+    }
+    const { error: delErr } = await clientA
+      .from("workout_sessions")
+      .delete()
+      .eq("id", cascadeSessionId);
+    if (delErr) {
+      fail(
+        "Phase 6 extension: A's own session DELETE failed",
+        { error: delErr },
+      );
+    } else {
+      const { data: setStillThere } = await admin
+        .from("exercise_sets")
+        .select("id")
+        .eq("id", cascadeSetId)
+        .maybeSingle();
+      if (setStillThere) {
+        fail(
+          "Phase 6 extension: FK on delete cascade FAILED — set survived session delete",
+          { cascadeSetId },
+        );
+      } else {
+        pass(
+          "Phase 6 extension: FK on delete cascade purged exercise_sets when session deleted",
+        );
+      }
+    }
+  }
 }
 
 (async () => {
@@ -797,6 +1025,24 @@ async function main() {
     exitCode = 1;
   } finally {
     console.log("[test-rls] cleanup (end)…");
+    // WR-03 (05-REVIEW.md): sign out the anon clients BEFORE deleting their
+    // backing auth.users rows. cleanupTestUsers below calls
+    // admin.auth.admin.deleteUser(u.id), which invalidates the user record
+    // remotely but does NOT revoke the in-memory HS256 JWT clientA/clientB
+    // still hold (valid until its `exp` claim, default 1 hour). If this
+    // script is invoked twice in the same Node process (e.g., a watch-mode
+    // test harness, or a future "rerun on failure" wrapper), any code path
+    // that touched clientA/clientB BEFORE the second main()'s signInWithPassword
+    // would attribute writes to a user that no longer exists — RLS would
+    // reject those as if blocked, surfacing as a false-pass on the assertion
+    // harness. Explicit signOut clears the in-memory session so the next
+    // invocation starts from a clean slate. .catch swallows the "no session"
+    // error that signOut throws when the client never signed in (e.g., if
+    // main() aborted before the signInWithPassword calls).
+    await Promise.allSettled([
+      clientA.auth.signOut().catch(() => {}),
+      clientB.auth.signOut().catch(() => {}),
+    ]);
     try {
       await cleanupTestUsers();
     } catch (e) {

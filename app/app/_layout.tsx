@@ -1,8 +1,10 @@
 // app/app/_layout.tsx
 import "../global.css";
 import { useEffect } from "react";
-import { useColorScheme } from "react-native";
+import { useColorScheme } from "nativewind";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Stack } from "expo-router";
+import { z } from "zod";
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
 // react-native-gesture-handler must be imported in the entry file so its
@@ -11,17 +13,24 @@ import * as SplashScreen from "expo-splash-screen";
 // side-effects only is no longer required in v2.x.
 // See https://docs.swmansion.com/react-native-gesture-handler/docs/fundamentals/installation.
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 
 // LOAD-BEARING import order — see 04-RESEARCH.md §"Module-load order" + Pitfall 8.2.
-// client.ts MUST execute first (registers all 8 setMutationDefaults), THEN
-// persister.ts (hydrates the cache from AsyncStorage — paused mutations rehydrate
-// against already-registered defaults), THEN network.ts (wires NetInfo +
-// AppState + the onlineManager.subscribe(resumePausedMutations) block that closes
-// Pitfall 8.12). Reordering these breaks the offline-queue replay contract.
+// client.ts MUST execute first (registers all 13 setMutationDefaults), THEN
+// persister.ts (creates the SHARED asyncStoragePersister; Plan 05-05 / FIT-8
+// moved the imperative `persistQueryClient(...)` call OUT of this module — the
+// PersistQueryClientProvider below now owns LOAD-side hydration so its
+// onSuccess callback can flip the workout-screen hydration gate), THEN
+// network.ts (wires NetInfo + AppState + the onlineManager.subscribe(
+// resumePausedMutations) block that closes Pitfall 8.12 + the AppState
+// background-flush via persistQueryClientSave). Reordering these breaks the
+// offline-queue replay contract. Provider mount happens AFTER all module-load
+// imports — so setMutationDefaults are guaranteed live before the onSuccess
+// callback can possibly fire.
 import { queryClient } from "@/lib/query/client";
-import "@/lib/query/persister";
+import { asyncStoragePersister } from "@/lib/query/persister";
 import "@/lib/query/network";
+import { usePersistenceStore } from "@/lib/persistence-store";
 
 // Importing useAuthStore here triggers the module-scope onAuthStateChange listener
 // + getSession() init flow registered in app/lib/auth-store.ts. Order does not
@@ -65,6 +74,32 @@ function SplashScreenController() {
 }
 
 /**
+ * Reads AsyncStorage('fm:theme') during the splash-hold window and applies
+ * setColorScheme so the user's saved theme preference is active from the
+ * first rendered frame. Fires in parallel with the auth-status splash gate
+ * (SplashScreenController) — does NOT block splash hiding. On IO error or
+ * corrupt/missing value, silent fallback to NativeWind's default 'system'.
+ * Implements D-T2 + T-07-01 mitigation (Zod enum-catch parse).
+ */
+function ThemeBootstrap() {
+  const { setColorScheme } = useColorScheme();
+  useEffect(() => {
+    void AsyncStorage.getItem("fm:theme")
+      .then((v) => {
+        const parsed = z
+          .enum(["system", "light", "dark"])
+          .catch("system")
+          .parse(v);
+        setColorScheme(parsed);
+      })
+      .catch(() => {
+        console.warn("[theme] AsyncStorage read failed — defaulting to system");
+      });
+  }, [setColorScheme]);
+  return null;
+}
+
+/**
  * Stack.Protected gates (app) and (auth) groups by session presence.
  * While status === 'loading', renders null so the native splash continues to
  * cover the screen (RESEARCH.md Pitfall §5 — prevents the empty-navigator
@@ -74,8 +109,8 @@ function RootNavigator() {
   const session = useAuthStore((s) => s.session);
   const status = useAuthStore((s) => s.status);
 
-  const scheme = useColorScheme();
-  const isDark = scheme === "dark";
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
 
   if (status === "loading") return null;
 
@@ -101,8 +136,8 @@ function RootNavigator() {
 }
 
 export default function RootLayout() {
-  const scheme = useColorScheme();
-  const isDark = scheme === "dark";
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
 
   // GestureHandlerRootView wraps the entire app so descendants of any screen
   // (e.g., DraggableFlatList in plans/[id].tsx) can use GestureDetector without
@@ -122,11 +157,33 @@ export default function RootLayout() {
         backgroundColor: isDark ? "#111827" : "#FFFFFF",
       }}
     >
-      <QueryClientProvider client={queryClient}>
+      <PersistQueryClientProvider
+        client={queryClient}
+        persistOptions={{
+          persister: asyncStoragePersister,
+          maxAge: 1000 * 60 * 60 * 24, // 24h per Phase 1 D-08
+        }}
+        onSuccess={() => {
+          // Plan 05-05 / FIT-8: flip the hydration-ready signal so the
+          // workout-screen render gate stops showing "Återställer pass…"
+          // and renders the normal session loading → WorkoutBody flow.
+          usePersistenceStore.getState().setHydrated(true);
+        }}
+        onError={() => {
+          // T-05-05-01: surface persister adapter failures so a silent
+          // AsyncStorage crash doesn't leave the screen stuck on
+          // "Återställer pass…". The store still flips so the gate clears
+          // (degraded but unblocked UX — same trade-off the original
+          // imperative persistQueryClient call made).
+          console.warn("[persistence] hydration failed — proceeding without cache restore");
+          usePersistenceStore.getState().setHydrated(true);
+        }}
+      >
+        <ThemeBootstrap />
         <SplashScreenController />
         <RootNavigator />
-        <StatusBar style="auto" />
-      </QueryClientProvider>
+        <StatusBar style={isDark ? "light" : "dark"} />
+      </PersistQueryClientProvider>
     </GestureHandlerRootView>
   );
 }

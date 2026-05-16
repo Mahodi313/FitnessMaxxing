@@ -31,6 +31,7 @@
 
 import { QueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import type { Database } from "@/types/database";
 import {
   PlanRowSchema,
   type PlanRow,
@@ -137,18 +138,20 @@ type SessionInsertVars = Partial<SessionRow> & {
   plan_id?: string | null;
   started_at?: string;
 };
-// SessionFinishVars: useFinishSession(...).mutate({ id, finished_at })
-// — single-column UPDATE to flip finished_at from null to ISO string.
-type SessionFinishVars = { id: string; finished_at: string };
+// SessionFinishVars: useFinishSession(...).mutate({ id, finished_at, notes? })
+// — UPDATE finished_at and optional notes. notes is optional (D-N3); existing
+// callers that pass only { id, finished_at } remain type-compatible.
+type SessionFinishVars = { id: string; finished_at: string; notes?: string | null };
 
-// SetInsertVars: useAddSet(sessionId).mutate({ id, session_id, exercise_id, set_number, reps, weight_kg, ... })
-// — id, session_id, exercise_id, set_number, reps, weight_kg required. Optional:
+// SetInsertVars: useAddSet(sessionId).mutate({ id, session_id, exercise_id, reps, weight_kg, ... })
+// — id, session_id, exercise_id, reps, weight_kg required. Optional:
+// set_number (Migration 0004 trigger assigns server-side — SUPERSEDES D-16),
 // completed_at (defaulted DB-side), set_type (default 'working'), rpe, notes.
 type SetInsertVars = Partial<SetRow> & {
   id: string;
   session_id: string;
   exercise_id: string;
-  set_number: number;
+  set_number?: number;
   reps: number;
   weight_kg: number;
 };
@@ -159,6 +162,40 @@ type SetUpdateVars = { id: string; session_id: string } & Partial<
 >;
 // SetRemoveVars: useRemoveSet(sessionId).mutate({ id, session_id })
 type SetRemoveVars = { id: string; session_id: string };
+
+// ---- Phase 6 type aliases (session delete) ---------------------------------
+// SessionDeleteVars: useDeleteSession(sessionId).mutate({ id }) — DELETE the
+// workout_sessions row; FK on delete cascade (migration 0001) handles
+// exercise_sets cleanup server-side.
+type SessionDeleteVars = { id: string };
+
+// ---- Phase 7 type aliases (session update-notes) ---------------------------
+// SessionUpdateNotesVars: useUpdateSessionNotes(sessionId).mutate({ id, notes })
+// — UPDATE notes only. Empty string normalised to null in mutationFn.
+type SessionUpdateNotesVars = { id: string; notes: string | null };
+
+// SessionSummary is the shape of rows in the sessionsKeys.listInfinite()
+// cache slot (returned by get_session_summaries RPC, parsed via
+// SessionSummarySchema in lib/queries/sessions.ts). It is a SUPERSET of
+// SessionRow with plan_name + per-session aggregates joined in.
+//
+// Inlined here rather than imported from "@/lib/queries/sessions" — that
+// module already imports `queryClient` from this file, so importing the type
+// back would create a circular import (TS handles type-only imports without
+// runtime cycles, but tooling chains downstream of erasable-syntax flags
+// occasionally hiccup; inlining is the safer same-version-of-the-truth path
+// because both declarations are exported from their respective modules and
+// must stay in lock-step regardless).
+type SessionSummary = {
+  id: string;
+  user_id: string;
+  plan_id: string | null;
+  started_at: string;
+  finished_at: string | null;
+  plan_name: string | null;
+  set_count: number;
+  total_volume_kg: number;
+};
 
 // ---------------------------------------------------------------------------
 // Mutation defaults — register all 8 keys at MODULE TOP-LEVEL.
@@ -208,6 +245,13 @@ type SetRemoveVars = { id: string; session_id: string };
 //   ['set','add']               → scope.id = `session:${vars.session_id}`
 //   ['set','update']            → scope.id = `session:${vars.session_id}`
 //   ['set','remove']            → scope.id = `session:${vars.session_id}`
+//
+// Phase 6 additions:
+//   ['session','delete']        → scope.id = `session:${vars.id}`
+//
+// Phase 7 additions (F12 edit-side — D-E3):
+//   ['session','update-notes']  → scope.id = `session:${vars.id}` (baked at
+//                                  hook construction in useUpdateSessionNotes)
 //
 // NOTE Pitfall 3 (function-shaped scope.id silently fails): scope.id MUST be
 // a static string at useMutation() time (v5 reads mutation.options.scope?.id
@@ -650,10 +694,12 @@ queryClient.setMutationDefaults(["session", "start"], {
 // ===========================================================================
 queryClient.setMutationDefaults(["session", "finish"], {
   mutationFn: async (vars: SessionFinishVars) => {
-    const { id, finished_at } = vars;
+    const { id, finished_at, notes } = vars;
+    // D-N3: trim-normalize notes; empty/whitespace → null (SPEC acceptance (b)).
+    const finalNotes = notes?.trim() ? notes.trim() : null;
     const { data, error } = await supabase
       .from("workout_sessions")
-      .update({ finished_at })
+      .update({ finished_at, notes: finalNotes })
       .eq("id", id)
       .select()
       .single();
@@ -674,11 +720,16 @@ queryClient.setMutationDefaults(["session", "finish"], {
     if (previousActive && previousActive.id === vars.id) {
       queryClient.setQueryData<SessionRow | null>(sessionsKeys.active(), null);
     }
-    // Detail cache: merge finished_at into the snapshot if present.
+    // Detail cache: merge finished_at + notes into the snapshot if present.
+    // D-N3 backward-compat: if vars.notes is undefined (legacy caller), fall
+    // back to previousDetail.notes so we never clobber an existing value.
     if (previousDetail) {
+      const finalNotes =
+        vars.notes?.trim() ? vars.notes.trim() : (previousDetail.notes ?? null);
       queryClient.setQueryData<SessionRow>(sessionsKeys.detail(vars.id), {
         ...previousDetail,
         finished_at: vars.finished_at,
+        notes: finalNotes,
       });
     }
     return { previousActive, previousDetail };
@@ -699,6 +750,12 @@ queryClient.setMutationDefaults(["session", "finish"], {
     // back sessions' F7 chips surface this session's working sets without
     // waiting for the 15-min staleTime to expire.
     void queryClient.invalidateQueries({ queryKey: lastValueKeys.all });
+    // Phase 6 A8: finishing a session must surface it in history without
+    // waiting for staleTime. The F9 listInfinite cache slot is distinct from
+    // active/detail/list so it requires its own invalidate (06-RESEARCH §A8).
+    void queryClient.invalidateQueries({
+      queryKey: sessionsKeys.listInfinite(),
+    });
   },
   retry: 1,
 });
@@ -714,9 +771,21 @@ queryClient.setMutationDefaults(["set", "add"], {
   mutationFn: async (vars: SetInsertVars) => {
     if (!vars.session_id)
       throw new Error("session_id required for ['set','add']");
+    // set_number may be omitted from vars; Migration 0004's
+    // assign_set_number_before_insert trigger assigns it server-side.
+    // Payload-level type made optional in SetInsertVars (sets.ts).
+    //
+    // Cast: types/database.ts gen:types doesn't surface trigger DEFAULTs so
+    // exercise_sets.Insert still types set_number as required (number).
+    // Runtime correctness is owned by Migration 0004 (trigger fills NULL→
+    // value BEFORE the NOT NULL check) + Migration 0003 (UNIQUE constraint
+    // is the data-integrity gate regardless of client UUID). Drop the cast
+    // once Supabase gen:types learns trigger-DEFAULT surfacing.
+    const upsertPayload =
+      vars as Database["public"]["Tables"]["exercise_sets"]["Insert"];
     const { data, error } = await supabase
       .from("exercise_sets")
-      .upsert(vars, { onConflict: "id", ignoreDuplicates: true })
+      .upsert(upsertPayload, { onConflict: "id", ignoreDuplicates: true })
       .select()
       .single();
     if (error) throw error;
@@ -730,6 +799,27 @@ queryClient.setMutationDefaults(["set", "add"], {
     const previous = queryClient.getQueryData<SetRow[]>(
       setsKeys.list(vars.session_id),
     );
+    // PROVISIONAL set_number for optimistic UI only — server-assigned value
+    // reconciles via onSettled invalidate. Race is NOT a data-integrity risk
+    // anymore because the persisted payload omits set_number entirely
+    // (Migration 0004 trigger + Migration 0003 UNIQUE constraint own
+    // correctness).
+    //
+    // WR-06 (05-REVIEW.md): derive from MAX(set_number)+1 across already-
+    // cached rows for this (session, exercise), NOT from `length + 1`. After
+    // a cold-start replay, the persister may have rehydrated optimistic rows
+    // from a previous session whose provisional set_numbers are non-contiguous
+    // — `length + 1` would collide with an existing provisional row and
+    // briefly render "Set 3" twice in the UI before the onSettled invalidate
+    // refetches the canonical list. MAX+1 correctly bumps past any rehydrated
+    // value regardless of cache shape. Filter excludes other exercises so we
+    // measure max within the (session, exercise) tuple the UNIQUE constraint
+    // also scopes against.
+    const filteredSetNumbers = (previous ?? [])
+      .filter((s) => s.exercise_id === vars.exercise_id)
+      .map((s) => s.set_number);
+    const provisionalSetNumber =
+      vars.set_number ?? Math.max(...filteredSetNumbers, 0) + 1;
     // WR-03 (05-REVIEW.md): build a complete SetRow with explicit nulls/defaults
     // for optional fields. The cache row matches SetRowSchema during the
     // offline window — same shape as the post-reconciliation row from the
@@ -738,7 +828,7 @@ queryClient.setMutationDefaults(["set", "add"], {
       id: vars.id,
       session_id: vars.session_id,
       exercise_id: vars.exercise_id,
-      set_number: vars.set_number,
+      set_number: provisionalSetNumber,
       reps: vars.reps,
       weight_kg: vars.weight_kg,
       rpe: vars.rpe ?? null,
@@ -860,6 +950,165 @@ queryClient.setMutationDefaults(["set", "remove"], {
     void queryClient.invalidateQueries({
       queryKey: setsKeys.list(vars.session_id),
     });
+  },
+  retry: 1,
+});
+
+// ===========================================================================
+// Phase 6: 1 new mutationDefault for F9 delete-pass (06-CONTEXT.md D-07,
+// 06-RESEARCH.md §Pattern 6).
+//
+// Module-load-order invariant (Pitfall 1): MUST register at module top-level
+// BEFORE persister.ts hydrates paused mutations from AsyncStorage — a paused
+// ['session','delete'] from a previous app session re-hydrated with no
+// mutationFn would silently never replay (= dead row in cache, never deleted
+// server-side).
+//
+// scope.id contract (Phase 6 addition): useDeleteSession in
+// lib/queries/sessions.ts bakes `scope: { id: 'session:<sessionId>' }` at
+// useMutation() construction time so the delete replays in FIFO order with
+// any in-flight session-scoped mutations (e.g. a queued ['set','add'] before
+// the delete lands so the server-side cascade still purges it correctly —
+// not strictly necessary since cascade handles any order, but keeps the
+// scope-discipline uniform with Phase 5).
+// ===========================================================================
+
+// ===========================================================================
+// 14) ['session','delete'] — workout_sessions DELETE.
+// Optimistic onMutate removes the deleted session from the
+// sessionsKeys.listInfinite() cache slot. The listInfinite cache holds a
+// `{ pages, pageParams }` envelope (useInfiniteQuery shape — distinct from
+// flat `list()` cache used by ['plan','archive']) so the filter MUST walk
+// `pages.map(page => page.filter(...))` rather than a flat `.filter()` —
+// Pitfall 6 in 06-RESEARCH.md documents the common mistake.
+//
+// Also clears sessionsKeys.detail(id) so any back-button navigation does
+// not render a stale session, and invalidates setsKeys.list(id) onSettled
+// so the now-orphaned per-session set cache is purged (FK on delete cascade
+// already removed the rows server-side; we just clear the client cache).
+//
+// retry: 1 — single retry on transient network failure between paused and
+// finally-committed; second failure surfaces to user as Supabase error.
+// ===========================================================================
+queryClient.setMutationDefaults(["session", "delete"], {
+  mutationFn: async (vars: SessionDeleteVars) => {
+    const { error } = await supabase
+      .from("workout_sessions")
+      .delete()
+      .eq("id", vars.id);
+    if (error) throw error;
+    return undefined as void;
+  },
+  // scope.id is set at call-site via mutate() options — pass `scope: { id: 'session:<sessionId>' }`.
+  onMutate: async (vars: SessionDeleteVars) => {
+    await queryClient.cancelQueries({
+      queryKey: sessionsKeys.listInfinite(),
+    });
+    await queryClient.cancelQueries({
+      queryKey: sessionsKeys.detail(vars.id),
+    });
+    // Pitfall 6 (06-RESEARCH.md): useInfiniteQuery cache slot has shape
+    // `{ pages, pageParams }`, NOT a flat array. A `.filter()` on the slot
+    // wipes the entire envelope. The correct optimistic update is
+    // `pages.map(page => page.filter(...))` — preserves pageParams so
+    // hasNextPage / fetchNextPage continue working after the optimistic
+    // remove.
+    const previousList = queryClient.getQueryData<{
+      pages: SessionSummary[][];
+      pageParams: (string | null)[];
+    }>(sessionsKeys.listInfinite());
+    const previousDetail = queryClient.getQueryData<SessionRow>(
+      sessionsKeys.detail(vars.id),
+    );
+    if (previousList) {
+      queryClient.setQueryData(sessionsKeys.listInfinite(), {
+        ...previousList,
+        pages: previousList.pages.map((page) =>
+          page.filter((s) => s.id !== vars.id),
+        ),
+      });
+    }
+    // Clear detail cache so a back-navigation does not flash a stale session.
+    queryClient.setQueryData(sessionsKeys.detail(vars.id), undefined);
+    return { previousList, previousDetail };
+  },
+  onError: (_err, vars, ctx) => {
+    const c = ctx as
+      | {
+          previousList?: {
+            pages: SessionSummary[][];
+            pageParams: (string | null)[];
+          };
+          previousDetail?: SessionRow;
+        }
+      | undefined;
+    if (c?.previousList)
+      queryClient.setQueryData(sessionsKeys.listInfinite(), c.previousList);
+    if (c?.previousDetail !== undefined)
+      queryClient.setQueryData(sessionsKeys.detail(vars.id), c.previousDetail);
+  },
+  onSettled: (_d, _e, vars) => {
+    void queryClient.invalidateQueries({
+      queryKey: sessionsKeys.listInfinite(),
+    });
+    void queryClient.invalidateQueries({
+      queryKey: sessionsKeys.detail(vars.id),
+    });
+    // FK on delete cascade purged the rows server-side; clear the client
+    // cache so the now-orphaned per-session set list cannot resurrect from
+    // a stale subscriber.
+    void queryClient.invalidateQueries({
+      queryKey: setsKeys.list(vars.id),
+    });
+  },
+  retry: 1,
+});
+
+// ===========================================================================
+// 15) ['session','update-notes'] — workout_sessions UPDATE notes only.
+// Phase 7 F12 edit-side per D-E3.
+// Optimistic onMutate writes notes into sessionsKeys.detail(id) so
+// history-detail re-renders before the server-trip completes. onSettled
+// invalidates listInfinite for forward-compat (V1.1 may show notes-snippet
+// on list rows). retry: 1 per Pitfall 5.4. scope.id baked at hook
+// construction (lib/queries/sessions.ts useUpdateSessionNotes) so it
+// serializes after any in-flight finish/delete on the same session under
+// scope.id `session:${id}` (T-07-03 FIFO mitigation).
+// ===========================================================================
+queryClient.setMutationDefaults(["session", "update-notes"], {
+  mutationFn: async (vars: SessionUpdateNotesVars) => {
+    const finalNotes = vars.notes?.trim() ? vars.notes.trim() : null;
+    const { data, error } = await supabase
+      .from("workout_sessions")
+      .update({ notes: finalNotes })
+      .eq("id", vars.id)
+      .select()
+      .single();
+    if (error) throw error;
+    return SessionRowSchema.parse(data);
+  },
+  onMutate: async (vars: SessionUpdateNotesVars) => {
+    await queryClient.cancelQueries({ queryKey: sessionsKeys.detail(vars.id) });
+    const previousDetail = queryClient.getQueryData<SessionRow>(
+      sessionsKeys.detail(vars.id),
+    );
+    if (previousDetail) {
+      const finalNotes = vars.notes?.trim() ? vars.notes.trim() : null;
+      queryClient.setQueryData<SessionRow>(sessionsKeys.detail(vars.id), {
+        ...previousDetail,
+        notes: finalNotes,
+      });
+    }
+    return { previousDetail };
+  },
+  onError: (_err, vars, ctx) => {
+    const c = ctx as { previousDetail?: SessionRow } | undefined;
+    if (c?.previousDetail)
+      queryClient.setQueryData(sessionsKeys.detail(vars.id), c.previousDetail);
+  },
+  onSettled: (_d, _e, vars) => {
+    void queryClient.invalidateQueries({ queryKey: sessionsKeys.detail(vars.id) });
+    void queryClient.invalidateQueries({ queryKey: sessionsKeys.listInfinite() });
   },
   retry: 1,
 });

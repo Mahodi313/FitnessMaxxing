@@ -195,6 +195,173 @@ En personlig gym-tracker för iPhone där användaren skapar egna träningsplane
 
 <!-- GSD:conventions-end -->
 
+## Branching-strategi
+
+Committa ALDRIG direkt till `dev` eller `main`. Alltid via branch + PR.
+
+### Phase-branches (GSD hanterar automatiskt)
+- Format: `gsd/phase-XX-namn`
+- Skapas från: `dev`
+- Mergas till: `dev` via PR
+
+### Bugfix-branches (för Linear issues utanför pågående fas)
+- Format: `fix/FIT-XX-kort-beskrivning`
+- Skapas från: `dev`
+- Mergas till: `dev` via PR
+
+### Chore-branches (refaktorering, docs, config)
+- Format: `chore/kort-beskrivning`
+- Skapas från: `dev`
+- Mergas till: `dev` via PR
+
+### Skapa bugfix-branch
+```bash
+git checkout dev
+git pull origin dev
+git checkout -b fix/FIT-XX-kort-beskrivning
+# fixa buggen
+git commit -m "fix: beskrivning [FIT-XX]"
+git push origin fix/FIT-XX-kort-beskrivning
+```
+CI triggas automatiskt och öppnar PR mot dev.
+
+---
+
+## CI/CD Pipeline
+
+GitHub Actions workflows finns i `.github/workflows/`:
+- `phase-branch.yml` — triggas på push till `gsd/phase-*`, kör tsc + lint + RLS + Expo build, öppnar PR mot dev automatiskt
+- `dev.yml` — triggas på push till dev, kör samma tester, öppnar/uppdaterar Draft PR mot main
+- `main.yml` — release gate + skapar GitHub Release automatiskt
+
+### Regler
+- Pusha ALLTID branchen till origin efter commits så CI triggas
+- Inkludera Linear issue-ID i commit-meddelanden: `[FIT-XX]`
+- Skriv `Fixes FIT-XX` i PR-beskrivningar för att stänga issues automatiskt
+- Secrets ligger i GitHub — aldrig i kod eller committade .env-filer
+
+---
+
+## Linear Integration
+
+Skript i `scripts/` hanterar Linear via npm-wrappers (root `package.json` med `tsx` + `--env-file=app/.env.local`).
+`LINEAR_API_KEY` måste finnas i `app/.env.local`.
+
+### Kör ALLTID detta i början av varje session
+```bash
+npm run linear:issues
+```
+
+Om det finns Urgent/High buggar — fixa dem INNAN nästa fas startar.
+
+### Filtrera issues
+```bash
+npm run linear:issues -- --phase 5
+npm run linear:issues -- --type bug
+npm run linear:issues -- --priority urgent,high
+```
+
+### Skapa issue automatiskt när du hittar
+- Bug under verify → type=bug, priority=high
+- Deferred decision → type=deferred, priority=medium
+- Technical debt → type=debt, priority=low
+- UI BLOCKER från gsd-ui-phase → type=ui, priority=high
+- UI WARNING från gsd-ui-phase → type=ui, priority=medium
+
+```bash
+npm run linear:create -- \
+  --title "Bug: kort beskrivning" \
+  --description "detaljerad beskrivning" \
+  --type bug \
+  --priority high \
+  --phase 5
+```
+
+Skriptet skriver ut `LINEAR_ISSUE_ID=FIT-XX` — inkludera det i nästa commit.
+
+### Synka fas-planer till Linear (efter `/gsd-plan-phase`)
+
+När en fas är planerad och alla gates är gröna — skapa en parent-epic per fas + en sub-issue per plan så att commits kan referera dem och PR:n kan stänga dem automatiskt:
+
+```bash
+npm run linear:sync-phase -- --phase 6
+```
+
+Detta gör:
+- **Parent-epic** "Phase 6: History & Read-Side Polish" (en Linear-issue)
+- **Sub-issue per plan** med `parentId: <epic_id>` (`Phase 6.01a — ...`, `Phase 6.01b — ...`, osv.)
+- Båda länkas till Linear-projektet "Phase 6 — History & Read-Side Polish" (om det finns; annars varnar skriptet och fortsätter)
+- Plan-issues taggas med label `Plan`
+- Sub-issue-descriptions innehåller objective, requirements, wave, depends_on, files_modified, och en markdown-checklist över alla tasks
+
+**Idempotent:** ett manifest sparas på `.planning/phases/<phase-dir>/.linear-sync.json` — re-körning **uppdaterar** befintliga issues istället för att skapa dubbletter. Säkert att köra igen efter `/gsd-plan-phase X --gaps` eller andra revisioner.
+
+**Preview först:**
+```bash
+npm run linear:sync-phase -- --phase 6 --dry-run
+```
+
+**Commit-konvention:** referera **sub-issue ID:t** i commit-meddelandet (t.ex. `[FIT-17]`) — inte epic-ID:t. PR-body: `Fixes FIT-17` per sub-issue. Linear stänger parent-epicen automatiskt när alla subs är stängda.
+
+**Skillnad mot `linear:create`:** `linear:create` är för buggar/debt/deferred/UI-findings under arbete. `linear:sync-phase` är för plan-strukturen efter `/gsd-plan-phase` — håll dem separata.
+
+### Automatisk Linear-tagging vid execute-phase
+
+När `/gsd-execute-phase N` körs efter `linear:sync-phase`, taggas commits automatiskt:
+
+- **gsd-executor** läser `.linear-sync.json` vid plan-start och extraherar `LINEAR_ISSUE_ID` för aktuell plan
+- Varje per-task-commit, TDD `test/feat/refactor`-commit, och SUMMARY-commit får suffixet ` [FIT-XX]` i meddelandet
+- Om manifest saknas eller är ur synk → commits händer ändå men UTAN Linear-tagg (varning printas, ingen krasch)
+
+**CI gör resten:**
+- `phase-branch.yml` läser manifestet vid PR-creation och injicerar en `## Linear` sektion i PR-bodyn med `Parent epic: FIT-X` + `Fixes FIT-Y` per sub-issue
+- Vid PR-merge stängs alla sub-issues automatiskt via GitHub→Linear integration
+- Linear stänger parent-epicen automatiskt när alla sub-issues är stängda
+
+**Helper-skript:** `npm run linear:plan-id -- --phase N --plan PLAN_ID` slår upp sub-issue ID:t från manifestet (används av executor + CI; kan också köras manuellt vid debugging).
+
+```bash
+npm run linear:plan-id -- --phase 6 --plan 01a       # → FIT-62
+npm run linear:plan-id -- --phase 6 --epic           # → FIT-61
+npm run linear:plan-id -- --phase 6 --format pr-body # → Fixes FIT-62\nFixes FIT-63\n...
+```
+
+### Prioritetsregler
+| Situation | Åtgärd |
+|-----------|--------|
+| Urgent/High bug | Fixa INNAN nästa fas |
+| Medium bug | Fixa inom nuvarande fas |
+| Low/debt | Backlog, fortsätt |
+| Deferred | Notera, fortsätt |
+
+---
+
+## Komplett flöde
+
+```
+Session startar
+    ↓
+npm run linear:issues
+    ↓
+Urgent bug? → git checkout -b fix/FIT-XX → fixa → push → PR
+    ↓
+/gsd-plan-phase X
+    ↓
+npm run linear:sync-phase -- --phase X   ← skapar epic + sub-issues per plan
+    ↓
+/gsd-execute-phase X
+    ↓
+Hittar bug/debt → create-linear-issue.ts → FIT-XX skapas (separat från plan-issues)
+    ↓
+git push origin gsd/phase-XX → CI triggas → PR öppnas mot dev
+    ↓
+PR-body: "Fixes FIT-A, Fixes FIT-B, ..." (sub-issue IDs per plan)
+    ↓
+Du mergar PR → Linear stänger sub-issues → parent-epic stängs automatiskt
+    ↓
+dev.yml triggas → Draft PR mot main uppdateras
+```
+
 <!-- GSD:architecture-start source:ARCHITECTURE.md -->
 ## Architecture
 

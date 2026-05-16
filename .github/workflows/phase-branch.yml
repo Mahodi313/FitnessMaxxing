@@ -4,10 +4,24 @@ on:
   push:
     branches:
       - "gsd/phase-*"
+      - "fix/*"
+      - "chore/*"
   pull_request:
     branches:
       - dev
     types: [opened, synchronize, reopened]
+
+# FIT-12: shared concurrency group with dev.yml and main.yml so all
+# workflows that run test:rls against the same Supabase project serialise.
+# test-rls.ts uses fixed email prefixes (rls-test-a@..., rls-test-b@...)
+# and runs cleanupTestUsers() at start which deletes ALL rls-test-* users.
+# Without this block, two concurrent runs nuke each other's seed data mid-test
+# and produce false-positive defense-in-depth failures.
+# cancel-in-progress: false → each run completes and accurately reports its
+# own result (don't kill an in-flight run when a newer push lands).
+concurrency:
+  group: shared-supabase-test-rls
+  cancel-in-progress: false
 
 jobs:
   test:
@@ -90,7 +104,10 @@ jobs:
         run: |
           BRANCH="${{ github.ref_name }}"
           PHASE=$(echo $BRANCH | sed 's/gsd\///')
+          # Extrahera fas-nummer för Linear-manifest lookup (t.ex. "phase-06-..." → "6")
+          PHASE_NUM=$(echo "$BRANCH" | sed -n 's:.*/phase-0*\([0-9]\+\)-.*:\1:p')
           echo "phase=$PHASE" >> $GITHUB_OUTPUT
+          echo "phase_num=$PHASE_NUM" >> $GITHUB_OUTPUT
           echo "branch=$BRANCH" >> $GITHUB_OUTPUT
 
       - name: Öppna PR mot dev (om den inte redan finns)
@@ -98,8 +115,53 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
+            const fs = require('fs');
+            const path = require('path');
+
             const branch = '${{ steps.branch-info.outputs.branch }}';
             const phase = '${{ steps.branch-info.outputs.phase }}';
+            const phaseNum = '${{ steps.branch-info.outputs.phase_num }}';
+
+            // ─── Bygg Linear-sektion från .linear-sync.json manifest ─────────
+            // Letar efter .planning/phases/{padded}-*/.linear-sync.json. Om hittad,
+            // injicerar "Parent epic: FIT-X" + "Fixes FIT-Y" rader så att merge
+            // av PR:n stänger alla sub-issues + parent-epic i Linear automatiskt.
+            let linearSection = '';
+            if (phaseNum) {
+              const padded = String(parseInt(phaseNum, 10)).padStart(2, '0');
+              const phasesRoot = '.planning/phases';
+              if (fs.existsSync(phasesRoot)) {
+                const dirs = fs.readdirSync(phasesRoot).filter(d =>
+                  d.startsWith(`${padded}-`) &&
+                  fs.statSync(path.join(phasesRoot, d)).isDirectory()
+                );
+                if (dirs.length === 1) {
+                  const manifestPath = path.join(phasesRoot, dirs[0], '.linear-sync.json');
+                  if (fs.existsSync(manifestPath)) {
+                    try {
+                      const m = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+                      const lines = ['## Linear', ''];
+                      if (m.epic_issue_id) {
+                        lines.push(`Parent epic: **${m.epic_issue_id}**`);
+                        lines.push('');
+                      }
+                      const planIds = Object.keys(m.plans || {}).sort();
+                      for (const pid of planIds) {
+                        lines.push(`Fixes ${m.plans[pid].issue_id}`);
+                      }
+                      lines.push('');
+                      lines.push('> Sub-issues stängs av "Fixes"-raderna vid merge. Linear stänger parent-epicen automatiskt när alla sub-issues är stängda.');
+                      lines.push('');
+                      linearSection = lines.join('\n');
+                    } catch (e) {
+                      console.log('⚠ Kunde inte parsea .linear-sync.json:', e.message);
+                    }
+                  } else {
+                    console.log(`ℹ ${manifestPath} finns inte — PR:n får ingen Linear-sektion. Kör 'npm run linear:sync-phase -- --phase ${phaseNum}' lokalt.`);
+                  }
+                }
+              }
+            }
 
             const existingPRs = await github.rest.pulls.list({
               owner: context.repo.owner,
@@ -110,9 +172,23 @@ jobs:
             });
 
             if (existingPRs.data.length > 0) {
-              console.log('PR finns redan:', existingPRs.data[0].html_url);
+              const pr = existingPRs.data[0];
+              console.log('PR finns redan:', pr.html_url);
+              // Om PR-bodyn saknar Linear-sektionen och manifestet finns nu — appenda den
+              if (linearSection && !pr.body?.includes('## Linear')) {
+                const newBody = (pr.body || '') + '\n\n' + linearSection;
+                await github.rest.pulls.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: pr.number,
+                  body: newBody
+                });
+                console.log('PR-body uppdaterad med Linear-sektion');
+              }
               return;
             }
+
+            const body = `## ${phase}\n\n### Vad ingår\nAutomatiskt genererad PR från GSD execute-fas.\n\n### CI Status\n- ✅ TypeScript check\n- ✅ Lint\n- ✅ RLS tester\n- ✅ Expo build check\n\n### Checklista\n- [ ] Testat i Expo Go på iPhone\n- [ ] GSD verify-work godkänd\n- [ ] Inga kända buggar\n\n${linearSection}> Mergea när GSD verify-work är klar.`;
 
             const pr = await github.rest.pulls.create({
               owner: context.repo.owner,
@@ -120,7 +196,7 @@ jobs:
               title: `feat: ${phase}`,
               head: branch,
               base: 'dev',
-              body: `## ${phase}\n\n### Vad ingår\nAutomatiskt genererad PR från GSD execute-fas.\n\n### CI Status\n- ✅ TypeScript check\n- ✅ Lint\n- ✅ RLS tester\n- ✅ Expo build check\n\n### Checklista\n- [ ] Testat i Expo Go på iPhone\n- [ ] GSD verify-work godkänd\n- [ ] Inga kända buggar\n\n> Mergea när GSD verify-work är klar.`
+              body
             });
 
             console.log('PR skapad:', pr.data.html_url);

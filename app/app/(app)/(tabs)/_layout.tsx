@@ -25,13 +25,13 @@
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useColorScheme } from "react-native";
+import { useColorScheme } from "nativewind";
 import { OfflineBanner } from "@/components/offline-banner";
 import { ActiveSessionBanner } from "@/components/active-session-banner";
 
 export default function TabsLayout() {
-  const scheme = useColorScheme();
-  const isDark = scheme === "dark";
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-white dark:bg-gray-900">
