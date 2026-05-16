@@ -851,6 +851,11 @@ function AvslutaOverlay({
   onFinish: () => void;
 }) {
   const finishSession = useFinishSession(sessionId);
+  // D-N4: local notes state; nollställs vid unmount (Option A — minimal coupling).
+  const [notes, setNotes] = useState<string>("");
+  // D-N4 cleanup: reset notes-draft when the overlay unmounts (backdrop-tap,
+  // Fortsätt, or Avsluta). Re-open mounts fresh with empty state.
+  useEffect(() => () => setNotes(""), []);
 
   const title = "Avsluta passet?";
   const body =
@@ -862,8 +867,10 @@ function AvslutaOverlay({
 
   const handleConfirm = () => {
     // mutate (NOT mutateAsync) — Phase 4 commit 5d953b6.
+    // D-N3: include notes in payload; trim/null-normalization happens in
+    // the ['session','finish'] mutationFn (Task 1 — client.ts).
     finishSession.mutate(
-      { id: sessionId, finished_at: new Date().toISOString() },
+      { id: sessionId, finished_at: new Date().toISOString(), notes },
       {
         // onError: optimistic onMutate in Plan 01 setMutationDefaults
         // already cleared sessionsKeys.active(); rollback handled there.
@@ -902,52 +909,77 @@ function AvslutaOverlay({
       accessibilityRole="button"
       accessibilityLabel="Stäng dialog"
     >
-      <Pressable
-        style={{
-          width: "100%",
-          maxWidth: 400,
-        }}
-        onPress={(e) => e.stopPropagation()}
+      {/* D-N1: KeyboardAvoidingView wrap so iOS keyboard doesn't cover buttons.
+          KeyboardAvoidingView is a layout primitive — does NOT break the
+          stopPropagation chain (PATTERNS.md landmine #6). */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ width: "100%", maxWidth: 400 }}
       >
-        <View
-          className="bg-gray-100 dark:bg-gray-800 rounded-2xl p-6"
-          style={{ gap: 16 }}
+        <Pressable
+          style={{ width: "100%" }}
+          onPress={(e) => e.stopPropagation()}
         >
-          <View style={{ gap: 8 }}>
+          <View
+            className="bg-gray-100 dark:bg-gray-800 rounded-2xl p-6"
+            style={{ gap: 16 }}
+          >
+            <View style={{ gap: 8 }}>
+              <Text
+                className="text-2xl font-semibold text-gray-900 dark:text-gray-50"
+                accessibilityRole="header"
+              >
+                {title}
+              </Text>
+              <Text className="text-base text-gray-900 dark:text-gray-50">
+                {body}
+              </Text>
+            </View>
+            {/* D-N2: multi-line notes TextInput + char-counter */}
+            <TextInput
+              value={notes}
+              onChangeText={setNotes}
+              placeholder="Anteckningar (valfri)"
+              placeholderTextColor="#9CA3AF"
+              multiline
+              numberOfLines={3}
+              maxLength={500}
+              style={{ minHeight: 80, maxHeight: 160 }}
+              textAlignVertical="top"
+              accessibilityLabel="Anteckningar för passet, valfri"
+              className="rounded-md bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 px-3 py-2 text-base text-gray-900 dark:text-gray-50"
+            />
+            {/* Counter: always visible; flips to red when > 480 (D-N2 warning threshold) */}
             <Text
-              className="text-2xl font-semibold text-gray-900 dark:text-gray-50"
-              accessibilityRole="header"
+              className={`text-sm text-right ${notes.length > 480 ? "text-red-600 dark:text-red-400" : "text-gray-500 dark:text-gray-400"}`}
             >
-              {title}
+              {`${notes.length}/500`}
             </Text>
-            <Text className="text-base text-gray-900 dark:text-gray-50">
-              {body}
-            </Text>
+            <View className="flex-row gap-3">
+              <Pressable
+                onPress={onCancel}
+                accessibilityRole="button"
+                accessibilityLabel="Fortsätt passet"
+                className="flex-1 py-4 rounded-lg bg-gray-200 dark:bg-gray-700 items-center justify-center active:opacity-80"
+              >
+                <Text className="text-base font-semibold text-gray-900 dark:text-gray-50">
+                  Fortsätt
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={handleConfirm}
+                accessibilityRole="button"
+                accessibilityLabel={primaryLabel}
+                className="flex-1 py-4 rounded-lg bg-blue-600 dark:bg-blue-500 items-center justify-center active:opacity-80"
+              >
+                <Text className="text-base font-semibold text-white">
+                  {primaryLabel}
+                </Text>
+              </Pressable>
+            </View>
           </View>
-          <View className="flex-row gap-3">
-            <Pressable
-              onPress={onCancel}
-              accessibilityRole="button"
-              accessibilityLabel="Fortsätt passet"
-              className="flex-1 py-4 rounded-lg bg-gray-200 dark:bg-gray-700 items-center justify-center active:opacity-80"
-            >
-              <Text className="text-base font-semibold text-gray-900 dark:text-gray-50">
-                Fortsätt
-              </Text>
-            </Pressable>
-            <Pressable
-              onPress={handleConfirm}
-              accessibilityRole="button"
-              accessibilityLabel={primaryLabel}
-              className="flex-1 py-4 rounded-lg bg-blue-600 dark:bg-blue-500 items-center justify-center active:opacity-80"
-            >
-              <Text className="text-base font-semibold text-white">
-                {primaryLabel}
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-      </Pressable>
+        </Pressable>
+      </KeyboardAvoidingView>
     </Pressable>
   );
 }
