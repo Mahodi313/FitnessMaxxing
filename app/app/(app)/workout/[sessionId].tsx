@@ -384,6 +384,7 @@ function ExerciseCard({
         exercise_id: planExercise.exercise_id,
         weight_kg: input.weight_kg,
         reps: input.reps,
+        rpe: input.rpe ?? null,
         completed_at: new Date().toISOString(),
         set_type: "working",
       },
@@ -542,12 +543,47 @@ function ExerciseCard({
             </View>
           )}
         />
+        <Controller
+          control={control}
+          name="rpe"
+          render={({ field: { onChange, value }, fieldState: { error } }) => (
+            <View className="w-16">
+              <TextInput
+                value={value == null ? "" : String(value)}
+                onChangeText={onChange}
+                placeholder="RPE"
+                placeholderTextColor="#9CA3AF"
+                keyboardType="decimal-pad"
+                inputMode="decimal"
+                returnKeyType="done"
+                autoCorrect={false}
+                autoCapitalize="none"
+                selectTextOnFocus={true}
+                accessibilityLabel="Upplevd ansträngning, valfri"
+                maxLength={4}
+                className={`rounded-md bg-white dark:bg-gray-900 border px-2 py-3 text-base font-semibold text-gray-900 dark:text-gray-50 min-h-[56px] text-center ${
+                  error
+                    ? "border-red-600 dark:border-red-400"
+                    : "border-gray-300 dark:border-gray-700"
+                } focus:border-blue-600 dark:focus:border-blue-500`}
+              />
+              {error && (
+                <Text
+                  className="text-base text-red-600 dark:text-red-400 mt-1 px-1"
+                  accessibilityLiveRegion="polite"
+                >
+                  {error.message}
+                </Text>
+              )}
+            </View>
+          )}
+        />
         <Pressable
           onPress={handleSubmit(onKlart)}
           disabled={isSubmitting}
           accessibilityRole="button"
           accessibilityLabel="Spara set"
-          className="w-20 min-h-[56px] rounded-md bg-blue-600 dark:bg-blue-500 items-center justify-center disabled:opacity-60 active:opacity-80"
+          className="w-16 min-h-[56px] rounded-md bg-blue-600 dark:bg-blue-500 items-center justify-center disabled:opacity-60 active:opacity-80"
         >
           <Text className="text-base font-semibold text-white">Klart</Text>
         </Pressable>
