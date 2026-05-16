@@ -59,8 +59,22 @@ export const setFormSchema = z.object({
   set_type: z
     .enum(["working", "warmup", "dropset", "failure"])
     .default("working"),
-  // F11 schema-ready (Phase 7 wires UI). rpe is numeric(3,1) in the DB.
-  rpe: z.coerce.number().nullable().optional(),
+  // F11 — RPE inline input. Phase 7 wires UI per D-R2 + D-R3.
+  // numeric(3,1) on the server; accepts decimals, comma-locale-tolerant, empty → null.
+  rpe: z.preprocess(
+    (v) => {
+      if (typeof v !== "string") return v;
+      const trimmed = v.trim();
+      if (trimmed === "") return null; // empty/whitespace → null (D-R3, valfri)
+      return trimmed.replace(/,/g, "."); // comma → period (weight_kg precedent)
+    },
+    z
+      .coerce.number()
+      .min(0, { error: "RPE 0 eller högre" })
+      .max(10, { error: "RPE 10 eller lägre" })
+      .nullable()
+      .optional(),
+  ),
   // F12 schema-ready (Phase 7 wires UI).
   notes: z
     .string()
