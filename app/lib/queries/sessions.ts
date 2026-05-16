@@ -36,7 +36,7 @@ type SessionInsertVars = {
   plan_id?: string | null;
   started_at?: string;
 };
-type SessionFinishVars = { id: string; finished_at: string };
+type SessionFinishVars = { id: string; finished_at: string; notes?: string | null };
 
 // ---- Queries ---------------------------------------------------------------
 

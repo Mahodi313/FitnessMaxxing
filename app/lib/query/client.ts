@@ -138,9 +138,10 @@ type SessionInsertVars = Partial<SessionRow> & {
   plan_id?: string | null;
   started_at?: string;
 };
-// SessionFinishVars: useFinishSession(...).mutate({ id, finished_at })
-// — single-column UPDATE to flip finished_at from null to ISO string.
-type SessionFinishVars = { id: string; finished_at: string };
+// SessionFinishVars: useFinishSession(...).mutate({ id, finished_at, notes? })
+// — UPDATE finished_at and optional notes. notes is optional (D-N3); existing
+// callers that pass only { id, finished_at } remain type-compatible.
+type SessionFinishVars = { id: string; finished_at: string; notes?: string | null };
 
 // SetInsertVars: useAddSet(sessionId).mutate({ id, session_id, exercise_id, reps, weight_kg, ... })
 // — id, session_id, exercise_id, reps, weight_kg required. Optional:
@@ -681,10 +682,12 @@ queryClient.setMutationDefaults(["session", "start"], {
 // ===========================================================================
 queryClient.setMutationDefaults(["session", "finish"], {
   mutationFn: async (vars: SessionFinishVars) => {
-    const { id, finished_at } = vars;
+    const { id, finished_at, notes } = vars;
+    // D-N3: trim-normalize notes; empty/whitespace → null (SPEC acceptance (b)).
+    const finalNotes = notes?.trim() ? notes.trim() : null;
     const { data, error } = await supabase
       .from("workout_sessions")
-      .update({ finished_at })
+      .update({ finished_at, notes: finalNotes })
       .eq("id", id)
       .select()
       .single();
@@ -705,11 +708,16 @@ queryClient.setMutationDefaults(["session", "finish"], {
     if (previousActive && previousActive.id === vars.id) {
       queryClient.setQueryData<SessionRow | null>(sessionsKeys.active(), null);
     }
-    // Detail cache: merge finished_at into the snapshot if present.
+    // Detail cache: merge finished_at + notes into the snapshot if present.
+    // D-N3 backward-compat: if vars.notes is undefined (legacy caller), fall
+    // back to previousDetail.notes so we never clobber an existing value.
     if (previousDetail) {
+      const finalNotes =
+        vars.notes?.trim() ? vars.notes.trim() : (previousDetail.notes ?? null);
       queryClient.setQueryData<SessionRow>(sessionsKeys.detail(vars.id), {
         ...previousDetail,
         finished_at: vars.finished_at,
+        notes: finalNotes,
       });
     }
     return { previousActive, previousDetail };
