@@ -3,10 +3,15 @@ slug: fit-5-signup-wrong-landing
 linear_id: FIT-5
 linear_url: https://linear.app/fitnessmaxxing/issue/FIT-5/bug-sign-up
 linear_priority: High
-status: fix_applied
+status: resolved
+resolved: 2026-05-14
+resolved_via:
+  - "fix/FIT-5-signin-routing → PR #19 (commit 4c197cd) — route new sign-ins to (tabs) and reset nav on user change"
+  - "fix/FIT-5-clear-persisted-cache-on-signout → PR #18 (commit 27b8a43) — clear persisted query cache on sign-out"
 trigger: "Bug: Sign up — When signing up with a new user for the first time and login with the user, it redirects the user to add exercises route with even going through the first route to create plan after signing in."
 created: 2026-05-14
-updated: 2026-05-14
+updated: 2026-05-16
+closed_at_milestone: v1.0
 ---
 
 # Debug Session: fit-5-signup-wrong-landing

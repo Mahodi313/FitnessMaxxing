@@ -1,15 +1,19 @@
 ---
 phase: 07-v1-polish-cut
 verified: 2026-05-16T00:00:00Z
-status: human_needed
-score: 5/5 must-haves verified (automated); 1 human item requires decision record
+status: verified
+score: 5/5 must-haves verified (automated); 1 human attestation accepted under V1 single-user soak policy
 branch_head: fc61112 (orchestrator docs; signed-off head b07b5daf8beb019b0857bb2282d97f7ff3bfa61f)
 overrides_applied: 0
 re_verification: false
-human_verification:
-  - test: "Confirm §3.10 Order A/B SQL-count + net-behavior fields"
+closed_at_milestone: v1.0
+accepted_attestations:
+  - test: "§3.10 Order A/B SQL-count + net-behavior fields"
     expected: "SQL count = 0 after reconnect in both orders; no orphan mutations"
-    why_human: "User ticked T-07-03 checkbox based on observation — SQL count fields left blank; attestation is accepted under V1 single-user soak policy per 07-05-SUMMARY.md §Lessons §4, but the gap is noted here for audit-trail completeness"
+    actual: "User ticked T-07-03 checkbox based on observation; SQL count fields left blank"
+    accepted_by: Mahodi313
+    accepted_at: 2026-05-16
+    rationale: "Pre-accepted in 07-05-SUMMARY.md §Lessons §4 for V1 single-user soak validation. Re-evaluation trigger: V1.1 / TestFlight planning, when harder evidence may be required — implement deterministic Node-script fallback per 07-04 Plan Task 1 action note (`queryClient.getMutationCache().getAll()` from a paused state)."
 ---
 
 # Phase 7: V1 Polish Cut — Verification Report
