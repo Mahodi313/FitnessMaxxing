@@ -43,6 +43,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -856,6 +857,28 @@ function AvslutaOverlay({
   // D-N4 cleanup: reset notes-draft when the overlay unmounts (backdrop-tap,
   // Fortsätt, or Avsluta). Re-open mounts fresh with empty state.
   useEffect(() => () => setNotes(""), []);
+  // Track keyboard height manually — KeyboardAvoidingView's `padding`/`height`
+  // behaviors do not lift an absolutely-positioned, flex-end-anchored card on
+  // iOS 15+/RN 0.81; the card visually moves to the bottom but stays under the
+  // keyboard (UAT bug reported 2026-05-16, iPhone 15 Pro / iOS 26.4.2).
+  // Solution: read the actual keyboard frame and apply paddingBottom directly.
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  useEffect(() => {
+    const showEvt =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvt =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const showSub = Keyboard.addListener(showEvt, (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+    });
+    const hideSub = Keyboard.addListener(hideEvt, () => {
+      setKeyboardHeight(0);
+    });
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const title = "Avsluta passet?";
   const body =
@@ -901,32 +924,29 @@ function AvslutaOverlay({
         bottom: 0,
         backgroundColor: "rgba(0,0,0,0.5)",
         alignItems: "center",
-        // Bottom-anchor the card so KeyboardAvoidingView's bottom-padding actually
-        // pushes the card up over the iOS keyboard. With center-anchoring the
-        // padding only grows the KAV element but its centered position is
-        // unchanged, so buttons stay hidden behind the keyboard.
+        // D-N1 (revised 2026-05-16): bottom-anchor the card AND apply the
+        // measured keyboard height directly as paddingBottom. We do not use
+        // KeyboardAvoidingView here because behavior="padding" / "height" /
+        // "position" all failed on iOS 26.4.2 inside this absolute-positioned
+        // backdrop — the KAV element's centered/flexed position never lifted
+        // off the bottom even though padding grew. Manual measurement via
+        // Keyboard.addListener('keyboardWillShow') guarantees the card sits
+        // exactly above the system keyboard.
         justifyContent: "flex-end",
         paddingHorizontal: 32,
-        paddingBottom: 32,
+        paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : 32,
         zIndex: 2000,
       }}
       onPress={onCancel}
       accessibilityRole="button"
       accessibilityLabel="Stäng dialog"
     >
-      {/* D-N1: KeyboardAvoidingView wrap so iOS keyboard doesn't cover buttons.
-          KeyboardAvoidingView is a layout primitive — does NOT break the
-          stopPropagation chain (PATTERNS.md landmine #6). The parent backdrop
-          uses justifyContent:flex-end so KAV's bottom-padding pushes the card
-          up above the keyboard instead of growing a centered element in place. */}
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      {/* Inner Pressable stops backdrop-dismiss when tapping the card itself
+          (PATTERNS.md landmine #6). */}
+      <Pressable
         style={{ width: "100%", maxWidth: 400 }}
+        onPress={(e) => e.stopPropagation()}
       >
-        <Pressable
-          style={{ width: "100%" }}
-          onPress={(e) => e.stopPropagation()}
-        >
           <View
             className="bg-gray-100 dark:bg-gray-800 rounded-2xl p-6"
             style={{ gap: 16 }}
@@ -985,8 +1005,7 @@ function AvslutaOverlay({
               </Pressable>
             </View>
           </View>
-        </Pressable>
-      </KeyboardAvoidingView>
+      </Pressable>
     </Pressable>
   );
 }

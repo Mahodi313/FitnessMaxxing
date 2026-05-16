@@ -60,9 +60,9 @@
 //   - 06-RESEARCH.md Pitfall 6 (InfiniteQuery envelope) + Pitfall 7
 //     (freezeOnBlur overlay reset)
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  KeyboardAvoidingView,
+  Keyboard,
   Platform,
   Pressable,
   ScrollView,
@@ -128,6 +128,28 @@ export default function SessionDetailScreen() {
   const [showEditNotesOverlay, setShowEditNotesOverlay] = useState(false);
   const [draftNotes, setDraftNotes] = useState<string>("");
   const [bannerError, setBannerError] = useState<string | null>(null);
+  // Same direct-keyboard-measurement pattern as AvslutaOverlay (workout
+  // [sessionId].tsx). KeyboardAvoidingView did not lift this card on iOS 26.4.2
+  // inside an absolutely-positioned, flex-end-anchored backdrop; manual
+  // measurement is the reliable fix. Listeners are always installed (cheap)
+  // and only consulted when the overlay is open.
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  useEffect(() => {
+    const showEvt =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvt =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const showSub = Keyboard.addListener(showEvt, (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+    });
+    const hideSub = Keyboard.addListener(hideEvt, () => {
+      setKeyboardHeight(0);
+    });
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   // Pitfall 7 (06-RESEARCH.md): freezeOnBlur retains React state across
   // navigation; reset overlay flags on blur so a re-focus does not flash a
@@ -579,11 +601,11 @@ export default function SessionDetailScreen() {
       )}
 
       {/* F12 Edit-notes overlay — Phase 4 commit e07029a inline-overlay pattern
-          (NOT Modal portal — PATTERNS landmine #3). KeyboardAvoidingView wraps
-          the inner card so iOS keyboard does not cover buttons. The backdrop
-          uses justifyContent:flex-end so KAV's bottom-padding actually pushes
-          the card above the keyboard (centered + padding leaves the card in
-          place because padding only grows the centered element). */}
+          (NOT Modal portal — PATTERNS landmine #3). Uses direct keyboard
+          measurement (see keyboardHeight state above) instead of
+          KeyboardAvoidingView — KAV behaviors ("padding"/"height"/"position")
+          did not lift this card on iOS 26.4.2 inside an absolute-positioned,
+          flex-end-anchored backdrop (UAT bug reported 2026-05-16). */}
       {showEditNotesOverlay && (
         <Pressable
           style={{
@@ -596,18 +618,17 @@ export default function SessionDetailScreen() {
             justifyContent: "flex-end",
             backgroundColor: "rgba(0,0,0,0.5)",
             paddingHorizontal: 32,
-            paddingBottom: 32,
+            paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : 32,
             zIndex: 2000,
           }}
           onPress={() => setShowEditNotesOverlay(false)}
           accessibilityRole="button"
           accessibilityLabel="Stäng dialog"
         >
-          <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
+          <Pressable
             style={{ width: "100%", maxWidth: 400 }}
+            onPress={(e) => e.stopPropagation()}
           >
-            <Pressable onPress={(e) => e.stopPropagation()}>
               <View
                 className="bg-gray-100 dark:bg-gray-800 rounded-2xl p-6"
                 style={{ gap: 16 }}
@@ -660,8 +681,7 @@ export default function SessionDetailScreen() {
                   </Pressable>
                 </View>
               </View>
-            </Pressable>
-          </KeyboardAvoidingView>
+          </Pressable>
         </Pressable>
       )}
 
