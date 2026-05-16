@@ -924,28 +924,29 @@ function AvslutaOverlay({
         bottom: 0,
         backgroundColor: "rgba(0,0,0,0.5)",
         alignItems: "center",
-        // D-N1 (revised 2026-05-16): bottom-anchor the card AND apply the
-        // measured keyboard height directly as paddingBottom. We do not use
-        // KeyboardAvoidingView here because behavior="padding" / "height" /
-        // "position" all failed on iOS 26.4.2 inside this absolute-positioned
-        // backdrop — the KAV element's centered/flexed position never lifted
-        // off the bottom even though padding grew. Manual measurement via
-        // Keyboard.addListener('keyboardWillShow') guarantees the card sits
-        // exactly above the system keyboard.
-        justifyContent: "flex-end",
+        // D-N1 (revised 2026-05-16, iter 3): center the card normally; only
+        // when the iOS keyboard is up do we switch to flex-end + paddingBottom
+        // = keyboardHeight + 16 so the card lifts exactly above the keyboard.
+        // This avoids the "modal slammed against bottom" look when no input
+        // is focused while still solving the original UAT-blocker.
+        justifyContent: keyboardHeight > 0 ? "flex-end" : "center",
         paddingHorizontal: 32,
-        paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : 32,
+        paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : 0,
         zIndex: 2000,
       }}
       onPress={onCancel}
       accessibilityRole="button"
       accessibilityLabel="Stäng dialog"
     >
-      {/* Inner Pressable stops backdrop-dismiss when tapping the card itself
-          (PATTERNS.md landmine #6). */}
+      {/* Inner Pressable claims the touch so backdrop-onPress (onCancel) does
+          NOT fire when tapping the card itself (PATTERNS.md landmine #6).
+          Doubling as a tap-to-dismiss-keyboard target: tap on the card body
+          (outside TextInput / buttons) closes the keyboard, matching native
+          iOS expectation. TextInput + button taps consume the event first,
+          so this only fires on empty card surface. */}
       <Pressable
         style={{ width: "100%", maxWidth: 400 }}
-        onPress={(e) => e.stopPropagation()}
+        onPress={() => Keyboard.dismiss()}
       >
           <View
             className="bg-gray-100 dark:bg-gray-800 rounded-2xl p-6"

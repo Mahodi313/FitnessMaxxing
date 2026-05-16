@@ -615,10 +615,13 @@ export default function SessionDetailScreen() {
             right: 0,
             bottom: 0,
             alignItems: "center",
-            justifyContent: "flex-end",
+            // Center when keyboard is closed; lift to flex-end + paddingBottom
+            // = keyboardHeight + 16 when keyboard is open. Matches AvslutaOverlay
+            // (workout [sessionId].tsx) iter-3 fix.
+            justifyContent: keyboardHeight > 0 ? "flex-end" : "center",
             backgroundColor: "rgba(0,0,0,0.5)",
             paddingHorizontal: 32,
-            paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : 32,
+            paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : 0,
             zIndex: 2000,
           }}
           onPress={() => setShowEditNotesOverlay(false)}
@@ -627,7 +630,7 @@ export default function SessionDetailScreen() {
         >
           <Pressable
             style={{ width: "100%", maxWidth: 400 }}
-            onPress={(e) => e.stopPropagation()}
+            onPress={() => Keyboard.dismiss()}
           >
               <View
                 className="bg-gray-100 dark:bg-gray-800 rounded-2xl p-6"
