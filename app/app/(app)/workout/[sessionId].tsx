@@ -901,8 +901,13 @@ function AvslutaOverlay({
         bottom: 0,
         backgroundColor: "rgba(0,0,0,0.5)",
         alignItems: "center",
-        justifyContent: "center",
+        // Bottom-anchor the card so KeyboardAvoidingView's bottom-padding actually
+        // pushes the card up over the iOS keyboard. With center-anchoring the
+        // padding only grows the KAV element but its centered position is
+        // unchanged, so buttons stay hidden behind the keyboard.
+        justifyContent: "flex-end",
         paddingHorizontal: 32,
+        paddingBottom: 32,
         zIndex: 2000,
       }}
       onPress={onCancel}
@@ -911,7 +916,9 @@ function AvslutaOverlay({
     >
       {/* D-N1: KeyboardAvoidingView wrap so iOS keyboard doesn't cover buttons.
           KeyboardAvoidingView is a layout primitive — does NOT break the
-          stopPropagation chain (PATTERNS.md landmine #6). */}
+          stopPropagation chain (PATTERNS.md landmine #6). The parent backdrop
+          uses justifyContent:flex-end so KAV's bottom-padding pushes the card
+          up above the keyboard instead of growing a centered element in place. */}
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ width: "100%", maxWidth: 400 }}

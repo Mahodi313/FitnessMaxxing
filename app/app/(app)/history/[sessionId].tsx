@@ -580,7 +580,10 @@ export default function SessionDetailScreen() {
 
       {/* F12 Edit-notes overlay — Phase 4 commit e07029a inline-overlay pattern
           (NOT Modal portal — PATTERNS landmine #3). KeyboardAvoidingView wraps
-          the inner card so iOS keyboard does not cover buttons on SE-size. */}
+          the inner card so iOS keyboard does not cover buttons. The backdrop
+          uses justifyContent:flex-end so KAV's bottom-padding actually pushes
+          the card above the keyboard (centered + padding leaves the card in
+          place because padding only grows the centered element). */}
       {showEditNotesOverlay && (
         <Pressable
           style={{
@@ -590,9 +593,10 @@ export default function SessionDetailScreen() {
             right: 0,
             bottom: 0,
             alignItems: "center",
-            justifyContent: "center",
+            justifyContent: "flex-end",
             backgroundColor: "rgba(0,0,0,0.5)",
             paddingHorizontal: 32,
+            paddingBottom: 32,
             zIndex: 2000,
           }}
           onPress={() => setShowEditNotesOverlay(false)}
