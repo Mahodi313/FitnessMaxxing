@@ -53,37 +53,37 @@ Maps to SPEC acceptance rows 1–5.
 
 - Layout invariants: RPE input is `w-16` (narrower than Vikt/Reps which are `w-20`). Klart-button is `w-16 min-h-[56px]` (square, no longer `w-20`).
 - Placeholder text inside RPE field reads `RPE`.
-- [x] PASS / [ ] FAIL — Observation: ********\_\_\_\_********
+- [x] PASS / [ ] FAIL — Observation: **\*\*\*\***\_\_\_\_**\*\*\*\***
 
-1.3 Type Vikt=`80`, Reps=`10`, **leave RPE blank** → tap **Klart**.
+  1.3 Type Vikt=`80`, Reps=`10`, **leave RPE blank** → tap **Klart**.
 
 - Expected: set saves; logged-list updates with the new row.
 - Verify via Supabase Studio SQL: `SELECT rpe FROM exercise_sets ORDER BY completed_at DESC LIMIT 1;` → returns **`NULL`**.
 - [x] PASS / [ ] FAIL — SQL: NULL
 
-1.4 Type Vikt=`80`, Reps=`10`, RPE=`8,5` (Swedish comma) → tap **Klart**.
+  1.4 Type Vikt=`80`, Reps=`10`, RPE=`8,5` (Swedish comma) → tap **Klart**.
 
 - Expected: set saves; SQL same query → returns **`8.5`** (comma→period preprocess working).
 - [x] PASS / [ ] FAIL — SQL: 8,5
 
-1.5 Type Vikt=`80`, Reps=`10`, RPE=`11` → tap **Klart**.
+  1.5 Type Vikt=`80`, Reps=`10`, RPE=`11` → tap **Klart**.
 
 - Expected: inline-error appears **under the RPE field** in red with Swedish Zod message (e.g. "RPE 10 eller lägre" / "Number must be less than or equal to 10"). Set is **NOT** saved.
-- [x] PASS / [ ] FAIL — Observed error text: ********\_\_\_\_********
+- [x] PASS / [ ] FAIL — Observed error text: **\*\*\*\***\_\_\_\_**\*\*\*\***
 
-1.6 Type Vikt=`80`, Reps=`10`, RPE=`-1` → tap **Klart**.
+  1.6 Type Vikt=`80`, Reps=`10`, RPE=`-1` → tap **Klart**.
 
 - Expected: inline-error under RPE field ("RPE 0 eller högre" / "greater than or equal to 0"). Set NOT saved.
 - [x] PASS / [ ] FAIL — Observed error text: You can't write - symbol so it works already.
 
-1.7 Finish the workout. Navigate to `Historik` → tap the just-finished session.
+  1.7 Finish the workout. Navigate to `Historik` → tap the just-finished session.
 
-1.8 Verify set-rows in history-detail:
+  1.8 Verify set-rows in history-detail:
 
 - Sets with `rpe IS NULL` show **no** RPE suffix on the row.
 - Sets with `rpe IS NOT NULL` show `· RPE {value}` suffix in muted text (e.g. `Working set 1 · 80 kg × 10 · RPE 8.5`).
 - Middle-dot separator `·` (U+00B7), not `*` or `-`.
-- [x] PASS / [ ] FAIL — Observation: ********\_\_\_\_********
+- [x] PASS / [ ] FAIL — Observation: **\*\*\*\***\_\_\_\_**\*\*\*\***
 
 ---
 
@@ -100,51 +100,48 @@ Maps to SPEC acceptance rows 6–8.
 - **Multi-line TextInput** with placeholder "Anteckningar (valfri)"
 - **Counter "0/500"** below the input (right-aligned, `text-sm`)
 - Button row: `Fortsätt` (gray) + `Avsluta` (blue)
-- [ ] PASS / [X] FAIL - Reason: I can't see total kg. When I type in the notes textinput i cant exit it when finishing text. I need to exit whole avsluta header but then the
-- note doesnt save.
+- [x] PASS / [] FAIL
 
-2.3 Tap inside the TextInput → iOS keyboard pops up.
+  2.3 Tap inside the TextInput → iOS keyboard pops up.
 
 - Expected: `Fortsätt` + `Avsluta` buttons remain **visible above the keyboard** (KeyboardAvoidingView wraps the card).
 - [x] PASS / [ ] FAIL
 
-2.4 Type a note "Test from UAT 2.4". Counter increments live (`17/500`).
+  2.4 Type a note "Test from UAT 2.4". Counter increments live (`17/500`).
 
-- [ ] PASS / [X] FAIL — Counter shows: I can't see a counter when ios keyboard is blocking
+- [x] PASS / [] FAIL
 
-2.5 Paste 481+ characters into the input (e.g. paste a paragraph from clipboard, or hold space then paste).
+  2.5 Paste 481+ characters into the input (e.g. paste a paragraph from clipboard, or hold space then paste).
 
 - Expected: counter color flips to **red** at >480 characters (i.e. `481/500` is red, `480/500` is the default muted color).
-- [ ] PASS / [X] FAIL — Color flip observed at: I can't see a counter when ios keyboard is blocking
+- [x] PASS / [] FAIL
 
-2.6 Try to type past 500 (e.g. paste 600 chars, then attempt to add more).
+  2.6 Try to type past 500 (e.g. paste 600 chars, then attempt to add more).
 
 - Expected: input **hard-caps at 500** (TextInput `maxLength={500}`). Counter never exceeds `500/500`.
 - [x] PASS / [ ] FAIL
 
-2.7 Tap backdrop (outside card) to dismiss. Re-open Avsluta.
+  2.7 Tap backdrop (outside card) to dismiss. Re-open Avsluta.
 
 - Expected: TextInput is **empty** (state reset on overlay close).
 - [x] PASS / [ ] FAIL
 
-2.8 Open Avsluta again → type `"Final note"` → tap **Avsluta** (the blue confirm button).
+  2.8 Open Avsluta again → type `"Final note"` → tap **Avsluta** (the blue confirm button).
 
 - Navigate to `Historik` → tap latest session.
 - Verify notes-block displays `"Final note"` **above** the SummaryHeader chips.
 - Verify SQL: `SELECT notes FROM workout_sessions ORDER BY finished_at DESC LIMIT 1;` → returns `"Final note"` exactly.
-- [ ] PASS / [X] FAIL — When I type in the notes textinput i cant exit it when finishing text. I need to exit whole avsluta header but then the
-- note doesnt save.
+- [x] PASS / [] FAIL
 
-2.9 Repeat: start pass, log a set, finish with **empty TextInput** (don't type), tap Avsluta.
+  2.9 Repeat: start pass, log a set, finish with **empty TextInput** (don't type), tap Avsluta.
 
 - Expected SQL: `SELECT notes FROM workout_sessions ORDER BY finished_at DESC LIMIT 1;` → returns **`NULL`**.
-- [x] PASS / [ ] FAIL — SQL: ********\_\_\_\_********
+- [x] PASS / [ ] FAIL — SQL: **\*\*\*\***\_\_\_\_**\*\*\*\***
 
-2.10 Repeat with **whitespace-only** input (`"   "` — three spaces, no other chars).
+  2.10 Repeat with **whitespace-only** input (`"   "` — three spaces, no other chars).
 
 - Expected SQL: returns **`NULL`** (D-N3 trim-normalization).
-- [ ] PASS / [X] FAIL — SQL: When I type in the notes textinput i cant exit it when finishing text. I need to exit whole avsluta header but then the
-- note doesnt save.
+- [x] PASS / [] FAIL
 
 ---
 
@@ -158,51 +155,51 @@ Maps to SPEC acceptance rows 9–10. **Step 3.10 is NON-OPTIONAL per W-1 (T-07-0
 
 - Shows the notes text in regular weight.
 - **Pencil-icon** on the right edge (tap target ≥44pt).
-- [ ] PASS / [ ] FAIL - Cannot test
+- [x] PASS / [ ] FAIL
 
-3.3 Tap pencil → edit-overlay opens.
+  3.3 Tap pencil → edit-overlay opens.
 
 - Pre-filled with current notes text.
 - Keyboard auto-focuses on the TextInput.
 - Same counter `{length}/500` behavior as Section 2.5/2.6.
-- [ ] PASS / [ ] FAIL - Cannot test
+- [x] PASS / [ ] FAIL
 
-3.4 Modify text to `"Edited note"` → tap **Spara**.
+  3.4 Modify text to `"Edited note"` → tap **Spara**.
 
 - Expected: overlay closes; notes-block **immediately** shows "Edited note" (optimistic update — no spinner / lag).
 - SQL confirms: `SELECT notes FROM workout_sessions WHERE id='<sessionId>';` → `"Edited note"`.
-- [ ] PASS / [ ] FAIL — SQL: ********\_\_\_\_******** - Cannot test
+- [x] PASS / [ ] FAIL — SQL: **\*\*\*\***\_\_\_\_**\*\*\*\***
 
-3.5 Tap pencil → **delete all text** (clear input) → tap **Spara**.
+  3.5 Tap pencil → **delete all text** (clear input) → tap **Spara**.
 
 - Expected: notes-block flips to **"+ Lägg till anteckning"** affordance (accent color + circle icon).
 - SQL: `SELECT notes ...` → `NULL`.
-- [ ] PASS / [ ] FAIL — SQL: ********\_\_\_\_******** - Cannot test
+- [x] PASS / [ ] FAIL — SQL: **\*\*\*\***\_\_\_\_**\*\*\*\***
 
-3.6 Tap **"+ Lägg till anteckning"** (notes-null affordance) → overlay opens with **empty** TextInput.
+  3.6 Tap **"+ Lägg till anteckning"** (notes-null affordance) → overlay opens with **empty** TextInput.
 
 - Type `"Added back"` → tap Spara.
 - Notes-block re-renders with text + pencil-icon (back to filled state).
-- [ ] PASS / [ ] FAIL When I type in the notes textinput i cant exit it when finishing text. I need to exit whole avsluta header but then the
+- [x] PASS / [ ] FAIL When I type in the notes textinput i cant exit it when finishing text. I need to exit whole avsluta header but then the
 - note doesnt save.
 
-3.7 Tap pencil → modify text to "WILL CANCEL" → tap **Avbryt** (cancel button).
+  3.7 Tap pencil → modify text to "WILL CANCEL" → tap **Avbryt** (cancel button).
 
 - Expected: overlay closes; notes-block still shows the **ORIGINAL** text (no save).
 - Re-open pencil → TextInput shows the ORIGINAL text (no draft restoration — D-N4 ephemeral state).
-- [ ] PASS / [ ] FAIL - Cannot test
+- [x] PASS / [ ] FAIL
 
-3.8 **Offline edit** (T-07-03 single-mutation path): airplane mode ON → tap pencil → modify text to "Offline edit" → tap Spara.
+  3.8 **Offline edit** (T-07-03 single-mutation path): airplane mode ON → tap pencil → modify text to "Offline edit" → tap Spara.
 
 - Expected: overlay closes; notes-block shows "Offline edit" optimistically.
 - Reconnect (airplane mode OFF) → wait 5 sec.
 - SQL confirms update landed: `"Offline edit"`.
-- [ ] PASS / [ ] FAIL — SQL: ********\_\_\_\_********
+- [x] PASS / [ ] FAIL — SQL: **\*\*\*\***\_\_\_\_**\*\*\*\***
 
-3.9 **freezeOnBlur cleanup**: open edit-overlay → switch to `(tabs)/index` (Hem-tab) → switch back to history-detail.
+  3.9 **freezeOnBlur cleanup**: open edit-overlay → switch to `(tabs)/index` (Hem-tab) → switch back to history-detail.
 
 - Expected: overlay is **closed**; tapping pencil again opens a **fresh** state (no stale draft visible).
-- [ ] PASS / [ ] FAIL
+- [x] PASS / [ ] FAIL
 
 ### 3.10 — **NON-OPTIONAL** T-07-03 offline edit+delete race (W-1 fix)
 
@@ -220,9 +217,9 @@ f. Disable airplane mode → wait 10 sec for both mutations to replay.
 
 **Expected:** session is gone from the list. SQL: `SELECT count(*) FROM workout_sessions WHERE id='<sessionId>';` → **`0`**. No "stuck" mutation in the offline queue (DevTools mutation cache for this session is empty).
 
-- [ ] PASS / [ ] FAIL
-- SQL count: ****\_\_****
-- DevTools mutation queue for this session: [ ] empty / [ ] non-empty (list mutation keys): ****\_\_****
+- [x] PASS / [ ] FAIL
+- SQL count: \***\*\_\_\*\***
+- DevTools mutation queue for this session: [ ] empty / [ ] non-empty (list mutation keys): \***\*\_\_\*\***
 
 **Order B — delete-then-edit** (create a fresh session with notes first):
 a. Log a new session via Section 5's run-script with a notes-bearing finish. Record its sessionId: `_______________________`.
@@ -236,10 +233,10 @@ f. Disable airplane mode → wait 10 sec.
 
 - SQL: `SELECT count(*) FROM workout_sessions WHERE id='<sessionId>';` → **`0`**.
 
-- [ ] PASS / [ ] FAIL
-- SQL count: ****\_\_****
+- [x] PASS / [ ] FAIL
+- SQL count: \***\*\_\_\*\***
 - Banner-error observed: [ ] yes / [ ] no
-- Net behavior description: ********\_\_\_\_********
+- Net behavior description: **\*\*\*\***\_\_\_\_**\*\*\*\***
 
 **If 3.10 fails:** This is a **T-07-03 regression**. Capture a Linear issue:
 
@@ -254,7 +251,7 @@ npm run linear:create -- \
 
 **Deterministic fallback (if airplane-mode toggling is flaky on this device):** Skip 3.10.d/e on hardware and substitute with a Node-script-driven assertion using `queryClient.getMutationCache().getAll()` from a paused state (see 07-04 Plan Task 1 action note). Mark 3.10 as `[ ] PASS via deterministic fallback` and attach the script output here:
 
-- Output: ********\_\_\_\_********
+- Output: **\*\*\*\***\_\_\_\_**\*\*\*\***
 
 ---
 
@@ -266,33 +263,33 @@ Maps to SPEC acceptance rows 11–14.
 
 - [x] PASS / [ ] FAIL
 
-4.2 With iPhone iOS in **Ljust** mode, app initially in **System** mode → tap **Mörkt**.
+  4.2 With iPhone iOS in **Ljust** mode, app initially in **System** mode → tap **Mörkt**.
 
 - Expected: app turns dark within 1 sec **without restart**. StatusBar icons turn light (so they're visible on the now-dark backdrop).
 - [x] PASS / [ ] FAIL — Observed delay: **\_** sec
 
-4.3 **Kill** the app (swipe up from app-switcher). Reopen via Expo Go.
+  4.3 **Kill** the app (swipe up from app-switcher). Reopen via Expo Go.
 
 - Expected: app starts in **Mörkt** mode (theme persisted to AsyncStorage under key `fm:theme`). **No FOUC** (no flicker from Ljust → Mörkt during splash — `ThemeBootstrap` rehydrates before `SplashScreenController` hides the splash).
-- [x] PASS / [ ] FAIL — FOUC observed: [ ] no / [ ] yes (describe: ********\_\_\_\_********)
+- [x] PASS / [ ] FAIL — FOUC observed: [ ] no / [ ] yes (describe: **\*\*\*\***\_\_\_\_**\*\*\*\***)
 
-4.4 In settings, tap **Ljust** → app turns light immediately. StatusBar icons turn dark.
+  4.4 In settings, tap **Ljust** → app turns light immediately. StatusBar icons turn dark.
 
 - [x] PASS / [ ] FAIL
 
-4.5 Tap **System** → app follows iOS:
+  4.5 Tap **System** → app follows iOS:
 
 - With iPhone iOS=Ljust → app=Ljust.
 - Toggle iPhone iOS to Mörkt (Control Center / Settings → Display & Brightness → Dark) → app flips to Mörkt automatically (no manual app interaction needed).
 - [x] PASS / [ ] FAIL
 
-4.6 (T-07-01 corruption-resilience) From a dev tool/REPL: `await AsyncStorage.setItem('fm:theme', 'hax')`. Kill + reopen app.
+  4.6 (T-07-01 corruption-resilience) From a dev tool/REPL: `await AsyncStorage.setItem('fm:theme', 'hax')`. Kill + reopen app.
 
 - Expected: app defaults to **System** mode, no crash. `console.warn '[theme] AsyncStorage read failed — defaulting to system'` may appear in the Metro console (acceptable).
-- [ ] PASS / [ ] FAIL -N/A
+- [x] PASS / [ ] FAIL -N/A
 - **If dev REPL not available, mark this row N/A** and document the Zod-enum-catch coverage in the SUMMARY instead (Plan 07-01 SUMMARY confirms the catch).
 
-4.7 **StatusBar contrast across 9 (app-mode × iOS-mode) combinations**: walk through each pair and verify status-bar icons are **visible** against the backdrop (not white-on-white or black-on-black).
+  4.7 **StatusBar contrast across 9 (app-mode × iOS-mode) combinations**: walk through each pair and verify status-bar icons are **visible** against the backdrop (not white-on-white or black-on-black).
 
 | App-mode \ iOS-mode | iOS Ljust           | iOS Mörkt           | iOS Auto (sunset)   |
 | ------------------- | ------------------- | ------------------- | ------------------- |
@@ -321,11 +318,11 @@ For each run, use a stopwatch. **Start** when tapping the Hem-tab; **stop** when
 
 | Run | Start (HH:MM:SS) | End (HH:MM:SS) | Duration | Pass (≤ 2 min)?  | Notes / Bugs |
 | --- | ---------------- | -------------- | -------- | ---------------- | ------------ |
-| 1   |                  |                |          | [ ] YES / [ ] NO |              |
-| 2   |                  |                |          | [ ] YES / [ ] NO |              |
-| 3   |                  |                |          | [ ] YES / [ ] NO |              |
+| 1   | 00:02:00         | 00:01:20       | 40 sec   | [X] YES / [ ] NO |              |
+| 2   | 00:02:00         | 00:01:22       | 38 sec   | [X] YES / [ ] NO |              |
+| 3   | 00:02:00         | 00:01:22       | 38 sec   | [X] YES / [ ] NO |              |
 
-**Result:** 3 of 3 runs ≤ 2 min: [ ] YES / [ ] NO (SPEC §6 acceptance — all three must pass)
+**Result:** 3 of 3 runs ≤ 2 min: [X] YES / [ ] NO (SPEC §6 acceptance — all three must pass)
 
 ---
 
@@ -344,14 +341,14 @@ These are automated, already captured in Section 0. Re-run if any post-UAT code 
 
 ## Sign-off
 
-- **Tested-by:** ********\_\_\_\_********
-- **Date:** YYYY-MM-DD
-- **Branch head commit at sign-off:** `____________________` (run `git rev-parse HEAD` at sign-off time; must match Section 0 capture or document any intermediate fixes below)
-- **All 19 SPEC acceptance criteria covered above:** [ ] yes
-- **Non-optional T-07-03 row (Section 3.10) covered (Order A + Order B):** [ ] yes _(W-1 — MUST be checked before approval)_
-- **Decision:** [ ] approved / [ ] partial (list gaps below) / [ ] blocked (reason below)
+- \*\*Tested-by:Mahodi313
+- **Date:** 2026-05-16
+- \*\*Branch head commit at sign-off: b07b5daf8beb019b0857bb2282d97f7ff3bfa61f
+- **All 19 SPEC acceptance criteria covered above:** [X] yes
+- **Non-optional T-07-03 row (Section 3.10) covered (Order A + Order B):** [X] yes _(W-1 — MUST be checked before approval)_
+- **Decision:** [X] approved / [ ] partial (list gaps below) / [ ] blocked (reason below)
 
-**Carry-over Linear issues created during UAT:** ********\_\_\_\_******** (FIT-XX format, comma-separated)
+**Carry-over Linear issues created during UAT:** **\*\*\*\***\_\_\_\_**\*\*\*\*** (FIT-XX format, comma-separated)
 
 **Partial / blocked notes:**
 
