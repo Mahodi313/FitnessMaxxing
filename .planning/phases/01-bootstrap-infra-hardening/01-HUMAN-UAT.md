@@ -1,9 +1,11 @@
 ---
-status: passed
+status: complete
+result: all_pass
 phase: 01-bootstrap-infra-hardening
 source: [01-VERIFICATION.md]
 started: 2026-05-08T00:00:00Z
 updated: 2026-05-08T00:00:00Z
+closed_at_milestone: v1.0
 ---
 
 ## Current Test

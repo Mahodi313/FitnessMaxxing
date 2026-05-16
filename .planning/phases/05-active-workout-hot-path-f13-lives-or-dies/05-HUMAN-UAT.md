@@ -1,9 +1,11 @@
 ---
-status: testing
+status: complete
+result: all_pass
 phase: 05-active-workout-hot-path-f13-lives-or-dies
 source: [05-VERIFICATION.md, app/scripts/manual-test-phase-05-f13-brutal.md]
 started: 2026-05-13T20:35:00Z
-updated: 2026-05-13T21:30:00Z
+updated: 2026-05-14T00:00:00Z
+closed_at_milestone: v1.0
 ---
 
 ## Current Test

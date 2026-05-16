@@ -20,7 +20,7 @@ FitnessMaxxing levereras som en personlig iPhone gym-tracker via Expo Go. Resan 
 - [x] **Phase 3: Auth & Persistent Session** - Användare kan registrera, logga in, och sessioner överlever app-restart via LargeSecureStore
 - [x] **Phase 4: Plans, Exercises & Offline-Queue Plumbing** - Användare kan skapa planer och övningar offline; airplane-mode-test bekräftar att kön persisterar och replayas korrekt (completed 2026-05-10)
 - [x] **Phase 5: Active Workout Hot Path (F13 lives or dies)** - Användare loggar set under pass; varje set överlever airplane mode + force-quit + battery-pull (completed 2026-05-14)
-- [ ] **Phase 6: History & Read-Side Polish** - Användare ser passhistorik och progressionsgraf per övning
+- [x] **Phase 6: History & Read-Side Polish** - Användare ser passhistorik och progressionsgraf per övning (completed 2026-05-15)
 - [x] **Phase 7: V1 Polish Cut** - RPE, anteckningar och dark-mode-toggle färdiga; V1 redo för 4-veckors personlig validering (completed 2026-05-16)
 
 ## Phase Details
