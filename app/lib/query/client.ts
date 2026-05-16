@@ -169,6 +169,11 @@ type SetRemoveVars = { id: string; session_id: string };
 // exercise_sets cleanup server-side.
 type SessionDeleteVars = { id: string };
 
+// ---- Phase 7 type aliases (session update-notes) ---------------------------
+// SessionUpdateNotesVars: useUpdateSessionNotes(sessionId).mutate({ id, notes })
+// — UPDATE notes only. Empty string normalised to null in mutationFn.
+type SessionUpdateNotesVars = { id: string; notes: string | null };
+
 // SessionSummary is the shape of rows in the sessionsKeys.listInfinite()
 // cache slot (returned by get_session_summaries RPC, parsed via
 // SessionSummarySchema in lib/queries/sessions.ts). It is a SUPERSET of
@@ -240,6 +245,13 @@ type SessionSummary = {
 //   ['set','add']               → scope.id = `session:${vars.session_id}`
 //   ['set','update']            → scope.id = `session:${vars.session_id}`
 //   ['set','remove']            → scope.id = `session:${vars.session_id}`
+//
+// Phase 6 additions:
+//   ['session','delete']        → scope.id = `session:${vars.id}`
+//
+// Phase 7 additions (F12 edit-side — D-E3):
+//   ['session','update-notes']  → scope.id = `session:${vars.id}` (baked at
+//                                  hook construction in useUpdateSessionNotes)
 //
 // NOTE Pitfall 3 (function-shaped scope.id silently fails): scope.id MUST be
 // a static string at useMutation() time (v5 reads mutation.options.scope?.id
@@ -1048,6 +1060,55 @@ queryClient.setMutationDefaults(["session", "delete"], {
     void queryClient.invalidateQueries({
       queryKey: setsKeys.list(vars.id),
     });
+  },
+  retry: 1,
+});
+
+// ===========================================================================
+// 15) ['session','update-notes'] — workout_sessions UPDATE notes only.
+// Phase 7 F12 edit-side per D-E3.
+// Optimistic onMutate writes notes into sessionsKeys.detail(id) so
+// history-detail re-renders before the server-trip completes. onSettled
+// invalidates listInfinite for forward-compat (V1.1 may show notes-snippet
+// on list rows). retry: 1 per Pitfall 5.4. scope.id baked at hook
+// construction (lib/queries/sessions.ts useUpdateSessionNotes) so it
+// serializes after any in-flight finish/delete on the same session under
+// scope.id `session:${id}` (T-07-03 FIFO mitigation).
+// ===========================================================================
+queryClient.setMutationDefaults(["session", "update-notes"], {
+  mutationFn: async (vars: SessionUpdateNotesVars) => {
+    const finalNotes = vars.notes?.trim() ? vars.notes.trim() : null;
+    const { data, error } = await supabase
+      .from("workout_sessions")
+      .update({ notes: finalNotes })
+      .eq("id", vars.id)
+      .select()
+      .single();
+    if (error) throw error;
+    return SessionRowSchema.parse(data);
+  },
+  onMutate: async (vars: SessionUpdateNotesVars) => {
+    await queryClient.cancelQueries({ queryKey: sessionsKeys.detail(vars.id) });
+    const previousDetail = queryClient.getQueryData<SessionRow>(
+      sessionsKeys.detail(vars.id),
+    );
+    if (previousDetail) {
+      const finalNotes = vars.notes?.trim() ? vars.notes.trim() : null;
+      queryClient.setQueryData<SessionRow>(sessionsKeys.detail(vars.id), {
+        ...previousDetail,
+        notes: finalNotes,
+      });
+    }
+    return { previousDetail };
+  },
+  onError: (_err, vars, ctx) => {
+    const c = ctx as { previousDetail?: SessionRow } | undefined;
+    if (c?.previousDetail)
+      queryClient.setQueryData(sessionsKeys.detail(vars.id), c.previousDetail);
+  },
+  onSettled: (_d, _e, vars) => {
+    void queryClient.invalidateQueries({ queryKey: sessionsKeys.detail(vars.id) });
+    void queryClient.invalidateQueries({ queryKey: sessionsKeys.listInfinite() });
   },
   retry: 1,
 });

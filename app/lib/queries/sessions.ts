@@ -37,6 +37,7 @@ type SessionInsertVars = {
   started_at?: string;
 };
 type SessionFinishVars = { id: string; finished_at: string; notes?: string | null };
+type SessionUpdateNotesVars = { id: string; notes: string | null };
 
 // ---- Queries ---------------------------------------------------------------
 
@@ -245,6 +246,19 @@ type SessionDeleteVars = { id: string };
 export function useDeleteSession(sessionId?: string) {
   return useMutation<void, Error, SessionDeleteVars>({
     mutationKey: ["session", "delete"] as const,
+    scope: sessionId ? { id: `session:${sessionId}` } : undefined,
+  });
+}
+
+/**
+ * F12 edit-side. Phase 7 D-E3.
+ * scope.id `session:${id}` matches useFinishSession / useDeleteSession so an
+ * offline edit serializes after any in-flight finish or delete on the same session
+ * (FIFO replay — Pitfall 5.4 + T-07-03 mitigation).
+ */
+export function useUpdateSessionNotes(sessionId?: string) {
+  return useMutation<SessionRow, Error, SessionUpdateNotesVars>({
+    mutationKey: ["session", "update-notes"] as const,
     scope: sessionId ? { id: `session:${sessionId}` } : undefined,
   });
 }
