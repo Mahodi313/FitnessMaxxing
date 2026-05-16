@@ -84,8 +84,8 @@ import {
   Pressable,
   FlatList,
   ActivityIndicator,
-  useColorScheme,
 } from "react-native";
+import { useColorScheme } from "nativewind";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
@@ -100,9 +100,9 @@ import { useSetsForSessionQuery } from "@/lib/queries/sets";
 export default function PlansTab() {
   const router = useRouter();
   const { data: plans, isPending } = usePlansQuery();
-  const scheme = useColorScheme();
-  const accent = scheme === "dark" ? "#60A5FA" : "#2563EB";
-  const muted = scheme === "dark" ? "#9CA3AF" : "#6B7280";
+  const { colorScheme } = useColorScheme();
+  const accent = colorScheme === "dark" ? "#60A5FA" : "#2563EB";
+  const muted = colorScheme === "dark" ? "#9CA3AF" : "#6B7280";
 
   // Phase 5 D-21 — draft-resume overlay state.
   const { data: activeSession, isPending: activeSessionPending } =

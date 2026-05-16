@@ -61,8 +61,8 @@ import {
   FlatList,
   ActivityIndicator,
   RefreshControl,
-  useColorScheme,
 } from "react-native";
+import { useColorScheme } from "nativewind";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
@@ -79,8 +79,8 @@ function formatNumber(n: number): string {
 }
 
 export default function HistoryTab() {
-  const scheme = useColorScheme();
-  const isDark = scheme === "dark";
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
   const accent = isDark ? "#60A5FA" : "#2563EB";
   const router = useRouter();
 
@@ -272,8 +272,8 @@ function HistoryListRow({ session }: { session: SessionSummary }) {
 // ---------------------------------------------------------------------------
 function HistoryEmptyState() {
   const router = useRouter();
-  const scheme = useColorScheme();
-  const isDark = scheme === "dark";
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
   const accent = isDark ? "#60A5FA" : "#2563EB";
 
   return (

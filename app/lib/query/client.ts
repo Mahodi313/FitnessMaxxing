@@ -138,9 +138,10 @@ type SessionInsertVars = Partial<SessionRow> & {
   plan_id?: string | null;
   started_at?: string;
 };
-// SessionFinishVars: useFinishSession(...).mutate({ id, finished_at })
-// — single-column UPDATE to flip finished_at from null to ISO string.
-type SessionFinishVars = { id: string; finished_at: string };
+// SessionFinishVars: useFinishSession(...).mutate({ id, finished_at, notes? })
+// — UPDATE finished_at and optional notes. notes is optional (D-N3); existing
+// callers that pass only { id, finished_at } remain type-compatible.
+type SessionFinishVars = { id: string; finished_at: string; notes?: string | null };
 
 // SetInsertVars: useAddSet(sessionId).mutate({ id, session_id, exercise_id, reps, weight_kg, ... })
 // — id, session_id, exercise_id, reps, weight_kg required. Optional:
@@ -167,6 +168,11 @@ type SetRemoveVars = { id: string; session_id: string };
 // workout_sessions row; FK on delete cascade (migration 0001) handles
 // exercise_sets cleanup server-side.
 type SessionDeleteVars = { id: string };
+
+// ---- Phase 7 type aliases (session update-notes) ---------------------------
+// SessionUpdateNotesVars: useUpdateSessionNotes(sessionId).mutate({ id, notes })
+// — UPDATE notes only. Empty string normalised to null in mutationFn.
+type SessionUpdateNotesVars = { id: string; notes: string | null };
 
 // SessionSummary is the shape of rows in the sessionsKeys.listInfinite()
 // cache slot (returned by get_session_summaries RPC, parsed via
@@ -239,6 +245,13 @@ type SessionSummary = {
 //   ['set','add']               → scope.id = `session:${vars.session_id}`
 //   ['set','update']            → scope.id = `session:${vars.session_id}`
 //   ['set','remove']            → scope.id = `session:${vars.session_id}`
+//
+// Phase 6 additions:
+//   ['session','delete']        → scope.id = `session:${vars.id}`
+//
+// Phase 7 additions (F12 edit-side — D-E3):
+//   ['session','update-notes']  → scope.id = `session:${vars.id}` (baked at
+//                                  hook construction in useUpdateSessionNotes)
 //
 // NOTE Pitfall 3 (function-shaped scope.id silently fails): scope.id MUST be
 // a static string at useMutation() time (v5 reads mutation.options.scope?.id
@@ -681,10 +694,12 @@ queryClient.setMutationDefaults(["session", "start"], {
 // ===========================================================================
 queryClient.setMutationDefaults(["session", "finish"], {
   mutationFn: async (vars: SessionFinishVars) => {
-    const { id, finished_at } = vars;
+    const { id, finished_at, notes } = vars;
+    // D-N3: trim-normalize notes; empty/whitespace → null (SPEC acceptance (b)).
+    const finalNotes = notes?.trim() ? notes.trim() : null;
     const { data, error } = await supabase
       .from("workout_sessions")
-      .update({ finished_at })
+      .update({ finished_at, notes: finalNotes })
       .eq("id", id)
       .select()
       .single();
@@ -705,11 +720,16 @@ queryClient.setMutationDefaults(["session", "finish"], {
     if (previousActive && previousActive.id === vars.id) {
       queryClient.setQueryData<SessionRow | null>(sessionsKeys.active(), null);
     }
-    // Detail cache: merge finished_at into the snapshot if present.
+    // Detail cache: merge finished_at + notes into the snapshot if present.
+    // D-N3 backward-compat: if vars.notes is undefined (legacy caller), fall
+    // back to previousDetail.notes so we never clobber an existing value.
     if (previousDetail) {
+      const finalNotes =
+        vars.notes?.trim() ? vars.notes.trim() : (previousDetail.notes ?? null);
       queryClient.setQueryData<SessionRow>(sessionsKeys.detail(vars.id), {
         ...previousDetail,
         finished_at: vars.finished_at,
+        notes: finalNotes,
       });
     }
     return { previousActive, previousDetail };
@@ -1040,6 +1060,55 @@ queryClient.setMutationDefaults(["session", "delete"], {
     void queryClient.invalidateQueries({
       queryKey: setsKeys.list(vars.id),
     });
+  },
+  retry: 1,
+});
+
+// ===========================================================================
+// 15) ['session','update-notes'] — workout_sessions UPDATE notes only.
+// Phase 7 F12 edit-side per D-E3.
+// Optimistic onMutate writes notes into sessionsKeys.detail(id) so
+// history-detail re-renders before the server-trip completes. onSettled
+// invalidates listInfinite for forward-compat (V1.1 may show notes-snippet
+// on list rows). retry: 1 per Pitfall 5.4. scope.id baked at hook
+// construction (lib/queries/sessions.ts useUpdateSessionNotes) so it
+// serializes after any in-flight finish/delete on the same session under
+// scope.id `session:${id}` (T-07-03 FIFO mitigation).
+// ===========================================================================
+queryClient.setMutationDefaults(["session", "update-notes"], {
+  mutationFn: async (vars: SessionUpdateNotesVars) => {
+    const finalNotes = vars.notes?.trim() ? vars.notes.trim() : null;
+    const { data, error } = await supabase
+      .from("workout_sessions")
+      .update({ notes: finalNotes })
+      .eq("id", vars.id)
+      .select()
+      .single();
+    if (error) throw error;
+    return SessionRowSchema.parse(data);
+  },
+  onMutate: async (vars: SessionUpdateNotesVars) => {
+    await queryClient.cancelQueries({ queryKey: sessionsKeys.detail(vars.id) });
+    const previousDetail = queryClient.getQueryData<SessionRow>(
+      sessionsKeys.detail(vars.id),
+    );
+    if (previousDetail) {
+      const finalNotes = vars.notes?.trim() ? vars.notes.trim() : null;
+      queryClient.setQueryData<SessionRow>(sessionsKeys.detail(vars.id), {
+        ...previousDetail,
+        notes: finalNotes,
+      });
+    }
+    return { previousDetail };
+  },
+  onError: (_err, vars, ctx) => {
+    const c = ctx as { previousDetail?: SessionRow } | undefined;
+    if (c?.previousDetail)
+      queryClient.setQueryData(sessionsKeys.detail(vars.id), c.previousDetail);
+  },
+  onSettled: (_d, _e, vars) => {
+    void queryClient.invalidateQueries({ queryKey: sessionsKeys.detail(vars.id) });
+    void queryClient.invalidateQueries({ queryKey: sessionsKeys.listInfinite() });
   },
   retry: 1,
 });

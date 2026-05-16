@@ -97,6 +97,23 @@ const cases: Case[] = [
     expectSuccess: false,
     expectErrorIncludes: "Vikt krävs",
   },
+  // ---- Phase 7 F11 RPE assertions (D-R2 + D-R3) --------------------------
+  {
+    name: "happy: rpe '' (empty string) → null (valfri)",
+    input: { weight_kg: 80, reps: 8, rpe: "" },
+    expectSuccess: true,
+  },
+  {
+    name: "happy: rpe '8,5' (Swedish comma) → 8.5",
+    input: { weight_kg: 80, reps: 8, rpe: "8,5" },
+    expectSuccess: true,
+  },
+  {
+    name: "reject: rpe '11' → 'RPE 10 eller lägre'",
+    input: { weight_kg: 80, reps: 8, rpe: "11" },
+    expectSuccess: false,
+    expectErrorIncludes: "RPE 10 eller lägre",
+  },
 ];
 
 let failed = 0;

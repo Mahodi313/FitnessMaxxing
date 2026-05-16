@@ -43,6 +43,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -384,6 +385,7 @@ function ExerciseCard({
         exercise_id: planExercise.exercise_id,
         weight_kg: input.weight_kg,
         reps: input.reps,
+        rpe: input.rpe ?? null,
         completed_at: new Date().toISOString(),
         set_type: "working",
       },
@@ -542,12 +544,47 @@ function ExerciseCard({
             </View>
           )}
         />
+        <Controller
+          control={control}
+          name="rpe"
+          render={({ field: { onChange, value }, fieldState: { error } }) => (
+            <View className="w-16">
+              <TextInput
+                value={value == null ? "" : String(value)}
+                onChangeText={onChange}
+                placeholder="RPE"
+                placeholderTextColor="#9CA3AF"
+                keyboardType="decimal-pad"
+                inputMode="decimal"
+                returnKeyType="done"
+                autoCorrect={false}
+                autoCapitalize="none"
+                selectTextOnFocus={true}
+                accessibilityLabel="Upplevd ansträngning, valfri"
+                maxLength={4}
+                className={`rounded-md bg-white dark:bg-gray-900 border px-2 py-3 text-base font-semibold text-gray-900 dark:text-gray-50 min-h-[56px] text-center ${
+                  error
+                    ? "border-red-600 dark:border-red-400"
+                    : "border-gray-300 dark:border-gray-700"
+                } focus:border-blue-600 dark:focus:border-blue-500`}
+              />
+              {error && (
+                <Text
+                  className="text-base text-red-600 dark:text-red-400 mt-1 px-1"
+                  accessibilityLiveRegion="polite"
+                >
+                  {error.message}
+                </Text>
+              )}
+            </View>
+          )}
+        />
         <Pressable
           onPress={handleSubmit(onKlart)}
           disabled={isSubmitting}
           accessibilityRole="button"
           accessibilityLabel="Spara set"
-          className="w-20 min-h-[56px] rounded-md bg-blue-600 dark:bg-blue-500 items-center justify-center disabled:opacity-60 active:opacity-80"
+          className="w-16 min-h-[56px] rounded-md bg-blue-600 dark:bg-blue-500 items-center justify-center disabled:opacity-60 active:opacity-80"
         >
           <Text className="text-base font-semibold text-white">Klart</Text>
         </Pressable>
@@ -815,6 +852,33 @@ function AvslutaOverlay({
   onFinish: () => void;
 }) {
   const finishSession = useFinishSession(sessionId);
+  // D-N4: local notes state; nollställs vid unmount (Option A — minimal coupling).
+  const [notes, setNotes] = useState<string>("");
+  // D-N4 cleanup: reset notes-draft when the overlay unmounts (backdrop-tap,
+  // Fortsätt, or Avsluta). Re-open mounts fresh with empty state.
+  useEffect(() => () => setNotes(""), []);
+  // Track keyboard height manually — KeyboardAvoidingView's `padding`/`height`
+  // behaviors do not lift an absolutely-positioned, flex-end-anchored card on
+  // iOS 15+/RN 0.81; the card visually moves to the bottom but stays under the
+  // keyboard (UAT bug reported 2026-05-16, iPhone 15 Pro / iOS 26.4.2).
+  // Solution: read the actual keyboard frame and apply paddingBottom directly.
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  useEffect(() => {
+    const showEvt =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvt =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const showSub = Keyboard.addListener(showEvt, (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+    });
+    const hideSub = Keyboard.addListener(hideEvt, () => {
+      setKeyboardHeight(0);
+    });
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const title = "Avsluta passet?";
   const body =
@@ -826,8 +890,10 @@ function AvslutaOverlay({
 
   const handleConfirm = () => {
     // mutate (NOT mutateAsync) — Phase 4 commit 5d953b6.
+    // D-N3: include notes in payload; trim/null-normalization happens in
+    // the ['session','finish'] mutationFn (Task 1 — client.ts).
     finishSession.mutate(
-      { id: sessionId, finished_at: new Date().toISOString() },
+      { id: sessionId, finished_at: new Date().toISOString(), notes },
       {
         // onError: optimistic onMutate in Plan 01 setMutationDefaults
         // already cleared sessionsKeys.active(); rollback handled there.
@@ -858,59 +924,88 @@ function AvslutaOverlay({
         bottom: 0,
         backgroundColor: "rgba(0,0,0,0.5)",
         alignItems: "center",
-        justifyContent: "center",
+        // D-N1 (revised 2026-05-16, iter 3): center the card normally; only
+        // when the iOS keyboard is up do we switch to flex-end + paddingBottom
+        // = keyboardHeight + 16 so the card lifts exactly above the keyboard.
+        // This avoids the "modal slammed against bottom" look when no input
+        // is focused while still solving the original UAT-blocker.
+        justifyContent: keyboardHeight > 0 ? "flex-end" : "center",
         paddingHorizontal: 32,
+        paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : 0,
         zIndex: 2000,
       }}
       onPress={onCancel}
       accessibilityRole="button"
       accessibilityLabel="Stäng dialog"
     >
+      {/* Inner Pressable claims the touch so backdrop-onPress (onCancel) does
+          NOT fire when tapping the card itself (PATTERNS.md landmine #6).
+          Doubling as a tap-to-dismiss-keyboard target: tap on the card body
+          (outside TextInput / buttons) closes the keyboard, matching native
+          iOS expectation. TextInput + button taps consume the event first,
+          so this only fires on empty card surface. */}
       <Pressable
-        style={{
-          width: "100%",
-          maxWidth: 400,
-        }}
-        onPress={(e) => e.stopPropagation()}
+        style={{ width: "100%", maxWidth: 400 }}
+        onPress={() => Keyboard.dismiss()}
       >
-        <View
-          className="bg-gray-100 dark:bg-gray-800 rounded-2xl p-6"
-          style={{ gap: 16 }}
-        >
-          <View style={{ gap: 8 }}>
+          <View
+            className="bg-gray-100 dark:bg-gray-800 rounded-2xl p-6"
+            style={{ gap: 16 }}
+          >
+            <View style={{ gap: 8 }}>
+              <Text
+                className="text-2xl font-semibold text-gray-900 dark:text-gray-50"
+                accessibilityRole="header"
+              >
+                {title}
+              </Text>
+              <Text className="text-base text-gray-900 dark:text-gray-50">
+                {body}
+              </Text>
+            </View>
+            {/* D-N2: multi-line notes TextInput + char-counter */}
+            <TextInput
+              value={notes}
+              onChangeText={setNotes}
+              placeholder="Anteckningar (valfri)"
+              placeholderTextColor="#9CA3AF"
+              multiline
+              numberOfLines={3}
+              maxLength={500}
+              style={{ minHeight: 80, maxHeight: 160 }}
+              textAlignVertical="top"
+              accessibilityLabel="Anteckningar för passet, valfri"
+              className="rounded-md bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 px-3 py-2 text-base text-gray-900 dark:text-gray-50"
+            />
+            {/* Counter: always visible; flips to red when > 480 (D-N2 warning threshold) */}
             <Text
-              className="text-2xl font-semibold text-gray-900 dark:text-gray-50"
-              accessibilityRole="header"
+              className={`text-sm text-right ${notes.length > 480 ? "text-red-600 dark:text-red-400" : "text-gray-500 dark:text-gray-400"}`}
             >
-              {title}
+              {`${notes.length}/500`}
             </Text>
-            <Text className="text-base text-gray-900 dark:text-gray-50">
-              {body}
-            </Text>
+            <View className="flex-row gap-3">
+              <Pressable
+                onPress={onCancel}
+                accessibilityRole="button"
+                accessibilityLabel="Fortsätt passet"
+                className="flex-1 py-4 rounded-lg bg-gray-200 dark:bg-gray-700 items-center justify-center active:opacity-80"
+              >
+                <Text className="text-base font-semibold text-gray-900 dark:text-gray-50">
+                  Fortsätt
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={handleConfirm}
+                accessibilityRole="button"
+                accessibilityLabel={primaryLabel}
+                className="flex-1 py-4 rounded-lg bg-blue-600 dark:bg-blue-500 items-center justify-center active:opacity-80"
+              >
+                <Text className="text-base font-semibold text-white">
+                  {primaryLabel}
+                </Text>
+              </Pressable>
+            </View>
           </View>
-          <View className="flex-row gap-3">
-            <Pressable
-              onPress={onCancel}
-              accessibilityRole="button"
-              accessibilityLabel="Fortsätt passet"
-              className="flex-1 py-4 rounded-lg bg-gray-200 dark:bg-gray-700 items-center justify-center active:opacity-80"
-            >
-              <Text className="text-base font-semibold text-gray-900 dark:text-gray-50">
-                Fortsätt
-              </Text>
-            </Pressable>
-            <Pressable
-              onPress={handleConfirm}
-              accessibilityRole="button"
-              accessibilityLabel={primaryLabel}
-              className="flex-1 py-4 rounded-lg bg-blue-600 dark:bg-blue-500 items-center justify-center active:opacity-80"
-            >
-              <Text className="text-base font-semibold text-white">
-                {primaryLabel}
-              </Text>
-            </Pressable>
-          </View>
-        </View>
       </Pressable>
     </Pressable>
   );

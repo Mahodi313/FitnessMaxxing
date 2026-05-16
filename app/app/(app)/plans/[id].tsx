@@ -48,8 +48,8 @@ import {
   Pressable,
   KeyboardAvoidingView,
   Platform,
-  useColorScheme,
 } from "react-native";
+import { useColorScheme } from "nativewind";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   Stack,
@@ -102,8 +102,8 @@ type PlanExerciseRowShape = {
 export default function PlanDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const scheme = useColorScheme();
-  const isDark = scheme === "dark";
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
   const muted = isDark ? "#9CA3AF" : "#6B7280";
   const accent = isDark ? "#60A5FA" : "#2563EB";
 

@@ -44,8 +44,8 @@ import {
   ScrollView,
   Text,
   View,
-  useColorScheme,
 } from "react-native";
+import { useColorScheme } from "nativewind";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack, useLocalSearchParams, useRouter, type Href } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -100,8 +100,8 @@ export default function ExerciseChartScreen() {
   const rawParams = useLocalSearchParams<{ exerciseId: string }>();
   const exerciseId =
     typeof rawParams.exerciseId === "string" ? rawParams.exerciseId : undefined;
-  const scheme = useColorScheme();
-  const isDark = scheme === "dark";
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
 
   // Theme bindings (D-23): hex strings because Skia primitives consume
   // hex directly — NativeWind classes don't apply inside the Skia canvas.

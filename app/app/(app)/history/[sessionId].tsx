@@ -60,14 +60,17 @@
 //   - 06-RESEARCH.md Pitfall 6 (InfiniteQuery envelope) + Pitfall 7
 //     (freezeOnBlur overlay reset)
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  Keyboard,
+  Platform,
   Pressable,
   ScrollView,
   Text,
+  TextInput,
   View,
-  useColorScheme,
 } from "react-native";
+import { useColorScheme } from "nativewind";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   Stack,
@@ -80,7 +83,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { differenceInMinutes, format } from "date-fns";
 import { sv } from "date-fns/locale";
 
-import { useDeleteSession, useSessionQuery } from "@/lib/queries/sessions";
+import { useDeleteSession, useSessionQuery, useUpdateSessionNotes } from "@/lib/queries/sessions";
 import { useSetsForSessionQuery } from "@/lib/queries/sets";
 import { useExercisesQuery } from "@/lib/queries/exercises";
 import type { SetRow } from "@/lib/schemas/sets";
@@ -105,8 +108,8 @@ export default function SessionDetailScreen() {
   const sessionId =
     typeof rawParams.sessionId === "string" ? rawParams.sessionId : undefined;
 
-  const scheme = useColorScheme();
-  const isDark = scheme === "dark";
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
   const muted = isDark ? "#9CA3AF" : "#6B7280";
   const accent = isDark ? "#60A5FA" : "#2563EB";
 
@@ -114,6 +117,7 @@ export default function SessionDetailScreen() {
   const setsQuery = useSetsForSessionQuery(sessionId ?? "");
   const exercisesQuery = useExercisesQuery();
   const deleteSession = useDeleteSession(sessionId);
+  const updateNotes = useUpdateSessionNotes(sessionId);
 
   // Overlay state + transient banner-error. The post-delete toast was
   // moved to (tabs)/history.tsx (WR-01 fix) — emitting it here was a
@@ -121,7 +125,31 @@ export default function SessionDetailScreen() {
   // user never sees a toast mounted on the (now blurred) detail screen.
   const [showOverflowMenu, setShowOverflowMenu] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showEditNotesOverlay, setShowEditNotesOverlay] = useState(false);
+  const [draftNotes, setDraftNotes] = useState<string>("");
   const [bannerError, setBannerError] = useState<string | null>(null);
+  // Same direct-keyboard-measurement pattern as AvslutaOverlay (workout
+  // [sessionId].tsx). KeyboardAvoidingView did not lift this card on iOS 26.4.2
+  // inside an absolutely-positioned, flex-end-anchored backdrop; manual
+  // measurement is the reliable fix. Listeners are always installed (cheap)
+  // and only consulted when the overlay is open.
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  useEffect(() => {
+    const showEvt =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvt =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const showSub = Keyboard.addListener(showEvt, (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+    });
+    const hideSub = Keyboard.addListener(hideEvt, () => {
+      setKeyboardHeight(0);
+    });
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   // Pitfall 7 (06-RESEARCH.md): freezeOnBlur retains React state across
   // navigation; reset overlay flags on blur so a re-focus does not flash a
@@ -132,11 +160,34 @@ export default function SessionDetailScreen() {
       return () => {
         setShowOverflowMenu(false);
         setShowDeleteConfirm(false);
+        setShowEditNotesOverlay(false);
+        setDraftNotes("");
       };
     }, []),
   );
 
   const session = sessionQuery.data;
+
+  // F12 edit-notes handlers. Defined before early returns (hooks-rules-of-hooks).
+  // openEditNotes seeds draftNotes from current session.notes THEN opens overlay.
+  // onSaveNotes dismisses overlay synchronously then fires the mutation
+  // (mutate-not-mutateAsync per Phase 4 commit 5d953b6).
+  const openEditNotes = useCallback(() => {
+    setDraftNotes(session?.notes ?? "");
+    setShowEditNotesOverlay(true);
+  }, [session?.notes]);
+
+  const onSaveNotes = useCallback(() => {
+    if (!session) return;
+    setShowEditNotesOverlay(false);
+    updateNotes.mutate(
+      { id: session.id, notes: draftNotes },
+      {
+        onError: () =>
+          setBannerError("Kunde inte spara anteckningen. Försök igen."),
+      },
+    );
+  }, [draftNotes, session, updateNotes]);
 
   // Build the exercise-name lookup. Phase 4 Plan 04-04 commit 3bfaba8
   // pattern — avoids a join in the queryFn; the exercises cache is hot from
@@ -277,6 +328,40 @@ export default function SessionDetailScreen() {
         }}
       >
         <View className="gap-6">
+          {/* F12 Notes-block — above SummaryHeader chiparna (D-E4).
+              Two modes: text + pencil (notes present) OR add-affordance (notes null).
+              Both open edit-notes-overlay via openEditNotes. */}
+          <View className="bg-gray-100 dark:bg-gray-800 rounded-lg px-4 py-3 flex-row items-start gap-2">
+            {session.notes ? (
+              <>
+                <Text className="flex-1 text-base text-gray-900 dark:text-gray-50">
+                  {session.notes}
+                </Text>
+                <Pressable
+                  onPress={openEditNotes}
+                  accessibilityRole="button"
+                  accessibilityLabel="Redigera anteckning"
+                  hitSlop={8}
+                >
+                  <Ionicons name="pencil-outline" size={18} color={muted} />
+                </Pressable>
+              </>
+            ) : (
+              <Pressable
+                onPress={openEditNotes}
+                accessibilityRole="button"
+                accessibilityLabel="Lägg till anteckning"
+                hitSlop={8}
+                className="flex-row items-center gap-2 flex-1"
+              >
+                <Ionicons name="add-circle-outline" size={18} color={accent} />
+                <Text className="text-base text-gray-500 dark:text-gray-400">
+                  Lägg till anteckning
+                </Text>
+              </Pressable>
+            )}
+          </View>
+
           {/* Transient banner-error (rare — surfaces if eventual replay
               fails after reconnect). Mirrors plans/[id].tsx convention. */}
           {bannerError && (
@@ -515,6 +600,94 @@ export default function SessionDetailScreen() {
         </Pressable>
       )}
 
+      {/* F12 Edit-notes overlay — Phase 4 commit e07029a inline-overlay pattern
+          (NOT Modal portal — PATTERNS landmine #3). Uses direct keyboard
+          measurement (see keyboardHeight state above) instead of
+          KeyboardAvoidingView — KAV behaviors ("padding"/"height"/"position")
+          did not lift this card on iOS 26.4.2 inside an absolute-positioned,
+          flex-end-anchored backdrop (UAT bug reported 2026-05-16). */}
+      {showEditNotesOverlay && (
+        <Pressable
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            alignItems: "center",
+            // Center when keyboard is closed; lift to flex-end + paddingBottom
+            // = keyboardHeight + 16 when keyboard is open. Matches AvslutaOverlay
+            // (workout [sessionId].tsx) iter-3 fix.
+            justifyContent: keyboardHeight > 0 ? "flex-end" : "center",
+            backgroundColor: "rgba(0,0,0,0.5)",
+            paddingHorizontal: 32,
+            paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : 0,
+            zIndex: 2000,
+          }}
+          onPress={() => setShowEditNotesOverlay(false)}
+          accessibilityRole="button"
+          accessibilityLabel="Stäng dialog"
+        >
+          <Pressable
+            style={{ width: "100%", maxWidth: 400 }}
+            onPress={() => Keyboard.dismiss()}
+          >
+              <View
+                className="bg-gray-100 dark:bg-gray-800 rounded-2xl p-6"
+                style={{ gap: 16 }}
+              >
+                <Text
+                  className="text-2xl font-semibold text-gray-900 dark:text-gray-50"
+                  accessibilityRole="header"
+                >
+                  Redigera anteckning
+                </Text>
+                <TextInput
+                  value={draftNotes}
+                  onChangeText={setDraftNotes}
+                  placeholder="Anteckningar (valfri)"
+                  placeholderTextColor="#9CA3AF"
+                  multiline
+                  numberOfLines={3}
+                  maxLength={500}
+                  style={{ minHeight: 80, maxHeight: 160 }}
+                  textAlignVertical="top"
+                  autoFocus
+                  accessibilityLabel="Anteckningar för passet, valfri"
+                  className="rounded-md bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 px-3 py-2 text-base text-gray-900 dark:text-gray-50"
+                />
+                <Text
+                  className={`text-sm text-right ${draftNotes.length > 480 ? "text-red-600 dark:text-red-400" : "text-gray-500 dark:text-gray-400"}`}
+                >
+                  {`${draftNotes.length}/500`}
+                </Text>
+                <View className="flex-row gap-3">
+                  <Pressable
+                    onPress={() => setShowEditNotesOverlay(false)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Avbryt"
+                    className="flex-1 py-4 rounded-md bg-gray-200 dark:bg-gray-700 items-center justify-center active:opacity-80"
+                  >
+                    <Text className="text-base font-semibold text-gray-900 dark:text-gray-50">
+                      Avbryt
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={onSaveNotes}
+                    accessibilityRole="button"
+                    accessibilityLabel="Spara anteckning"
+                    className="flex-1 py-4 rounded-md bg-blue-600 dark:bg-blue-500 items-center justify-center active:opacity-80"
+                  >
+                    <Text className="text-base font-semibold text-white">
+                      Spara
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+          </Pressable>
+        </Pressable>
+      )}
+
       {/* Post-delete toast — moved to (tabs)/history.tsx (WR-01 fix). */}
     </SafeAreaView>
   );
@@ -590,6 +763,11 @@ function ExerciseCard({
             <Text className="text-base font-semibold text-gray-900 dark:text-gray-50">
               {`${set.weight_kg} × ${set.reps}`}
             </Text>
+            {set.rpe != null && (
+              <Text className="text-base text-gray-500 dark:text-gray-400">
+                {` · RPE ${set.rpe}`}
+              </Text>
+            )}
           </View>
         ))}
       </View>

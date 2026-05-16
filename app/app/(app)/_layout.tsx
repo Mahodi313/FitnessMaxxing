@@ -41,7 +41,7 @@
 //   The key uses session.user.id (guaranteed non-null at this point because the
 //   `if (!session) return <Redirect ... />` guard above ensures session is defined).
 //   The fallback 'anon' string is defensive-only and unreachable in normal flow.
-import { useColorScheme } from "react-native";
+import { useColorScheme } from "nativewind";
 import { Redirect, Stack } from "expo-router";
 import { useAuthStore } from "@/lib/auth-store";
 
@@ -58,8 +58,8 @@ export const unstable_settings = {
 
 export default function AppLayout() {
   const session = useAuthStore((s) => s.session);
-  const scheme = useColorScheme();
-  const isDark = scheme === "dark";
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
   if (!session) {
     return <Redirect href="/(auth)/sign-in" />;
   }
