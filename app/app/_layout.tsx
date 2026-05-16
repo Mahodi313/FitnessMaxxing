@@ -1,7 +1,7 @@
 // app/app/_layout.tsx
 import "../global.css";
 import { useEffect } from "react";
-import { useColorScheme } from "react-native";
+import { useColorScheme } from "nativewind";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
@@ -81,8 +81,8 @@ function RootNavigator() {
   const session = useAuthStore((s) => s.session);
   const status = useAuthStore((s) => s.status);
 
-  const scheme = useColorScheme();
-  const isDark = scheme === "dark";
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
 
   if (status === "loading") return null;
 
@@ -108,8 +108,8 @@ function RootNavigator() {
 }
 
 export default function RootLayout() {
-  const scheme = useColorScheme();
-  const isDark = scheme === "dark";
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
 
   // GestureHandlerRootView wraps the entire app so descendants of any screen
   // (e.g., DraggableFlatList in plans/[id].tsx) can use GestureDetector without

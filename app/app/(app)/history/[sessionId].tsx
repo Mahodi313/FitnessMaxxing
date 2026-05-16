@@ -66,8 +66,8 @@ import {
   ScrollView,
   Text,
   View,
-  useColorScheme,
 } from "react-native";
+import { useColorScheme } from "nativewind";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   Stack,
@@ -105,8 +105,8 @@ export default function SessionDetailScreen() {
   const sessionId =
     typeof rawParams.sessionId === "string" ? rawParams.sessionId : undefined;
 
-  const scheme = useColorScheme();
-  const isDark = scheme === "dark";
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
   const muted = isDark ? "#9CA3AF" : "#6B7280";
   const accent = isDark ? "#60A5FA" : "#2563EB";
 

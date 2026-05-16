@@ -24,7 +24,8 @@
 //   - 05-UI-SPEC.md §Color line 133 (info-blue role) + §lines 281-287 (copy + a11y)
 //   - 05-PATTERNS.md §active-session-banner.tsx
 
-import { View, Text, Pressable, useColorScheme } from "react-native";
+import { View, Text, Pressable } from "react-native";
+import { useColorScheme } from "nativewind";
 import { useRouter, useSegments, type Href } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -34,8 +35,8 @@ export function ActiveSessionBanner() {
   const router = useRouter();
   const segments = useSegments();
   const { data: activeSession } = useActiveSessionQuery();
-  const scheme = useColorScheme();
-  const isDark = scheme === "dark";
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
   // UI-SPEC line 133: Icon colors track text color of info-blue role.
   // Light: blue-900 (#1E3A8A). Dark: blue-100 (#DBEAFE).
   const iconColor = isDark ? "#DBEAFE" : "#1E3A8A";
