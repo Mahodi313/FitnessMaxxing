@@ -2,7 +2,9 @@
 import "../global.css";
 import { useEffect } from "react";
 import { useColorScheme } from "nativewind";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Stack } from "expo-router";
+import { z } from "zod";
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
 // react-native-gesture-handler must be imported in the entry file so its
@@ -68,6 +70,32 @@ function SplashScreenController() {
       });
     }
   }, [status]);
+  return null;
+}
+
+/**
+ * Reads AsyncStorage('fm:theme') during the splash-hold window and applies
+ * setColorScheme so the user's saved theme preference is active from the
+ * first rendered frame. Fires in parallel with the auth-status splash gate
+ * (SplashScreenController) — does NOT block splash hiding. On IO error or
+ * corrupt/missing value, silent fallback to NativeWind's default 'system'.
+ * Implements D-T2 + T-07-01 mitigation (Zod enum-catch parse).
+ */
+function ThemeBootstrap() {
+  const { setColorScheme } = useColorScheme();
+  useEffect(() => {
+    void AsyncStorage.getItem("fm:theme")
+      .then((v) => {
+        const parsed = z
+          .enum(["system", "light", "dark"])
+          .catch("system")
+          .parse(v);
+        setColorScheme(parsed);
+      })
+      .catch(() => {
+        console.warn("[theme] AsyncStorage read failed — defaulting to system");
+      });
+  }, [setColorScheme]);
   return null;
 }
 
@@ -151,9 +179,10 @@ export default function RootLayout() {
           usePersistenceStore.getState().setHydrated(true);
         }}
       >
+        <ThemeBootstrap />
         <SplashScreenController />
         <RootNavigator />
-        <StatusBar style="auto" />
+        <StatusBar style={isDark ? "light" : "dark"} />
       </PersistQueryClientProvider>
     </GestureHandlerRootView>
   );
