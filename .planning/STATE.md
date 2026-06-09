@@ -17,17 +17,17 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-07)
+See: .planning/PROJECT.md (updated 2026-06-09)
 
 **Core value:** Logga ett set och omedelbart se vad jag tog senast på samma övning — utan att tappa data, någonsin.
-**Current focus:** Milestone complete
+**Current focus:** v2.0 Forge Redesign — ready to plan Phase 8 (Forge Foundation)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 8 — Forge Foundation (not started)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-06-09 — Milestone v2.0 started
+Status: Roadmap approved — ready for /gsd:discuss-phase 8 or /gsd:plan-phase 8
+Last activity: 2026-06-09 — Milestone v2.0 roadmap created (8 phases, 48 requirements)
 
 ## Performance Metrics
 

@@ -105,16 +105,61 @@
 
 ## Traceability
 
-Populated during roadmap creation (Step 10).
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (filled by roadmap) | — | Pending |
+| DSGN-01 | Phase 8 | Pending |
+| DSGN-02 | Phase 8 | Pending |
+| DSGN-03 | Phase 8 | Pending |
+| DSGN-04 | Phase 8 | Pending |
+| DSGN-05 | Phase 8 | Pending |
+| DSGN-06 | Phase 8 | Pending |
+| I18N-01 | Phase 8 | Pending |
+| I18N-04 | Phase 8 | Pending |
+| SKIN-01 | Phase 9 | Pending |
+| SET-01 | Phase 9 | Pending |
+| SET-02 | Phase 9 | Pending |
+| SET-03 | Phase 9 | Pending |
+| SET-04 | Phase 9 | Pending |
+| SET-05 | Phase 9 | Pending |
+| SET-06 | Phase 9 | Pending |
+| SET-07 | Phase 9 | Pending |
+| SET-08 | Phase 9 | Pending |
+| SET-09 | Phase 9 | Pending |
+| I18N-02 | Phase 9 | Pending |
+| SKIN-02 | Phase 10 | Pending |
+| SKIN-03 | Phase 10 | Pending |
+| SKIN-07 | Phase 10 | Pending |
+| I18N-05 | Phase 10 | Pending |
+| SKIN-04 | Phase 11 | Pending |
+| SKIN-05 | Phase 11 | Pending |
+| SKIN-08 | Phase 11 | Pending |
+| MOTN-01 | Phase 11 | Pending |
+| MOTN-04 | Phase 11 | Pending |
+| MOTN-05 | Phase 11 | Pending |
+| SKIN-06 | Phase 12 | Pending |
+| DASH-01 | Phase 12 | Pending |
+| DASH-02 | Phase 12 | Pending |
+| DASH-03 | Phase 12 | Pending |
+| DASH-04 | Phase 12 | Pending |
+| DASH-05 | Phase 12 | Pending |
+| MOTN-02 | Phase 12 | Pending |
+| MOTN-03 | Phase 12 | Pending |
+| PR-01 | Phase 13 | Pending |
+| PR-02 | Phase 13 | Pending |
+| PR-03 | Phase 13 | Pending |
+| PR-04 | Phase 13 | Pending |
+| PR-05 | Phase 13 | Pending |
+| TIMER-01 | Phase 14 | Pending |
+| TIMER-02 | Phase 14 | Pending |
+| TIMER-03 | Phase 14 | Pending |
+| TIMER-04 | Phase 14 | Pending |
+| TIMER-05 | Phase 14 | Pending |
+| I18N-03 | Phase 15 | Pending |
 
 **Coverage:**
-- v2.0 requirements: 43 total
-- Mapped to phases: (filled by roadmap)
-- Unmapped: (filled by roadmap)
+- v2.0 requirements: 48 total
+- Mapped to phases: 48
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-06-09*
