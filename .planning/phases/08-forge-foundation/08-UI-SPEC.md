@@ -1,10 +1,11 @@
 ---
 phase: 8
 slug: forge-foundation
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-06-09
+reviewed_at: 2026-06-09
 ---
 
 # Phase 8 — UI Design Contract (Forge Foundation)
