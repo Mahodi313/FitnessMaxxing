@@ -1,0 +1,779 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=1400, initial-scale=1" />
+  <title>Forge — FitnessMaxxing V2 Design Spec</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; font-family: 'Inter', -apple-system, system-ui, sans-serif; background: #F0EEE9; color: #1A1A1A; -webkit-font-smoothing: antialiased; }
+    @font-face { font-family: 'Inter Display'; src: local('Inter Display'), local('InterDisplay'), local('Inter Tight'); font-display: swap; }
+
+    /* Figma-like canvas — page is centered column */
+    .page { max-width: 1320px; margin: 0 auto; padding: 80px 24px 160px; }
+
+    /* Section heading outside the "frame" */
+    .frame-label {
+      font-size: 11px; font-weight: 700; letter-spacing: 1.6px;
+      color: rgba(0,0,0,0.55); text-transform: uppercase;
+      display: flex; align-items: center; gap: 10px;
+      padding: 0 0 10px 4px;
+    }
+    .frame-label-num {
+      display: inline-block; padding: 2px 8px; border-radius: 4px;
+      background: #1A1A1A; color: #F0EEE9;
+      font-size: 11px; font-weight: 700; letter-spacing: 1px;
+    }
+    .section { margin-bottom: 96px; }
+
+    /* Frame — like a Figma frame */
+    .frame {
+      background: #FFFFFF; border-radius: 18px;
+      box-shadow: 0 1px 0 rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.04);
+      overflow: hidden;
+    }
+    .frame.dark { background: #0E0E10; color: #FFFFFF; }
+    .frame-header {
+      padding: 28px 36px 20px; border-bottom: 1px solid rgba(0,0,0,0.06);
+    }
+    .frame.dark .frame-header { border-bottom-color: rgba(255,255,255,0.08); }
+    .frame-title {
+      font-family: 'Inter Display', 'Inter Tight', 'Inter', sans-serif;
+      font-size: 32px; font-weight: 700; letter-spacing: -0.9px; margin: 0;
+    }
+    .frame-sub { margin: 6px 0 0; font-size: 14px; color: rgba(0,0,0,0.55); letter-spacing: 0.1px; max-width: 600px; line-height: 1.5; }
+    .frame.dark .frame-sub { color: rgba(255,255,255,0.55); }
+    .frame-body { padding: 32px 36px 36px; }
+
+    /* Mono for hex values etc */
+    .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; font-feature-settings: 'tnum'; }
+
+    /* Cover */
+    .cover {
+      position: relative; padding: 90px 64px; border-radius: 24px;
+      background: #0A0A0A; color: #fff; overflow: hidden;
+      margin-bottom: 80px;
+    }
+    .cover-grad {
+      position: absolute; top: -20%; right: -10%; width: 700px; height: 700px;
+      background: radial-gradient(circle at 30% 30%, #FF7A2E, #FF2D55 60%, transparent 75%);
+      filter: blur(40px); opacity: 0.5; pointer-events: none;
+    }
+    .cover h1 {
+      font-family: 'Inter Display', 'Inter Tight', sans-serif;
+      font-size: 96px; font-weight: 800; letter-spacing: -4px; line-height: 0.95;
+      margin: 24px 0 0;
+    }
+    .cover h1 .accent {
+      background: linear-gradient(135deg, #FF7A2E, #FF2D55);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .cover .meta {
+      display: flex; gap: 32px; margin-top: 56px;
+      font-size: 13px; color: rgba(255,255,255,0.6);
+    }
+    .cover .meta strong { display: block; color: #fff; font-weight: 600; font-size: 14px; margin-top: 4px; letter-spacing: -0.2px; }
+
+    /* Brand row */
+    .brand-row { display: grid; grid-template-columns: 360px 1fr; gap: 48px; align-items: center; }
+    .brand-logo-big {
+      width: 200px; height: 200px; border-radius: 48px;
+      background: linear-gradient(135deg, #FF7A2E, #FF2D55);
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 30px 60px rgba(255,90,31,0.35);
+    }
+    .brand-logo-dark { background: #0A0A0A; box-shadow: 0 30px 60px rgba(0,0,0,0.25); }
+
+    /* Color swatches */
+    .swatch-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .swatch {
+      border-radius: 12px; padding: 14px; border: 1px solid rgba(0,0,0,0.06);
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .swatch.on-dark { border-color: rgba(255,255,255,0.1); }
+    .swatch .chip {
+      width: 100%; height: 56px; border-radius: 8px; margin-bottom: 8px;
+      border: 1px solid rgba(0,0,0,0.06);
+    }
+    .swatch.on-dark .chip { border-color: rgba(255,255,255,0.06); }
+    .swatch .name { font-size: 12px; font-weight: 600; letter-spacing: -0.1px; }
+    .swatch .var { font-size: 10.5px; font-weight: 500; opacity: 0.7; letter-spacing: 0.2px; }
+    .swatch .hex { font-size: 11px; letter-spacing: 0.2px; }
+
+    .palette-h {
+      font-size: 11px; font-weight: 700; letter-spacing: 1.6px;
+      color: rgba(0,0,0,0.55); text-transform: uppercase; margin: 0 0 14px;
+    }
+    .palette-h.on-dark { color: rgba(255,255,255,0.6); }
+
+    /* Type specimen */
+    .type-row {
+      display: grid; grid-template-columns: 220px 1fr; gap: 32px;
+      padding: 20px 0; border-bottom: 1px solid rgba(0,0,0,0.06);
+      align-items: baseline;
+    }
+    .type-row:last-child { border-bottom: 0; }
+    .type-meta { font-size: 12px; color: rgba(0,0,0,0.55); }
+    .type-meta strong { display: block; color: #0A0A0A; font-size: 13px; font-weight: 700; margin-bottom: 4px; letter-spacing: -0.1px; }
+    .type-meta .mono { font-size: 11px; color: rgba(0,0,0,0.5); margin-top: 4px; display: block; }
+    .type-spec { font-family: 'Inter Display', 'Inter Tight', sans-serif; }
+
+    /* Spacing & radius */
+    .scale-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
+    .scale-item {
+      padding: 16px; border-radius: 10px; border: 1px solid rgba(0,0,0,0.06);
+      text-align: center; background: #FAFAF7;
+    }
+    .scale-item .demo {
+      height: 60px; display: flex; align-items: center; justify-content: center; margin-bottom: 10px;
+    }
+    .scale-item .demo-box { background: #FF5A1F; }
+    .scale-item .label { font-size: 12px; font-weight: 700; letter-spacing: -0.1px; }
+    .scale-item .val { font-size: 11px; color: rgba(0,0,0,0.5); margin-top: 2px; }
+
+    /* Component shelf */
+    .shelf { display: grid; grid-template-columns: 1fr 1fr; gap: 36px; }
+    .shelf-light, .shelf-dark { padding: 28px; border-radius: 14px; }
+    .shelf-light { background: #FAFAF7; }
+    .shelf-dark { background: #0E0E10; }
+    .shelf h3 {
+      font-size: 11px; font-weight: 700; letter-spacing: 1.6px;
+      text-transform: uppercase; margin: 0 0 16px; color: rgba(0,0,0,0.55);
+    }
+    .shelf-dark h3 { color: rgba(255,255,255,0.55); }
+    .shelf-stack { display: flex; flex-direction: column; gap: 14px; }
+    .shelf-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    /* Mockup column for "screens" section */
+    .screen-grid {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 40px;
+      align-items: start;
+    }
+    .screen-stack { display: flex; gap: 28px; align-items: start; }
+    .screen-label {
+      font-family: 'Inter Display', 'Inter Tight', sans-serif;
+      font-size: 24px; font-weight: 700; letter-spacing: -0.6px; margin: 0 0 6px;
+    }
+    .screen-anno {
+      font-size: 13px; color: rgba(0,0,0,0.55); margin: 0 0 16px; line-height: 1.5;
+    }
+
+    /* Notes table */
+    .notes-table {
+      width: 100%; border-collapse: collapse; font-size: 13px;
+    }
+    .notes-table th, .notes-table td {
+      text-align: left; padding: 12px 16px; border-bottom: 1px solid rgba(0,0,0,0.06);
+      vertical-align: top;
+    }
+    .notes-table th {
+      font-size: 11px; font-weight: 700; letter-spacing: 1.4px;
+      color: rgba(0,0,0,0.55); text-transform: uppercase;
+    }
+    .notes-table tr:last-child td { border-bottom: 0; }
+    .notes-table td:first-child { font-weight: 600; width: 200px; letter-spacing: -0.1px; }
+    .notes-table td code {
+      font-family: 'JetBrains Mono', ui-monospace, monospace;
+      font-size: 11.5px; padding: 1px 5px; border-radius: 4px;
+      background: rgba(0,0,0,0.05); color: #D26A1E;
+    }
+
+    /* Two-up */
+    .two-up { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    .three-up { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; }
+
+    /* Pill chips */
+    .pill {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 8px; border-radius: 6px;
+      font-size: 10.5px; font-weight: 700; letter-spacing: 0.4px;
+      text-transform: uppercase;
+    }
+    .pill-orange { background: rgba(255,90,31,0.12); color: #D26A1E; }
+    .pill-green { background: rgba(48,209,88,0.12); color: #1E9E45; }
+    .pill-mono { background: rgba(0,0,0,0.06); color: rgba(0,0,0,0.7); font-family: 'JetBrains Mono', monospace; }
+
+    a { color: #0A0A0A; }
+  </style>
+</head>
+<body>
+
+<template id="__bundler_thumbnail">
+  <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#FF7A2E"/>
+        <stop offset="1" stop-color="#FF2D55"/>
+      </linearGradient>
+    </defs>
+    <rect width="200" height="200" fill="url(#bg)" rx="32"/>
+    <g transform="translate(64 64) scale(1.13)" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round">
+        <path d="M10 50 L10 30 Q10 26 14 26 L18 26 Q22 26 22 30 L22 50"/>
+        <path d="M32 50 L32 18 Q32 14 36 14 L40 14 Q44 14 44 18 L44 50"/>
+        <circle cx="54" cy="14" r="5" fill="#fff" stroke="none"/>
+      </g>
+  </svg>
+</template>
+
+<div class="page">
+
+  <!-- ─────────────────────── COVER ─────────────────────── -->
+  <div class="cover">
+    <div class="cover-grad"></div>
+    <div style="position: relative; z-index: 1;">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <div style="width: 48px; height: 48px; border-radius: 14px; background: linear-gradient(135deg, #FF7A2E, #FF2D55); display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 20px rgba(255,90,31,0.4);">
+          <svg width="24" height="24" viewBox="0 0 64 64" fill="none"><path d="M10 50 L10 30 Q10 26 14 26 L18 26 Q22 26 22 30 L22 50" stroke="#fff" stroke-width="7" stroke-linecap="round" fill="none"/><path d="M32 50 L32 18 Q32 14 36 14 L40 14 Q44 14 44 18 L44 50" stroke="#fff" stroke-width="7" stroke-linecap="round" fill="none"/><circle cx="54" cy="14" r="5" fill="#fff"/></svg>
+        </div>
+        <div>
+          <div style="font-size: 17px; font-weight: 700; letter-spacing: -0.4px;">FitnessMaxxing</div>
+          <div style="font-size: 11px; font-weight: 600; letter-spacing: 1.6px; color: rgba(255,255,255,0.55); text-transform: uppercase; margin-top: 2px;">V2 · App Store launch</div>
+        </div>
+      </div>
+
+      <h1>Forge<br/><span class="accent">design system.</span></h1>
+
+      <div class="meta">
+        <div>
+          <div>Direction</div>
+          <strong>Premium · Apple Fitness DNA</strong>
+        </div>
+        <div>
+          <div>Modes</div>
+          <strong>Dark · Light (parity)</strong>
+        </div>
+        <div>
+          <div>Languages</div>
+          <strong>Swedish · English</strong>
+        </div>
+        <div>
+          <div>Platforms</div>
+          <strong>iOS first · Android-ready</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────────────────── BRAND ─────────────────────── -->
+  <div class="section">
+    <div class="frame-label"><span class="frame-label-num">01</span>Brand mark</div>
+    <div class="frame">
+      <div class="frame-header">
+        <h2 class="frame-title">Logo & wordmark</h2>
+        <p class="frame-sub">The mark is a barbell glyph in the orange→pink gradient on dark, solid black on light. Wordmark uses Inter Display 700 with all-caps tracked at 2px for the secondary lockup.</p>
+      </div>
+      <div class="frame-body">
+        <div class="brand-row">
+          <div class="brand-logo-big">
+            <svg width="100" height="100" viewBox="0 0 64 64" fill="none"><path d="M10 50 L10 30 Q10 26 14 26 L18 26 Q22 26 22 30 L22 50" stroke="#fff" stroke-width="7" stroke-linecap="round" fill="none"/><path d="M32 50 L32 18 Q32 14 36 14 L40 14 Q44 14 44 18 L44 50" stroke="#fff" stroke-width="7" stroke-linecap="round" fill="none"/><circle cx="54" cy="14" r="5" fill="#fff"/></svg>
+          </div>
+          <div>
+            <div style="font-size: 11px; font-weight: 700; letter-spacing: 1.6px; color: rgba(0,0,0,0.55); text-transform: uppercase;">Lockup</div>
+            <div style="display: flex; align-items: center; gap: 14px; margin-top: 14px;">
+              <div style="width: 56px; height: 56px; border-radius: 16px; background: linear-gradient(135deg, #FF7A2E, #FF2D55); display: flex; align-items: center; justify-content: center;">
+                <svg width="28" height="28" viewBox="0 0 64 64" fill="none"><path d="M10 50 L10 30 Q10 26 14 26 L18 26 Q22 26 22 30 L22 50" stroke="#fff" stroke-width="7" stroke-linecap="round" fill="none"/><path d="M32 50 L32 18 Q32 14 36 14 L40 14 Q44 14 44 18 L44 50" stroke="#fff" stroke-width="7" stroke-linecap="round" fill="none"/><circle cx="54" cy="14" r="5" fill="#fff"/></svg>
+              </div>
+              <div style="font-family: 'Inter Display', sans-serif; font-size: 34px; font-weight: 700; letter-spacing: -1px;">FitnessMaxxing</div>
+            </div>
+            <div style="font-size: 11px; font-weight: 700; letter-spacing: 1.6px; color: rgba(0,0,0,0.55); text-transform: uppercase; margin-top: 32px;">Wordmark — small (tab bar, headers)</div>
+            <div style="display: flex; align-items: center; gap: 8px; margin-top: 10px;">
+              <div style="width: 28px; height: 28px; border-radius: 8px; background: linear-gradient(135deg, #FF7A2E, #FF2D55); display: flex; align-items: center; justify-content: center;">
+                <svg width="16" height="16" viewBox="0 0 64 64" fill="none"><path d="M10 50 L10 30 Q10 26 14 26 L18 26 Q22 26 22 30 L22 50" stroke="#fff" stroke-width="7" stroke-linecap="round" fill="none"/><path d="M32 50 L32 18 Q32 14 36 14 L40 14 Q44 14 44 18 L44 50" stroke="#fff" stroke-width="7" stroke-linecap="round" fill="none"/><circle cx="54" cy="14" r="5" fill="#fff"/></svg>
+              </div>
+              <span style="font-size: 11px; font-weight: 600; letter-spacing: 2px; color: rgba(0,0,0,0.7); text-transform: uppercase;">FitnessMaxxing</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────────────────── COLOR ─────────────────────── -->
+  <div class="section">
+    <div class="frame-label"><span class="frame-label-num">02</span>Color tokens</div>
+    <div class="two-up">
+
+      <!-- LIGHT -->
+      <div class="frame">
+        <div class="frame-header">
+          <h2 class="frame-title">Light mode</h2>
+          <p class="frame-sub">Warm off-white surfaces. Accent is a punchy orange a touch deeper than the dark variant for AA contrast on white.</p>
+        </div>
+        <div class="frame-body">
+          <h3 class="palette-h">Surface</h3>
+          <div class="swatch-grid">
+            <div class="swatch"><div class="chip" style="background:#FAFAF7"></div><div class="name">bg</div><div class="var mono">#FAFAF7</div></div>
+            <div class="swatch"><div class="chip" style="background:#FFFFFF"></div><div class="name">surface</div><div class="var mono">#FFFFFF</div></div>
+            <div class="swatch"><div class="chip" style="background:#F2F1EC"></div><div class="name">surface‑2</div><div class="var mono">#F2F1EC</div></div>
+            <div class="swatch"><div class="chip" style="background:#E8E7E1"></div><div class="name">surface‑3</div><div class="var mono">#E8E7E1</div></div>
+          </div>
+          <h3 class="palette-h" style="margin-top:24px">Text</h3>
+          <div class="swatch-grid">
+            <div class="swatch"><div class="chip" style="background:#0A0A0A"></div><div class="name">text</div><div class="var mono">#0A0A0A</div></div>
+            <div class="swatch"><div class="chip" style="background:#4D4D4D"></div><div class="name">text‑2</div><div class="var mono">#4D4D4D</div></div>
+            <div class="swatch"><div class="chip" style="background:#8B8B8B"></div><div class="name">text‑3</div><div class="var mono">#8B8B8B</div></div>
+            <div class="swatch"><div class="chip" style="background:rgba(0,0,0,0.07);"></div><div class="name">border</div><div class="var mono">7% black</div></div>
+          </div>
+          <h3 class="palette-h" style="margin-top:24px">Accent & semantic</h3>
+          <div class="swatch-grid">
+            <div class="swatch"><div class="chip" style="background:#E14E10"></div><div class="name">accent</div><div class="var mono">#E14E10</div></div>
+            <div class="swatch"><div class="chip" style="background: linear-gradient(135deg,#FF7A2E,#FF3D5E)"></div><div class="name">gradient</div><div class="var mono">#FF7A2E → #FF3D5E</div></div>
+            <div class="swatch"><div class="chip" style="background:#1E9E45"></div><div class="name">success</div><div class="var mono">#1E9E45</div></div>
+            <div class="swatch"><div class="chip" style="background:#D70015"></div><div class="name">danger</div><div class="var mono">#D70015</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DARK -->
+      <div class="frame dark">
+        <div class="frame-header">
+          <h2 class="frame-title">Dark mode</h2>
+          <p class="frame-sub">Pure black bg, off-black surface elevations. Single bright orange accent. AAA contrast on text-on-surface pairings.</p>
+        </div>
+        <div class="frame-body">
+          <h3 class="palette-h on-dark">Surface</h3>
+          <div class="swatch-grid">
+            <div class="swatch on-dark" style="background:rgba(255,255,255,0.04); color:#fff"><div class="chip" style="background:#000000"></div><div class="name">bg</div><div class="var mono">#000000</div></div>
+            <div class="swatch on-dark" style="background:rgba(255,255,255,0.04); color:#fff"><div class="chip" style="background:#0E0E10"></div><div class="name">surface</div><div class="var mono">#0E0E10</div></div>
+            <div class="swatch on-dark" style="background:rgba(255,255,255,0.04); color:#fff"><div class="chip" style="background:#18181B"></div><div class="name">surface‑2</div><div class="var mono">#18181B</div></div>
+            <div class="swatch on-dark" style="background:rgba(255,255,255,0.04); color:#fff"><div class="chip" style="background:#222226"></div><div class="name">surface‑3</div><div class="var mono">#222226</div></div>
+          </div>
+          <h3 class="palette-h on-dark" style="margin-top:24px">Text</h3>
+          <div class="swatch-grid">
+            <div class="swatch on-dark" style="background:rgba(255,255,255,0.04); color:#fff"><div class="chip" style="background:#FFFFFF"></div><div class="name">text</div><div class="var mono">#FFFFFF</div></div>
+            <div class="swatch on-dark" style="background:rgba(255,255,255,0.04); color:#fff"><div class="chip" style="background:rgba(255,255,255,0.62);"></div><div class="name">text‑2</div><div class="var mono">62% white</div></div>
+            <div class="swatch on-dark" style="background:rgba(255,255,255,0.04); color:#fff"><div class="chip" style="background:rgba(255,255,255,0.38);"></div><div class="name">text‑3</div><div class="var mono">38% white</div></div>
+            <div class="swatch on-dark" style="background:rgba(255,255,255,0.04); color:#fff"><div class="chip" style="background:rgba(255,255,255,0.08);"></div><div class="name">border</div><div class="var mono">8% white</div></div>
+          </div>
+          <h3 class="palette-h on-dark" style="margin-top:24px">Accent & semantic</h3>
+          <div class="swatch-grid">
+            <div class="swatch on-dark" style="background:rgba(255,255,255,0.04); color:#fff"><div class="chip" style="background:#FF5A1F"></div><div class="name">accent</div><div class="var mono">#FF5A1F</div></div>
+            <div class="swatch on-dark" style="background:rgba(255,255,255,0.04); color:#fff"><div class="chip" style="background: linear-gradient(135deg,#FF7A2E,#FF2D55)"></div><div class="name">gradient</div><div class="var mono">#FF7A2E → #FF2D55</div></div>
+            <div class="swatch on-dark" style="background:rgba(255,255,255,0.04); color:#fff"><div class="chip" style="background:#30D158"></div><div class="name">success</div><div class="var mono">#30D158</div></div>
+            <div class="swatch on-dark" style="background:rgba(255,255,255,0.04); color:#fff"><div class="chip" style="background:#FF453A"></div><div class="name">danger</div><div class="var mono">#FF453A</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────────────────── TYPOGRAPHY ─────────────────────── -->
+  <div class="section">
+    <div class="frame-label"><span class="frame-label-num">03</span>Typography</div>
+    <div class="frame">
+      <div class="frame-header">
+        <h2 class="frame-title">Inter Display + Inter</h2>
+        <p class="frame-sub">Inter Display for headlines and numerals (variable-width, sharper terminals). Inter for body. JetBrains Mono for tabular stats and hex codes. All tabular numerals via <code style="background:rgba(0,0,0,0.05); padding:2px 6px; border-radius:4px; font-family:'JetBrains Mono'; font-size:12px">font-feature-settings: 'tnum', 'ss01'</code>.</p>
+      </div>
+      <div class="frame-body">
+        <div class="type-row">
+          <div class="type-meta">
+            <strong>Display / XL</strong>
+            Inter Display · 700<br/>
+            <span class="mono">44px · -1.4 tracking · 1.02 lh</span>
+          </div>
+          <div class="type-spec" style="font-size:44px; font-weight:700; letter-spacing:-1.4px; line-height:1.02;">Välkommen tillbaka</div>
+        </div>
+        <div class="type-row">
+          <div class="type-meta">
+            <strong>Page title</strong>
+            Inter Display · 700<br/>
+            <span class="mono">36px · -1.2 tracking</span>
+          </div>
+          <div class="type-spec" style="font-size:36px; font-weight:700; letter-spacing:-1.2px;">Mina planer</div>
+        </div>
+        <div class="type-row">
+          <div class="type-meta">
+            <strong>Hero numeral</strong>
+            Inter Display · 700 · tabular<br/>
+            <span class="mono">52px · -2 tracking</span>
+          </div>
+          <div class="type-spec" style="font-size:52px; font-weight:700; letter-spacing:-2px; font-feature-settings:'tnum';">107.5</div>
+        </div>
+        <div class="type-row">
+          <div class="type-meta">
+            <strong>Section header</strong>
+            Inter Display · 700<br/>
+            <span class="mono">32px · -1 tracking</span>
+          </div>
+          <div class="type-spec" style="font-size:32px; font-weight:700; letter-spacing:-1px;">Bänkpress</div>
+        </div>
+        <div class="type-row">
+          <div class="type-meta">
+            <strong>Card title</strong>
+            Inter · 600<br/>
+            <span class="mono">17px · -0.3 tracking</span>
+          </div>
+          <div style="font-size:17px; font-weight:600; letter-spacing:-0.3px;">Push Day</div>
+        </div>
+        <div class="type-row">
+          <div class="type-meta">
+            <strong>Body</strong>
+            Inter · 400<br/>
+            <span class="mono">15px · 0 tracking · 1.4 lh</span>
+          </div>
+          <div style="font-size:15px; line-height:1.4;">Logga in för att fortsätta din resa. Du har 12 dagar i streak och 3 / 4 pass denna vecka.</div>
+        </div>
+        <div class="type-row">
+          <div class="type-meta">
+            <strong>Caption</strong>
+            Inter · 500<br/>
+            <span class="mono">13px · -0.1 tracking</span>
+          </div>
+          <div style="font-size:13px; letter-spacing:-0.1px; color:#4D4D4D;">2 dagar sedan · 6 övningar</div>
+        </div>
+        <div class="type-row">
+          <div class="type-meta">
+            <strong>Eyebrow / label</strong>
+            Inter · 600 · uppercase<br/>
+            <span class="mono">11px · 1.5 tracking</span>
+          </div>
+          <div style="font-size:11px; font-weight:600; letter-spacing:1.5px; text-transform:uppercase; color:#8B8B8B;">VECKANS VOLYM</div>
+        </div>
+        <div class="type-row">
+          <div class="type-meta">
+            <strong>Tabular stat</strong>
+            JetBrains Mono · 600<br/>
+            <span class="mono">14px · tnum</span>
+          </div>
+          <div class="mono" style="font-size:14px; font-weight:600;">28 720 kg · +12%</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────────────────── SPACING / RADIUS / ELEVATION ─────────────────────── -->
+  <div class="section">
+    <div class="frame-label"><span class="frame-label-num">04</span>Spacing · Radius · Elevation</div>
+    <div class="frame">
+      <div class="frame-header">
+        <h2 class="frame-title">Geometry tokens</h2>
+        <p class="frame-sub">4-point base. Touch targets ≥ 44pt (iOS HIG) · 48dp (Material). Radii are deliberately large on cards/buttons — Forge reads premium because every card is at least 14px rounded.</p>
+      </div>
+      <div class="frame-body">
+
+        <h3 class="palette-h">Spacing scale (4pt base)</h3>
+        <div class="scale-grid" style="margin-bottom:32px">
+          <div class="scale-item"><div class="demo"><div class="demo-box" style="width:4px; height:24px;"></div></div><div class="label">space‑1</div><div class="val mono">4px</div></div>
+          <div class="scale-item"><div class="demo"><div class="demo-box" style="width:8px; height:24px;"></div></div><div class="label">space‑2</div><div class="val mono">8px</div></div>
+          <div class="scale-item"><div class="demo"><div class="demo-box" style="width:12px; height:24px;"></div></div><div class="label">space‑3</div><div class="val mono">12px</div></div>
+          <div class="scale-item"><div class="demo"><div class="demo-box" style="width:16px; height:24px;"></div></div><div class="label">space‑4</div><div class="val mono">16px</div></div>
+          <div class="scale-item"><div class="demo"><div class="demo-box" style="width:24px; height:24px;"></div></div><div class="label">space‑6</div><div class="val mono">24px</div></div>
+          <div class="scale-item"><div class="demo"><div class="demo-box" style="width:32px; height:24px;"></div></div><div class="label">space‑8</div><div class="val mono">32px</div></div>
+        </div>
+
+        <h3 class="palette-h">Radius scale</h3>
+        <div class="scale-grid" style="margin-bottom:32px">
+          <div class="scale-item"><div class="demo"><div class="demo-box" style="width:56px; height:56px; border-radius:6px;"></div></div><div class="label">radius‑xs</div><div class="val mono">6px</div></div>
+          <div class="scale-item"><div class="demo"><div class="demo-box" style="width:56px; height:56px; border-radius:10px;"></div></div><div class="label">radius‑sm</div><div class="val mono">10px</div></div>
+          <div class="scale-item"><div class="demo"><div class="demo-box" style="width:56px; height:56px; border-radius:14px;"></div></div><div class="label">radius‑md</div><div class="val mono">14px</div></div>
+          <div class="scale-item"><div class="demo"><div class="demo-box" style="width:56px; height:56px; border-radius:18px;"></div></div><div class="label">radius‑lg</div><div class="val mono">18px</div></div>
+          <div class="scale-item"><div class="demo"><div class="demo-box" style="width:56px; height:56px; border-radius:24px;"></div></div><div class="label">radius‑xl</div><div class="val mono">24px</div></div>
+          <div class="scale-item"><div class="demo"><div class="demo-box" style="width:56px; height:56px; border-radius:9999px;"></div></div><div class="label">radius‑full</div><div class="val mono">∞</div></div>
+        </div>
+
+        <h3 class="palette-h">Elevation (shadow)</h3>
+        <div class="three-up">
+          <div style="padding:20px; border-radius:14px; background:#FFFFFF; box-shadow:0 1px 3px rgba(0,0,0,0.04), 0 2px 8px rgba(0,0,0,0.04); border:1px solid rgba(0,0,0,0.04);">
+            <div style="font-size:13px; font-weight:700; letter-spacing:-0.1px;">elev‑1 — card</div>
+            <div class="mono" style="font-size:10.5px; color:rgba(0,0,0,0.55); margin-top:4px;">0 1 3 4% / 0 2 8 4%</div>
+          </div>
+          <div style="padding:20px; border-radius:14px; background:#FFFFFF; box-shadow:0 8px 24px rgba(255,90,31,0.25); border:1px solid rgba(0,0,0,0.04);">
+            <div style="font-size:13px; font-weight:700; letter-spacing:-0.1px;">elev‑accent — CTA</div>
+            <div class="mono" style="font-size:10.5px; color:rgba(0,0,0,0.55); margin-top:4px;">0 8 24 accent×25%</div>
+          </div>
+          <div style="padding:20px; border-radius:14px; background:#FFFFFF; box-shadow:0 30px 60px rgba(0,0,0,0.18); border:1px solid rgba(0,0,0,0.04);">
+            <div style="font-size:13px; font-weight:700; letter-spacing:-0.1px;">elev‑modal — overlay</div>
+            <div class="mono" style="font-size:10.5px; color:rgba(0,0,0,0.55); margin-top:4px;">0 30 60 black×18%</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────────────────── COMPONENTS ─────────────────────── -->
+  <div class="section">
+    <div class="frame-label"><span class="frame-label-num">05</span>Component library</div>
+    <div class="frame">
+      <div class="frame-header">
+        <h2 class="frame-title">Atoms & molecules</h2>
+        <p class="frame-sub">Every component on a light surface side-by-side with its dark counterpart. Use these to extend the system without diverging.</p>
+      </div>
+      <div class="frame-body" style="padding:0">
+        <div id="components-mount"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────────────────── SCREENS ─────────────────────── -->
+  <div class="section">
+    <div class="frame-label"><span class="frame-label-num">06</span>Screens · 17 total</div>
+    <div class="frame">
+      <div class="frame-header">
+        <h2 class="frame-title">Every screen, both modes</h2>
+        <p class="frame-sub">Every route from your app, plus the three session-state overlays surfaced by your existing PATTERNS.md inline-overlay-confirm: the active-session banner that persists across tabs, the cold-start "Återuppta passet?" overlay, and the "Passet sparat" success toast. Swedish copy shown — toggle to English on the main canvas.</p>
+      </div>
+      <div class="frame-body">
+        <div id="screens-mount"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────────────────── MOTION ─────────────────────── -->
+  <div class="section">
+    <div class="frame-label"><span class="frame-label-num">07</span>Motion & micro-interactions</div>
+    <div class="frame">
+      <div class="frame-header">
+        <h2 class="frame-title">Where things move</h2>
+        <p class="frame-sub">Reanimated 4 is already in your stack. Keep motion subtle — premium reads through restraint, not flourish. Use spring (damping 18, stiffness 220) as the default curve.</p>
+      </div>
+      <div class="frame-body">
+        <table class="notes-table">
+          <thead>
+            <tr>
+              <th>Surface</th>
+              <th>Animation</th>
+              <th>Why</th>
+              <th>Duration</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Set logged ("Klart")</td>
+              <td>Row slides in from bottom + check ⊕ scales 0.8→1 + haptic <code>impactMedium</code></td>
+              <td>The hot path's most-frequent action. Confirmation must feel earned, instant.</td>
+              <td>220ms</td>
+            </tr>
+            <tr>
+              <td>PR celebration</td>
+              <td>Banner scales 0.96→1 + gradient sweep across surface + haptic <code>notificationSuccess</code></td>
+              <td>The most exciting moment in the app deserves a single hero animation.</td>
+              <td>600ms</td>
+            </tr>
+            <tr>
+              <td>Activity ring (Home)</td>
+              <td>Stroke-dashoffset eases 0→target on screen mount</td>
+              <td>Borrows Apple Fitness vocabulary; users read fill as progress.</td>
+              <td>900ms · ease-out</td>
+            </tr>
+            <tr>
+              <td>Plan-row reorder</td>
+              <td>Spring on translateY · 0.95 scale on dragged item · sibling rows slide</td>
+              <td>Already wired via react-native-draggable-flatlist · keep ScaleDecorator.</td>
+              <td>spring</td>
+            </tr>
+            <tr>
+              <td>Tab switch</td>
+              <td>Crossfade content 0→1 (no slide) · tab-bar icon scales 0.92→1</td>
+              <td>Avoid horizontal slide — current sessions persist across tabs.</td>
+              <td>180ms</td>
+            </tr>
+            <tr>
+              <td>Sheet / overlay</td>
+              <td>Backdrop opacity 0→0.5 · card translateY 24→0 · spring</td>
+              <td>Matches your existing inline-overlay pattern (PATTERNS.md).</td>
+              <td>240ms · spring</td>
+            </tr>
+            <tr>
+              <td>Toast ("Passet sparat")</td>
+              <td>FadeIn 200 · hold 2000 · FadeOut 200 (already implemented)</td>
+              <td>Already correct in <code>(tabs)/index.tsx</code>.</td>
+              <td>2400ms total</td>
+            </tr>
+            <tr>
+              <td>Chart line draw</td>
+              <td>Stroke-dasharray reveals path L→R on mount</td>
+              <td>Earns its space — implies "this is your story".</td>
+              <td>800ms · ease-out</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────────────────── ANDROID ─────────────────────── -->
+  <div class="section">
+    <div class="frame-label"><span class="frame-label-num">08</span>Android adaptation</div>
+    <div class="frame">
+      <div class="frame-header">
+        <h2 class="frame-title">What ports · what changes</h2>
+        <p class="frame-sub">90% of Forge ports cleanly because the design language is geometric and token-driven, not iOS-platform-specific. The deltas below are the only places to fork behaviour.</p>
+      </div>
+      <div class="frame-body">
+
+        <div class="two-up" style="margin-bottom:32px">
+          <div style="padding:20px; border-radius:14px; background:rgba(48,209,88,0.08); border:1px solid rgba(48,209,88,0.18);">
+            <h3 style="margin:0 0 10px; font-size:13px; font-weight:700; letter-spacing:1.4px; text-transform:uppercase; color:#1E9E45;">Ports as-is</h3>
+            <ul style="margin:0; padding-left:18px; font-size:13px; line-height:1.7; color:rgba(0,0,0,0.75);">
+              <li>All color tokens (NativeWind is cross-platform)</li>
+              <li>All typography scale + Inter Display via expo-font</li>
+              <li>All radii / spacing</li>
+              <li>Card layouts, list rows, input fields</li>
+              <li>PR celebration, activity rings, charts (Skia)</li>
+              <li>Reanimated animations (worklets work on both)</li>
+              <li>Offline-first TanStack Query persister</li>
+            </ul>
+          </div>
+          <div style="padding:20px; border-radius:14px; background:rgba(255,90,31,0.08); border:1px solid rgba(255,90,31,0.18);">
+            <h3 style="margin:0 0 10px; font-size:13px; font-weight:700; letter-spacing:1.4px; text-transform:uppercase; color:#D26A1E;">Needs an Android variant</h3>
+            <ul style="margin:0; padding-left:18px; font-size:13px; line-height:1.7; color:rgba(0,0,0,0.75);">
+              <li>Status bar (no Dynamic Island — use system bar)</li>
+              <li>Tab bar (Material 3 navigation, edge-to-edge)</li>
+              <li>Glass blur (Material elevation, not <code>backdrop-filter</code>)</li>
+              <li>Haptics (HapticFeedback API maps differently)</li>
+              <li>Back navigation (system gesture handling)</li>
+              <li>Date picker / segmented control (Material primitives)</li>
+            </ul>
+          </div>
+        </div>
+
+        <table class="notes-table">
+          <thead>
+            <tr>
+              <th>Pattern</th>
+              <th>iOS (current)</th>
+              <th>Android delta</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Tab bar</td>
+              <td>Translucent w/ <code>backdrop-filter: blur(20px)</code>, glass tint, 28pt home-indicator pad</td>
+              <td>Solid Material 3 NavigationBar, no blur, edge-to-edge bottom, 24dp pad, ripple states on items</td>
+            </tr>
+            <tr>
+              <td>Header bar</td>
+              <td>Large-title pattern; nav buttons in glass pills</td>
+              <td>Standard 56dp app bar; nav as flat icon buttons; back arrow uses Material chevron</td>
+            </tr>
+            <tr>
+              <td>Status bar</td>
+              <td>Auto via <code>expo-status-bar</code>; Dynamic Island honoured</td>
+              <td>Translucent + <code>edgeToEdge</code>; light content on dark, dark on light</td>
+            </tr>
+            <tr>
+              <td>Haptics</td>
+              <td>Set logged → <code>impactMedium</code> · PR → <code>notificationSuccess</code></td>
+              <td>Map to <code>Haptics.impactAsync(Light/Heavy)</code>; Android lacks success/warning subtypes</td>
+            </tr>
+            <tr>
+              <td>Press state</td>
+              <td><code>active:opacity-80</code> (NativeWind)</td>
+              <td>Add <code>android_ripple</code> on Pressable: <code>{ color: rgba(255,90,31,0.12) }</code></td>
+            </tr>
+            <tr>
+              <td>Segmented control</td>
+              <td>Custom <code>SegmentedControl</code> matches iOS visual</td>
+              <td>Same component renders well on Android; swap to Material chips if Android Material 3 feel is preferred</td>
+            </tr>
+            <tr>
+              <td>Bottom sheet / overlay</td>
+              <td>Inline-overlay pattern (PATTERNS.md landmine-safe)</td>
+              <td>Same pattern. Optional: use <code>@gorhom/bottom-sheet</code> on Android for native sheet snap-points</td>
+            </tr>
+            <tr>
+              <td>Date format</td>
+              <td><code>date-fns</code> with <code>sv</code> locale</td>
+              <td>Already locale-aware. Add <code>en-US</code> for V2 English ports</td>
+            </tr>
+            <tr>
+              <td>Font loading</td>
+              <td><code>expo-font</code> with Inter Display + Inter + JetBrains Mono</td>
+              <td>Same. Confirm Inter Display ships at all 5 weights or fall back to Inter Tight</td>
+            </tr>
+            <tr>
+              <td>Drag handle</td>
+              <td><code>react-native-draggable-flatlist</code> + ScaleDecorator</td>
+              <td>Works cross-platform. Long-press timer can feel slow on Android — tune to 280ms</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div style="margin-top:32px; padding:20px; border-radius:14px; background:rgba(0,0,0,0.04); border:1px solid rgba(0,0,0,0.06);">
+          <div style="font-size:11px; font-weight:700; letter-spacing:1.6px; text-transform:uppercase; color:rgba(0,0,0,0.55); margin-bottom:8px;">Recommended approach</div>
+          <p style="margin:0; font-size:14px; line-height:1.55;">
+            Ship iOS V2 launch <strong>without an Android branch in the codebase</strong>. When you greenlight Android, introduce <code style="background:rgba(0,0,0,0.06); padding:1px 6px; border-radius:4px; font-family:'JetBrains Mono'; font-size:12px">Platform.select()</code> at exactly the boundaries listed above — header, tab bar, status bar, haptics — and leave the rest token-driven. That keeps your existing <code style="background:rgba(0,0,0,0.06); padding:1px 6px; border-radius:4px; font-family:'JetBrains Mono'; font-size:12px">PATTERNS.md</code> conventions intact and avoids a parallel design system.
+          </p>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────────────────── DEV HANDOFF ─────────────────────── -->
+  <div class="section">
+    <div class="frame-label"><span class="frame-label-num">09</span>Implementation map</div>
+    <div class="frame">
+      <div class="frame-header">
+        <h2 class="frame-title">How to wire this into your repo</h2>
+        <p class="frame-sub">Token-first. Edit <code>tailwind.config.js</code> once, every screen inherits. Then upgrade components from the inside out.</p>
+      </div>
+      <div class="frame-body">
+        <table class="notes-table">
+          <thead>
+            <tr><th>Step</th><th>File</th><th>Change</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1. Tokens</td>
+              <td><code>tailwind.config.js</code></td>
+              <td>Extend <code>theme.colors</code> with the swatch names above. Replace stock <code>blue-600</code> usage with <code>accent</code>.</td>
+            </tr>
+            <tr>
+              <td>2. Fonts</td>
+              <td><code>app/_layout.tsx</code></td>
+              <td><code>useFonts</code> from expo-font loading <code>InterDisplay-700</code>, <code>Inter-400/500/600/700</code>, <code>JetBrainsMono-500</code>. Splash held until ready.</td>
+            </tr>
+            <tr>
+              <td>3. Base components</td>
+              <td><code>components/</code></td>
+              <td>New: <code>ForgeButton</code>, <code>ForgeField</code>, <code>ForgeCard</code>, <code>ForgeStat</code>, <code>ProgressRing</code>, <code>Sparkline</code>. All take theme-token props.</td>
+            </tr>
+            <tr>
+              <td>4. Banner refresh</td>
+              <td><code>components/active-session-banner.tsx</code></td>
+              <td>Re-skin with <code>accentSoft</code> bg + <code>accent</code> dot. Keep current behaviour.</td>
+            </tr>
+            <tr>
+              <td>5. Screens</td>
+              <td><code>app/(app)/(tabs)/*</code> + <code>workout/*</code></td>
+              <td>Replace stock <code>bg-blue-600</code> / <code>bg-gray-100 dark:bg-gray-800</code> patterns with the new tokens. Lift heading sizes to Display scale.</td>
+            </tr>
+            <tr>
+              <td>6. PR celebration</td>
+              <td><code>workout/[sessionId].tsx</code></td>
+              <td>New <code>PRBanner</code> shown when <code>e1RM &gt; prev e1RM</code>. Uses gradient surface + trophy icon. Mount after set lands.</td>
+            </tr>
+            <tr>
+              <td>7. Activity ring</td>
+              <td><code>app/(app)/(tabs)/index.tsx</code></td>
+              <td>Render <code>ProgressRing</code> via Skia (already in your stack) with sessions-this-week / target-this-week.</td>
+            </tr>
+            <tr>
+              <td>8. i18n</td>
+              <td><code>lib/i18n/</code></td>
+              <td>Pull existing Swedish copy into <code>sv.json</code>, mirror to <code>en.json</code>. Use <code>expo-localization</code> + react-i18next.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="lib.jsx"></script>
+<script type="text/babel" src="forge-screens.jsx"></script>
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="forge-spec-components.jsx"></script>
+
+</body>
+</html>
