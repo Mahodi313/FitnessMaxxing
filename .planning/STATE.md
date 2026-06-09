@@ -2,11 +2,12 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Forge Redesign
-status: planning
-last_updated: "2026-06-09T19:43:53.863Z"
-last_activity: 2026-06-09
+status: "Roadmap approved — ready for /gsd:discuss-phase 8 or /gsd:plan-phase 8"
+stopped_at: Phase 8 context gathered
+last_updated: "2026-06-09T20:19:13.145Z"
+last_activity: 2026-06-09 — Milestone v2.0 roadmap created (8 phases, 48 requirements)
 progress:
-  total_phases: 0
+  total_phases: 8
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -121,9 +122,9 @@ Items acknowledged for later:
 
 ## Session Continuity
 
-Last session: 2026-05-15T21:03:08.551Z
-Stopped at: Phase 7 UI-SPEC approved
-Resume file: .planning/phases/07-v1-polish-cut/07-UI-SPEC.md
+Last session: 2026-06-09T20:19:13.137Z
+Stopped at: Phase 8 context gathered
+Resume file: .planning/phases/08-forge-foundation/08-CONTEXT.md
 Next: Orchestrator runs phase-level closeout — `/gsd-secure-phase 4` (close threat register T-04-01 … T-04-12 against implementation; produce 04-SECURITY.md with threats_open: 0) → `/gsd-verify-work 4` (write 04-VERIFICATION.md with all 5 success criteria MET) → `/gsd-code-review` (post-phase audit) → phase.complete (advance ROADMAP Phase 4 → ✓ Complete). Then plan Phase 5 (Active Workout Hot Path — F13 lives or dies).
 
 ## Operator Next Steps
