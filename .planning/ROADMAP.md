@@ -40,6 +40,14 @@ Infrastructure-first, then re-skin low-risk → high-risk, then net-new features
 3. ProgressRing and Sparkline render via the installed Skia (no new charting dependency)
 4. react-i18next is wired and flips a sample string between sv and en; numbers/dates format per locale
 
+**Plans:** 5 plans
+Plans:
+- [ ] 08-01-PLAN.md — i18n engine + bilingual locales + format/tnum helpers + font-store + dep install (Wave 1)
+- [ ] 08-02-PLAN.md — Forge tokens in tailwind.config + bundled fonts + _layout FontBootstrap/LocaleBootstrap/splash gate (Wave 2)
+- [ ] 08-03-PLAN.md — Icon set (react-native-svg) + Logo/AppIcon brand + static Skia ProgressRing/Sparkline (Wave 3)
+- [ ] 08-04-PLAN.md — Forge component library: Button/Field/Card/Stat/Chip/SettingsRow + TabBar shell (Wave 4)
+- [ ] 08-05-PLAN.md — dev-only Forge gallery (manual UAT surface) proving all 8 requirements (Wave 5)
+
 #### Phase 9: Auth, Settings & Preferences
 **Goal:** Re-skin the auth screens and ship the new Settings screen + preference layer (units, weekly goal, language, toggles) that later screens depend on.
 **Requirements:** SKIN-01, SET-01, SET-02, SET-03, SET-04, SET-05, SET-06, SET-07, SET-08, SET-09, I18N-02
@@ -122,7 +130,7 @@ Deferred to a later milestone (needs Apple Developer license + tooling). Mapped 
 | 5. Active Workout Hot Path                    | v1.0 | 7/7 | ✓ Complete | 2026-05-14 |
 | 6. History & Read-Side Polish                 | v1.0 | 4/4 | ✓ Complete | 2026-05-15 |
 | 7. V1 Polish Cut                              | v1.0 | 5/5 | ✓ Complete | 2026-05-16 |
-| 8. Forge Foundation                           | v2.0 | 0/? | ○ Planned  | — |
+| 8. Forge Foundation                           | v2.0 | 0/5 | ○ Planned  | — |
 | 9. Auth, Settings & Preferences               | v2.0 | 0/? | ○ Planned  | — |
 | 10. Plans & Exercises Re-skin                 | v2.0 | 0/? | ○ Planned  | — |
 | 11. Active Workout Re-skin (F13 risk)         | v2.0 | 0/? | ○ Planned  | — |
