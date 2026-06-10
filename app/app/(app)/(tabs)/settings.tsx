@@ -27,6 +27,7 @@ import { useEffect, useState } from "react";
 import { Text, View, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useRouter } from "expo-router";
 import { useColorScheme } from "nativewind";
 import { z } from "zod";
 import { useAuthStore } from "@/lib/auth-store";
@@ -35,6 +36,7 @@ import { SegmentedControl } from "@/components/segmented-control";
 export default function SettingsTab() {
   const email = useAuthStore((s) => s.session?.user.email);
   const signOut = useAuthStore((s) => s.signOut);
+  const router = useRouter();
   const { setColorScheme } = useColorScheme();
   const [stored, setStored] = useState<"system" | "light" | "dark">("system");
 
@@ -86,14 +88,28 @@ export default function SettingsTab() {
           />
         </View>
         <View className="flex-1" />
-        <Pressable
-          onPress={signOut}
-          accessibilityRole="button"
-          accessibilityLabel="Logga ut"
-          className="w-full rounded-lg bg-blue-600 dark:bg-blue-500 py-4 items-center justify-center active:opacity-80"
-        >
-          <Text className="text-base font-semibold text-white">Logga ut</Text>
-        </Pressable>
+        <View className="gap-2">
+          {__DEV__ && (
+            <Pressable
+              onPress={() => router.push("/_forge-gallery")}
+              accessibilityRole="button"
+              accessibilityLabel="Open Forge gallery (dev)"
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-700 py-4 items-center justify-center active:opacity-80"
+            >
+              <Text className="text-base font-semibold text-gray-900 dark:text-gray-50">
+                🔧 Forge Gallery (dev)
+              </Text>
+            </Pressable>
+          )}
+          <Pressable
+            onPress={signOut}
+            accessibilityRole="button"
+            accessibilityLabel="Logga ut"
+            className="w-full rounded-lg bg-blue-600 dark:bg-blue-500 py-4 items-center justify-center active:opacity-80"
+          >
+            <Text className="text-base font-semibold text-white">Logga ut</Text>
+          </Pressable>
+        </View>
       </View>
     </SafeAreaView>
   );
