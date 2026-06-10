@@ -31,6 +31,7 @@
 import { useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Stack } from "expo-router";
 import { useColorScheme } from "nativewind";
 import { useTranslation } from "react-i18next";
@@ -338,6 +339,19 @@ function BrandAndSkia() {
 }
 
 // ── Section 5: i18n ────────────────────────────────────────────────────────
+// Mirror settings.tsx theme persistence (onChange, lines 54-62): apply the
+// change live AND persist it so LocaleBootstrap (_layout.tsx) re-applies the
+// override on the next cold launch (WR-01). The 'sv' | 'en' literal union is
+// the only thing ever written — no free text into AsyncStorage either.
+function setLanguage(lang: "sv" | "en") {
+  void i18n.changeLanguage(lang);
+  void AsyncStorage.setItem("fm:language", lang).catch(() => {
+    console.warn(
+      "[i18n] AsyncStorage write failed — language not persisted",
+    );
+  });
+}
+
 function I18nSection() {
   const { t, i18n: instance } = useTranslation();
   const active = (instance.language?.startsWith("en") ? "en" : "sv") as
@@ -354,13 +368,13 @@ function I18nSection() {
           label="Svenska"
           variant={active === "sv" ? "primary" : "secondary"}
           size="sm"
-          onPress={() => void i18n.changeLanguage("sv")}
+          onPress={() => setLanguage("sv")}
         />
         <ForgeButton
           label="English"
           variant={active === "en" ? "primary" : "secondary"}
           size="sm"
-          onPress={() => void i18n.changeLanguage("en")}
+          onPress={() => setLanguage("en")}
         />
       </View>
 
