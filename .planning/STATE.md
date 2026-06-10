@@ -4,14 +4,14 @@ milestone: v2.0
 milestone_name: Forge Redesign
 status: executing
 stopped_at: Phase 8 UI-SPEC approved
-last_updated: "2026-06-10T19:32:57.778Z"
+last_updated: "2026-06-10T19:55:19.964Z"
 last_activity: 2026-06-10
 progress:
   total_phases: 8
   completed_phases: 0
   total_plans: 5
-  completed_plans: 1
-  percent: 0
+  completed_plans: 2
+  percent: 40
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-06-09)
 ## Current Position
 
 Phase: 08 (forge-foundation) — EXECUTING
-Plan: 2 of 5
+Plan: 3 of 5
 Status: Ready to execute
 Last activity: 2026-06-10
 
@@ -60,6 +60,7 @@ Last activity: 2026-06-10
 
 *Updated after each plan completion*
 | Phase 08 P01 | ~20min | 3 tasks | 9 files |
+| Phase 08 P02 | ~15min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -94,6 +95,7 @@ Recent decisions affecting current work:
 - **2026-05-10 [Phase 04 Plan 04]**: Centralized (app) Stack header styling (commit `b57d1c2`) eliminates "(tabs)" back-title artifact and unifies dark-mode-aware `headerStyle` / `headerTintColor` / `headerTitleStyle` across all (app) routes. Per-screen `<Stack.Screen options={{ title }}>` only sets dynamic title; static styling inherits. Future Phase 5/6/7 screens add to the same layout without re-declaring styling per screen.
 - **2026-05-10 [Phase 04 Plan 04]**: Theme-aware backdrop on GestureHandlerRootView + root Stack contentStyle (commit `6b8c604`) is required to eliminate modal-swipe/transition white flashes. The (app) Stack `contentStyle.backgroundColor` (commit `44c2138`) alone covers (app) pushes but root Stack transitions and gesture surfaces have their own backdrops. Both wrappers need `useColorScheme()`-bound backgroundColor.
 - [Phase ?]: 2026-06-10 [Phase 08 Plan 01]: Locale key count is 93 per locale (true lib.jsx I18N map count); the plan's '188' was a source miscount. sv.json/en.json carry identical 93-key sets; check-locale-parity.ts PASS at 93. Downstream plans expect 93.
+- [Phase ?]: 2026-06-10 [Phase 08 Plan 02]: No D-05 fallback — all 3 genuine Inter Display weights sourced from official OFL 1.1 releases (rsms/inter v4.1 + JetBrains v2.304); fonts self-hosted, combined OFL.txt bundled. _layout.tsx imports i18n twice by design (side-effect for LOAD-BEARING init ordering after @/lib/query/*, default import for LocaleBootstrap.changeLanguage), eslint-disable import/no-duplicates, lint 0 warnings. F13 untouched.
 
 ### Pending Todos
 
@@ -124,7 +126,7 @@ Items acknowledged for later:
 
 ## Session Continuity
 
-Last session: 2026-06-10T19:32:52.872Z
+Last session: 2026-06-10T19:55:13.842Z
 Stopped at: Phase 8 UI-SPEC approved
 Resume file: None
 Next: Orchestrator runs phase-level closeout — `/gsd-secure-phase 4` (close threat register T-04-01 … T-04-12 against implementation; produce 04-SECURITY.md with threats_open: 0) → `/gsd-verify-work 4` (write 04-VERIFICATION.md with all 5 success criteria MET) → `/gsd-code-review` (post-phase audit) → phase.complete (advance ROADMAP Phase 4 → ✓ Complete). Then plan Phase 5 (Active Workout Hot Path — F13 lives or dies).
