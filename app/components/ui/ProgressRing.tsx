@@ -22,6 +22,7 @@
 // produce a NaN sweep that crashes the Canvas.
 
 import { View } from "react-native";
+import { useColorScheme } from "nativewind";
 import { Canvas, Path, Skia, SweepGradient, vec } from "@shopify/react-native-skia";
 
 export type ProgressRingProps = {
@@ -31,7 +32,11 @@ export type ProgressRingProps = {
   value: number;
   /** Solid foreground color (used when `gradient` is not supplied). */
   color?: string;
-  /** Track (background) ring color. Pass a light override in light mode. */
+  /**
+   * Track (background) ring color. When omitted, the default is derived from
+   * the active color scheme (WR-04): a subtle white overlay in dark mode, a
+   * subtle black overlay in light mode — so the track stays visible in both.
+   */
   trackColor?: string;
   /** Optional sweep-gradient stops [from, to] — overrides `color`. */
   gradient?: [string, string];
@@ -44,13 +49,21 @@ export function ProgressRing({
   stroke = 8,
   value,
   color = "#FF5A1F",
-  trackColor = "rgba(255,255,255,0.08)",
+  trackColor,
   gradient,
   children,
 }: ProgressRingProps) {
   const r = (size - stroke) / 2;
   const cx = size / 2;
   const cy = size / 2;
+
+  // WR-04: the dark-only white-overlay default is invisible on the light bg
+  // (#FAFAF7). Resolve the default from the scheme so the track stays visible
+  // in both themes; an explicit `trackColor` prop still wins.
+  const { colorScheme } = useColorScheme();
+  const resolvedTrack =
+    trackColor ??
+    (colorScheme === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.07)");
 
   // T-08-06: clamp value to 0..1 — guards against NaN / out-of-range props.
   const v = Math.min(1, Math.max(0, Number.isFinite(value) ? value : 0));
@@ -73,7 +86,7 @@ export function ProgressRing({
       }}
     >
       <Canvas style={{ width: size, height: size, position: "absolute", top: 0, left: 0 }}>
-        <Path path={bg} style="stroke" strokeWidth={stroke} color={trackColor} />
+        <Path path={bg} style="stroke" strokeWidth={stroke} color={resolvedTrack} />
         <Path path={fg} style="stroke" strokeWidth={stroke} strokeCap="round" color={color}>
           {gradient && (
             <SweepGradient c={vec(cx, cy)} colors={gradient} start={0} end={360} />
