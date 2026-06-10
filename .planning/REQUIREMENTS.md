@@ -12,7 +12,7 @@
 - [x] **DSGN-01**: Forge color tokens (light + dark) from `THEMES.forge` are defined in `tailwind.config.js` and consumable as NativeWind classes
 - [x] **DSGN-02**: Custom type system (Inter Display + Inter + JetBrains Mono) loads via expo-font with splash held until ready
 - [x] **DSGN-03**: Stat numerals render with tabular-nums (tnum/ss01) so figures align
-- [ ] **DSGN-04**: Forge component library exists (ForgeButton, ForgeField, ForgeCard, ForgeStat) and is theme-token-driven
+- [x] **DSGN-04**: Forge component library exists (ForgeButton, ForgeField, ForgeCard, ForgeStat) and is theme-token-driven
 - [x] **DSGN-05**: ProgressRing and Sparkline render via the installed Skia (no new charting dependency)
 - [x] **DSGN-06**: Ascend brand logo + app icon render in gradient and white variants
 
@@ -110,7 +110,7 @@
 | DSGN-01 | Phase 8 | Complete |
 | DSGN-02 | Phase 8 | Complete |
 | DSGN-03 | Phase 8 | Complete |
-| DSGN-04 | Phase 8 | Pending |
+| DSGN-04 | Phase 8 | Complete |
 | DSGN-05 | Phase 8 | Complete |
 | DSGN-06 | Phase 8 | Complete |
 | I18N-01 | Phase 8 | Complete |

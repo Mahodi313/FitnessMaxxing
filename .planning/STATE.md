@@ -4,13 +4,13 @@ milestone: v2.0
 milestone_name: Forge Redesign
 status: executing
 stopped_at: Phase 8 UI-SPEC approved
-last_updated: "2026-06-10T20:02:05.162Z"
+last_updated: "2026-06-10T20:11:42.628Z"
 last_activity: 2026-06-10
 progress:
   total_phases: 8
   completed_phases: 0
   total_plans: 5
-  completed_plans: 3
+  completed_plans: 4
   percent: 0
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-06-09)
 ## Current Position
 
 Phase: 08 (forge-foundation) — EXECUTING
-Plan: 4 of 5
+Plan: 5 of 5
 Status: Ready to execute
 Last activity: 2026-06-10
 
@@ -62,6 +62,7 @@ Last activity: 2026-06-10
 | Phase 08 P01 | ~20min | 3 tasks | 9 files |
 | Phase 08 P02 | ~15min | 3 tasks | 7 files |
 | Phase 08 P03 | ~12min | 2 tasks | 5 files |
+| Phase 08 P04 | ~18min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -98,6 +99,8 @@ Recent decisions affecting current work:
 - [Phase ?]: 2026-06-10 [Phase 08 Plan 01]: Locale key count is 93 per locale (true lib.jsx I18N map count); the plan's '188' was a source miscount. sv.json/en.json carry identical 93-key sets; check-locale-parity.ts PASS at 93. Downstream plans expect 93.
 - [Phase ?]: 2026-06-10 [Phase 08 Plan 02]: No D-05 fallback — all 3 genuine Inter Display weights sourced from official OFL 1.1 releases (rsms/inter v4.1 + JetBrains v2.304); fonts self-hosted, combined OFL.txt bundled. _layout.tsx imports i18n twice by design (side-effect for LOAD-BEARING init ordering after @/lib/query/*, default import for LocaleBootstrap.changeLanguage), eslint-disable import/no-duplicates, lint 0 warnings. F13 untouched.
 - [Phase ?]: 08-03: Icon/Logo/AppIcon via react-native-svg (D-11); ProgressRing/Sparkline static Skia, no new dep (D-08)
+- [Phase ?]: Forge light+dark token parity: base = forge-<token>-light + dark: sibling = forge-<token> DEFAULT (Plan 08-04, first forge.* consumer)
+- [Phase ?]: TabBar built standalone (active/onSelect props), NOT wired to live <Tabs> per OQ-5 — live re-skin deferred to Phase 9+ (Plan 08-04)
 
 ### Pending Todos
 
@@ -128,7 +131,7 @@ Items acknowledged for later:
 
 ## Session Continuity
 
-Last session: 2026-06-10T20:01:45.438Z
+Last session: 2026-06-10T20:11:31.702Z
 Stopped at: Phase 8 UI-SPEC approved
 Resume file: None
 Next: Orchestrator runs phase-level closeout — `/gsd-secure-phase 4` (close threat register T-04-01 … T-04-12 against implementation; produce 04-SECURITY.md with threats_open: 0) → `/gsd-verify-work 4` (write 04-VERIFICATION.md with all 5 success criteria MET) → `/gsd-code-review` (post-phase audit) → phase.complete (advance ROADMAP Phase 4 → ✓ Complete). Then plan Phase 5 (Active Workout Hot Path — F13 lives or dies).
