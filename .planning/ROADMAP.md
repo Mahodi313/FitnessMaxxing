@@ -42,11 +42,11 @@ Infrastructure-first, then re-skin low-risk → high-risk, then net-new features
 3. ProgressRing and Sparkline render via the installed Skia (no new charting dependency)
 4. react-i18next is wired and flips a sample string between sv and en; numbers/dates format per locale
 
-**Plans:** 5 plans
+**Plans:** 1/5 plans executed
 Plans:
 **Wave 1**
 
-- [ ] 08-01-PLAN.md — i18n engine + bilingual locales + format/tnum helpers + font-store + dep install (Wave 1)
+- [x] 08-01-PLAN.md — i18n engine + bilingual locales + format/tnum helpers + font-store + dep install (Wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -160,7 +160,7 @@ Deferred to a later milestone (needs Apple Developer license + tooling). Mapped 
 | 5. Active Workout Hot Path                    | v1.0 | 7/7 | ✓ Complete | 2026-05-14 |
 | 6. History & Read-Side Polish                 | v1.0 | 4/4 | ✓ Complete | 2026-05-15 |
 | 7. V1 Polish Cut                              | v1.0 | 5/5 | ✓ Complete | 2026-05-16 |
-| 8. Forge Foundation                           | v2.0 | 0/5 | ○ Planned  | — |
+| 8. Forge Foundation                           | v2.0 | 1/5 | In Progress|  |
 | 9. Auth, Settings & Preferences               | v2.0 | 0/? | ○ Planned  | — |
 | 10. Plans & Exercises Re-skin                 | v2.0 | 0/? | ○ Planned  | — |
 | 11. Active Workout Re-skin (F13 risk)         | v2.0 | 0/? | ○ Planned  | — |

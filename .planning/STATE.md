@@ -4,13 +4,13 @@ milestone: v2.0
 milestone_name: Forge Redesign
 status: executing
 stopped_at: Phase 8 UI-SPEC approved
-last_updated: "2026-06-09T21:26:09.129Z"
-last_activity: 2026-06-09 -- Phase 8 planning complete
+last_updated: "2026-06-10T19:32:57.778Z"
+last_activity: 2026-06-10
 progress:
   total_phases: 8
   completed_phases: 0
   total_plans: 5
-  completed_plans: 0
+  completed_plans: 1
   percent: 0
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-09)
 
 **Core value:** Logga ett set och omedelbart se vad jag tog senast på samma övning — utan att tappa data, någonsin.
-**Current focus:** v2.0 Forge Redesign — ready to plan Phase 8 (Forge Foundation)
+**Current focus:** Phase 08 — forge-foundation
 
 ## Current Position
 
-Phase: 8 — Forge Foundation (not started)
-Plan: —
+Phase: 08 (forge-foundation) — EXECUTING
+Plan: 2 of 5
 Status: Ready to execute
-Last activity: 2026-06-09 -- Phase 8 planning complete
+Last activity: 2026-06-10
 
 ## Performance Metrics
 
@@ -59,6 +59,7 @@ Last activity: 2026-06-09 -- Phase 8 planning complete
 **Plan 04-04 metrics (2026-05-10):** 4 tasks (3 autonomous + 1 checkpoint:human-verify), ~planning-day total (~15 min Tasks 1-3 autonomous + ~6 hours UAT-driven gap-closure iteration). 1 file created (manual airplane-mode UAT checklist), 10 files modified (plans/[id].tsx, exercise-picker.tsx, plan_exercise/edit.tsx, (app)/_layout.tsx, app/_layout.tsx, offline-banner.tsx, app.json, (tabs)/index.tsx, plans/new.tsx, test-rls.ts) + 1 spec amendment (04-UI-SPEC.md OfflineBanner color). 22 commits total: 4 planned (`2501ac8`, `c1cb8de`, `79ac8b8`, `4088165`) + 18 UAT-driven gap-closure (`dcd502b`…`6b8c604`). Manual airplane-mode UAT (6 steps): all PASS; user signed off `approved` 2026-05-10. test-rls.ts: 29 assertions PASS (22 Phase 2 + 7 Phase 4 — archive cross-user + plan_exercises CRUD cross-user + exercises insert cross-user + integrity check). All gates green: tsc + expo lint + test:rls + 5 Wave 0 scripts. Phase 4 success criteria #4 + #5 closed by this plan; #1 + #2 + #3 already closed by Plans 02/03/04. F4 reorder side closes here (F2 + F3 closed in 02/03).
 
 *Updated after each plan completion*
+| Phase 08 P01 | ~20min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -92,6 +93,7 @@ Recent decisions affecting current work:
 - **2026-05-10 [Phase 04 Plan 04]**: UI-SPEC §Color amendment: OfflineBanner `bg-yellow-100 dark:bg-yellow-900` → `bg-yellow-200 dark:bg-yellow-800` + `border-b border-yellow-400 dark:border-yellow-600` (commit `cfc1dc8`). Original pale yellow read as near-white on light-mode iPhone (passed simulator preview, failed real device). UI-SPEC §Color, §Accessibility, §Wave 1 checklist all amended. Real-device color verification is now part of the UAT contract for color amendments.
 - **2026-05-10 [Phase 04 Plan 04]**: Centralized (app) Stack header styling (commit `b57d1c2`) eliminates "(tabs)" back-title artifact and unifies dark-mode-aware `headerStyle` / `headerTintColor` / `headerTitleStyle` across all (app) routes. Per-screen `<Stack.Screen options={{ title }}>` only sets dynamic title; static styling inherits. Future Phase 5/6/7 screens add to the same layout without re-declaring styling per screen.
 - **2026-05-10 [Phase 04 Plan 04]**: Theme-aware backdrop on GestureHandlerRootView + root Stack contentStyle (commit `6b8c604`) is required to eliminate modal-swipe/transition white flashes. The (app) Stack `contentStyle.backgroundColor` (commit `44c2138`) alone covers (app) pushes but root Stack transitions and gesture surfaces have their own backdrops. Both wrappers need `useColorScheme()`-bound backgroundColor.
+- [Phase ?]: 2026-06-10 [Phase 08 Plan 01]: Locale key count is 93 per locale (true lib.jsx I18N map count); the plan's '188' was a source miscount. sv.json/en.json carry identical 93-key sets; check-locale-parity.ts PASS at 93. Downstream plans expect 93.
 
 ### Pending Todos
 
@@ -122,9 +124,9 @@ Items acknowledged for later:
 
 ## Session Continuity
 
-Last session: 2026-06-09T20:26:02.836Z
+Last session: 2026-06-10T19:32:52.872Z
 Stopped at: Phase 8 UI-SPEC approved
-Resume file: .planning/phases/08-forge-foundation/08-UI-SPEC.md
+Resume file: None
 Next: Orchestrator runs phase-level closeout — `/gsd-secure-phase 4` (close threat register T-04-01 … T-04-12 against implementation; produce 04-SECURITY.md with threats_open: 0) → `/gsd-verify-work 4` (write 04-VERIFICATION.md with all 5 success criteria MET) → `/gsd-code-review` (post-phase audit) → phase.complete (advance ROADMAP Phase 4 → ✓ Complete). Then plan Phase 5 (Active Workout Hot Path — F13 lives or dies).
 
 ## Operator Next Steps
