@@ -7,6 +7,7 @@ import { Stack } from "expo-router";
 import { z } from "zod";
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
+import * as Font from "expo-font";
 // react-native-gesture-handler must be imported in the entry file so its
 // native modules register before any GestureDetector descendant renders. The
 // named import below triggers the module load — separately importing it for
@@ -30,7 +31,21 @@ import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client
 import { queryClient } from "@/lib/query/client";
 import { asyncStoragePersister } from "@/lib/query/persister";
 import "@/lib/query/network";
+// i18next module-singleton init (Plan 08-01). MUST appear AFTER the
+// @/lib/query/* side-effect imports above — those are LOAD-BEARING and must not
+// be reordered (see header lines 18-29). This side-effect import runs
+// i18n.init() before any JSX renders so t()/changeLanguage are live for the
+// LocaleBootstrap gate below. (PATTERNS §_layout.tsx step 4 / CLAUDE.md.)
+// eslint-disable-next-line import/no-duplicates -- LOAD-BEARING explicit side-effect form (PATTERNS §_layout.tsx step 4); kept separate from the default import below so the i18n.init() ordering vs @/lib/query/* is unambiguous.
+import "@/lib/i18n";
+// Default-import the same module for the i18n instance used in LocaleBootstrap's
+// changeLanguage() call. The bundler caches the module, so this does NOT re-run
+// init() — the side-effect import above already did. Keeping both forms makes
+// the LOAD-BEARING side-effect explicit while giving LocaleBootstrap the handle.
+// eslint-disable-next-line import/no-duplicates
+import i18n from "@/lib/i18n";
 import { usePersistenceStore } from "@/lib/persistence-store";
+import { useFontStore } from "@/lib/font-store";
 
 // Importing useAuthStore here triggers the module-scope onAuthStateChange listener
 // + getSession() init flow registered in app/lib/auth-store.ts. Order does not
@@ -63,13 +78,18 @@ SplashScreen.preventAutoHideAsync().catch(() => {
  */
 function SplashScreenController() {
   const status = useAuthStore((s) => s.status);
+  // Plan 08-02 (DSGN-02): extend the splash gate so it also waits for the
+  // self-hosted fonts to load AND the saved locale to apply. Both flags flip
+  // fail-open (FontBootstrap / LocaleBootstrap), so this gate cannot hang.
+  const fontsReady = useFontStore((s) => s.fontsReady);
+  const localeReady = useFontStore((s) => s.localeReady);
   useEffect(() => {
-    if (status !== "loading") {
+    if (status !== "loading" && fontsReady && localeReady) {
       SplashScreen.hideAsync().catch(() => {
         // Already hidden / not visible — safe to ignore.
       });
     }
-  }, [status]);
+  }, [status, fontsReady, localeReady]);
   return null;
 }
 
@@ -96,6 +116,55 @@ function ThemeBootstrap() {
         console.warn("[theme] AsyncStorage read failed — defaulting to system");
       });
   }, [setColorScheme]);
+  return null;
+}
+
+/**
+ * Loads the 4 self-hosted Forge font faces (Inter Display R/SB/B + JetBrains
+ * Mono Regular) via expo-font during the splash-hold window, then flips
+ * fontsReady (DSGN-02). FAIL-OPEN: setFontsReady(true) on BOTH success AND
+ * failure (D-05 / RESEARCH Pitfall 7) — a missing/corrupt font face must never
+ * hang the splash forever. Each family key here is the exact NativeWind
+ * fontFamily token from tailwind.config.js (Task 1). No D-05 standard-Inter
+ * fallback was needed — all 3 real Inter Display weights are bundled (Task 2).
+ */
+function FontBootstrap() {
+  const setFontsReady = useFontStore((s) => s.setFontsReady);
+  useEffect(() => {
+    void Font.loadAsync({
+      InterDisplay: require("../assets/fonts/InterDisplay-Regular.otf"),
+      "InterDisplay-SemiBold": require("../assets/fonts/InterDisplay-SemiBold.otf"),
+      "InterDisplay-Bold": require("../assets/fonts/InterDisplay-Bold.otf"),
+      JetBrainsMono: require("../assets/fonts/JetBrainsMono-Regular.ttf"),
+    })
+      .then(() => setFontsReady(true))
+      .catch(() => setFontsReady(true)); // FAIL-OPEN — D-05 / Pitfall 7
+  }, [setFontsReady]);
+  return null;
+}
+
+/**
+ * Applies the user's saved language override (fm:language) before the splash
+ * clears, then flips localeReady (I18N-01). Reuses ThemeBootstrap's exact
+ * corrupt-value-tolerant idiom: z.enum(['sv','en']).catch('sv').parse(v) — a
+ * tampered/garbage value falls back to 'sv' and never throws (T-08-03). FAIL-
+ * OPEN via .finally(): localeReady flips on success AND IO failure so a read
+ * error can't hang the splash (T-08-04 / Pitfall 7).
+ */
+function LocaleBootstrap() {
+  const setLocaleReady = useFontStore((s) => s.setLocaleReady);
+  useEffect(() => {
+    void AsyncStorage.getItem("fm:language")
+      .then((v) => {
+        const l = z.enum(["sv", "en"]).catch("sv").parse(v);
+        return i18n.changeLanguage(l);
+      })
+      .catch(() => {
+        // IO error reading fm:language — i18n keeps its init language; the
+        // .finally below still clears the splash gate.
+      })
+      .finally(() => setLocaleReady(true));
+  }, [setLocaleReady]);
   return null;
 }
 
@@ -180,6 +249,8 @@ export default function RootLayout() {
         }}
       >
         <ThemeBootstrap />
+        <FontBootstrap />
+        <LocaleBootstrap />
         <SplashScreenController />
         <RootNavigator />
         <StatusBar style={isDark ? "light" : "dark"} />
