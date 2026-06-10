@@ -151,7 +151,9 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state ✓ (LOC + tech stack snapshot + known issues)
 
 ---
-*Last updated: 2026-06-09 — milestone v2.0 (Forge Redesign) started. Current Milestone section added; Active section populated with v2.0 feature categories (design system, re-skin, settings/prefs, dashboard, PR/F18, rest-timer/F19, i18n, motion). Design source: `app/design v2/Sources/design/` (lib.jsx tokens + forge-screens.jsx, 17 screens). Schema audit confirmed most data fields already exist; only additive `profiles` migration + read-side RPCs needed.*
+*Last updated: 2026-06-10 — Phase 8 (Forge Foundation) complete: design-system bedrock landed — Forge token palette in `tailwind.config.js` (light+dark), self-hosted Inter Display + JetBrains Mono fonts, react-i18next sv/en scaffold + locale-aware formatters, react-native-svg + Skia visual primitives (Icon/Logo/AppIcon/ProgressRing/Sparkline), the 7-primitive Forge component library, and a dev-only `_forge-gallery` UAT surface. DSGN-01..06 + I18N-01/04 validated; F13 query layer untouched. Next: Phase 9 (Auth, Settings & Preferences).*
+
+*Earlier: 2026-06-09 — milestone v2.0 (Forge Redesign) started. Current Milestone section added; Active section populated with v2.0 feature categories (design system, re-skin, settings/prefs, dashboard, PR/F18, rest-timer/F19, i18n, motion). Design source: `app/design v2/Sources/design/` (lib.jsx tokens + forge-screens.jsx, 17 screens). Schema audit confirmed most data fields already exist; only additive `profiles` migration + read-side RPCs needed.*
 
 *Previous milestone-level update: 2026-05-16 after v1.0 milestone close — all 15 V1 requirements validated, 79 STRIDE threats SECURED, 4-week soak about to start. Phase artifacts archived to `.planning/milestones/v1.0-phases/`. Active section emptied; V1.1 carry-overs queued and gated by soak outcome.*
 

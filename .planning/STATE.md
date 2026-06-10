@@ -2,15 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Forge Redesign
-status: planning
-last_updated: "2026-06-09T19:43:53.863Z"
-last_activity: 2026-06-09
+status: ready_to_plan
+stopped_at: Phase 08 complete (5/5) — ready to discuss Phase 9
+last_updated: 2026-06-10T20:45:00.517Z
+last_activity: 2026-06-10
 progress:
-  total_phases: 0
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_phases: 8
+  completed_phases: 1
+  total_plans: 5
+  completed_plans: 5
+  percent: 13
 ---
 
 # Project State
@@ -20,20 +21,20 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-09)
 
 **Core value:** Logga ett set och omedelbart se vad jag tog senast på samma övning — utan att tappa data, någonsin.
-**Current focus:** v2.0 Forge Redesign — ready to plan Phase 8 (Forge Foundation)
+**Current focus:** Phase 9 — auth, settings & preferences
 
 ## Current Position
 
-Phase: 8 — Forge Foundation (not started)
-Plan: —
-Status: Roadmap approved — ready for /gsd:discuss-phase 8 or /gsd:plan-phase 8
-Last activity: 2026-06-09 — Milestone v2.0 roadmap created (8 phases, 48 requirements)
+Phase: 9
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-06-10
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 33 (3 in Phase 1, 6 in Phase 2, 4 in Phase 3, 4 in Phase 4, 7 in Phase 5)
+- Total plans completed: 38 (3 in Phase 1, 6 in Phase 2, 4 in Phase 3, 4 in Phase 4, 7 in Phase 5)
 - Phases complete: 5 of 7
 - Total execution time: ~7 active days (2026-05-07 → 2026-05-14)
 
@@ -58,6 +59,11 @@ Last activity: 2026-06-09 — Milestone v2.0 roadmap created (8 phases, 48 requi
 **Plan 04-04 metrics (2026-05-10):** 4 tasks (3 autonomous + 1 checkpoint:human-verify), ~planning-day total (~15 min Tasks 1-3 autonomous + ~6 hours UAT-driven gap-closure iteration). 1 file created (manual airplane-mode UAT checklist), 10 files modified (plans/[id].tsx, exercise-picker.tsx, plan_exercise/edit.tsx, (app)/_layout.tsx, app/_layout.tsx, offline-banner.tsx, app.json, (tabs)/index.tsx, plans/new.tsx, test-rls.ts) + 1 spec amendment (04-UI-SPEC.md OfflineBanner color). 22 commits total: 4 planned (`2501ac8`, `c1cb8de`, `79ac8b8`, `4088165`) + 18 UAT-driven gap-closure (`dcd502b`…`6b8c604`). Manual airplane-mode UAT (6 steps): all PASS; user signed off `approved` 2026-05-10. test-rls.ts: 29 assertions PASS (22 Phase 2 + 7 Phase 4 — archive cross-user + plan_exercises CRUD cross-user + exercises insert cross-user + integrity check). All gates green: tsc + expo lint + test:rls + 5 Wave 0 scripts. Phase 4 success criteria #4 + #5 closed by this plan; #1 + #2 + #3 already closed by Plans 02/03/04. F4 reorder side closes here (F2 + F3 closed in 02/03).
 
 *Updated after each plan completion*
+| Phase 08 P01 | ~20min | 3 tasks | 9 files |
+| Phase 08 P02 | ~15min | 3 tasks | 7 files |
+| Phase 08 P03 | ~12min | 2 tasks | 5 files |
+| Phase 08 P04 | ~18min | 3 tasks | 7 files |
+| Phase 08 P05 | ~20min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -91,6 +97,12 @@ Recent decisions affecting current work:
 - **2026-05-10 [Phase 04 Plan 04]**: UI-SPEC §Color amendment: OfflineBanner `bg-yellow-100 dark:bg-yellow-900` → `bg-yellow-200 dark:bg-yellow-800` + `border-b border-yellow-400 dark:border-yellow-600` (commit `cfc1dc8`). Original pale yellow read as near-white on light-mode iPhone (passed simulator preview, failed real device). UI-SPEC §Color, §Accessibility, §Wave 1 checklist all amended. Real-device color verification is now part of the UAT contract for color amendments.
 - **2026-05-10 [Phase 04 Plan 04]**: Centralized (app) Stack header styling (commit `b57d1c2`) eliminates "(tabs)" back-title artifact and unifies dark-mode-aware `headerStyle` / `headerTintColor` / `headerTitleStyle` across all (app) routes. Per-screen `<Stack.Screen options={{ title }}>` only sets dynamic title; static styling inherits. Future Phase 5/6/7 screens add to the same layout without re-declaring styling per screen.
 - **2026-05-10 [Phase 04 Plan 04]**: Theme-aware backdrop on GestureHandlerRootView + root Stack contentStyle (commit `6b8c604`) is required to eliminate modal-swipe/transition white flashes. The (app) Stack `contentStyle.backgroundColor` (commit `44c2138`) alone covers (app) pushes but root Stack transitions and gesture surfaces have their own backdrops. Both wrappers need `useColorScheme()`-bound backgroundColor.
+- [Phase ?]: 2026-06-10 [Phase 08 Plan 01]: Locale key count is 93 per locale (true lib.jsx I18N map count); the plan's '188' was a source miscount. sv.json/en.json carry identical 93-key sets; check-locale-parity.ts PASS at 93. Downstream plans expect 93.
+- [Phase ?]: 2026-06-10 [Phase 08 Plan 02]: No D-05 fallback — all 3 genuine Inter Display weights sourced from official OFL 1.1 releases (rsms/inter v4.1 + JetBrains v2.304); fonts self-hosted, combined OFL.txt bundled. _layout.tsx imports i18n twice by design (side-effect for LOAD-BEARING init ordering after @/lib/query/*, default import for LocaleBootstrap.changeLanguage), eslint-disable import/no-duplicates, lint 0 warnings. F13 untouched.
+- [Phase ?]: 08-03: Icon/Logo/AppIcon via react-native-svg (D-11); ProgressRing/Sparkline static Skia, no new dep (D-08)
+- [Phase ?]: Forge light+dark token parity: base = forge-<token>-light + dark: sibling = forge-<token> DEFAULT (Plan 08-04, first forge.* consumer)
+- [Phase ?]: TabBar built standalone (active/onSelect props), NOT wired to live <Tabs> per OQ-5 — live re-skin deferred to Phase 9+ (Plan 08-04)
+- [Phase ?]: Phase 8 Plan 05: dev-only Forge gallery at (app)/_forge-gallery.tsx — __DEV__-guarded, outside (tabs), reachable via router.push('/_forge-gallery'); added components/ui barrel; live <Tabs> untouched (OQ-5)
 
 ### Pending Todos
 
@@ -121,9 +133,9 @@ Items acknowledged for later:
 
 ## Session Continuity
 
-Last session: 2026-05-15T21:03:08.551Z
-Stopped at: Phase 7 UI-SPEC approved
-Resume file: .planning/phases/07-v1-polish-cut/07-UI-SPEC.md
+Last session: 2026-06-10T20:21:42.940Z
+Stopped at: Completed 08-05-PLAN.md (code); manual device UAT pending
+Resume file: None
 Next: Orchestrator runs phase-level closeout — `/gsd-secure-phase 4` (close threat register T-04-01 … T-04-12 against implementation; produce 04-SECURITY.md with threats_open: 0) → `/gsd-verify-work 4` (write 04-VERIFICATION.md with all 5 success criteria MET) → `/gsd-code-review` (post-phase audit) → phase.complete (advance ROADMAP Phase 4 → ✓ Complete). Then plan Phase 5 (Active Workout Hot Path — F13 lives or dies).
 
 ## Operator Next Steps

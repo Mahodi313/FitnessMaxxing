@@ -63,3 +63,6 @@ Thumbs.db
 # Supabase
 supabase/.branches/
 supabase/.temp/
+
+#design
+app\design v2

@@ -9,12 +9,12 @@
 
 ### Design System (DSGN)
 
-- [ ] **DSGN-01**: Forge color tokens (light + dark) from `THEMES.forge` are defined in `tailwind.config.js` and consumable as NativeWind classes
-- [ ] **DSGN-02**: Custom type system (Inter Display + Inter + JetBrains Mono) loads via expo-font with splash held until ready
-- [ ] **DSGN-03**: Stat numerals render with tabular-nums (tnum/ss01) so figures align
-- [ ] **DSGN-04**: Forge component library exists (ForgeButton, ForgeField, ForgeCard, ForgeStat) and is theme-token-driven
-- [ ] **DSGN-05**: ProgressRing and Sparkline render via the installed Skia (no new charting dependency)
-- [ ] **DSGN-06**: Ascend brand logo + app icon render in gradient and white variants
+- [x] **DSGN-01**: Forge color tokens (light + dark) from `THEMES.forge` are defined in `tailwind.config.js` and consumable as NativeWind classes
+- [x] **DSGN-02**: Custom type system (Inter Display + Inter + JetBrains Mono) loads via expo-font with splash held until ready
+- [x] **DSGN-03**: Stat numerals render with tabular-nums (tnum/ss01) so figures align
+- [x] **DSGN-04**: Forge component library exists (ForgeButton, ForgeField, ForgeCard, ForgeStat) and is theme-token-driven
+- [x] **DSGN-05**: ProgressRing and Sparkline render via the installed Skia (no new charting dependency)
+- [x] **DSGN-06**: Ascend brand logo + app icon render in gradient and white variants
 
 ### Screen Re-skin (SKIN)
 
@@ -65,10 +65,10 @@
 
 ### Internationalization (I18N)
 
-- [ ] **I18N-01**: All app UI text renders from translation resources (sv.json / en.json), not hardcoded strings
+- [x] **I18N-01**: All app UI text renders from translation resources (sv.json / en.json), not hardcoded strings
 - [ ] **I18N-02**: App language follows the device locale by default and the Settings override
 - [ ] **I18N-03**: Both Swedish and English are complete with no missing keys across every screen
-- [ ] **I18N-04**: Dates and numbers format per the active locale (Swedish decimal handling preserved)
+- [x] **I18N-04**: Dates and numbers format per the active locale (Swedish decimal handling preserved)
 - [ ] **I18N-05**: User-created content (plan/exercise names, notes) is stored as written and never auto-translated
 
 ### Motion & Haptics (MOTN)
@@ -107,14 +107,14 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DSGN-01 | Phase 8 | Pending |
-| DSGN-02 | Phase 8 | Pending |
-| DSGN-03 | Phase 8 | Pending |
-| DSGN-04 | Phase 8 | Pending |
-| DSGN-05 | Phase 8 | Pending |
-| DSGN-06 | Phase 8 | Pending |
-| I18N-01 | Phase 8 | Pending |
-| I18N-04 | Phase 8 | Pending |
+| DSGN-01 | Phase 8 | Complete |
+| DSGN-02 | Phase 8 | Complete |
+| DSGN-03 | Phase 8 | Complete |
+| DSGN-04 | Phase 8 | Complete |
+| DSGN-05 | Phase 8 | Complete |
+| DSGN-06 | Phase 8 | Complete |
+| I18N-01 | Phase 8 | Complete |
+| I18N-04 | Phase 8 | Complete |
 | SKIN-01 | Phase 9 | Pending |
 | SET-01 | Phase 9 | Pending |
 | SET-02 | Phase 9 | Pending |
