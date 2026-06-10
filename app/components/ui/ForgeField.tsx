@@ -38,6 +38,12 @@ export type ForgeFieldProps = {
   /** Controlled visual state. When omitted, focus is tracked internally. */
   state?: ForgeFieldState;
   multiline?: boolean;
+  /**
+   * Explicit screen-reader label (WR-02). Use when there is no `placeholder`,
+   * or when the placeholder is not a good spoken label. Falls back to
+   * `placeholder` so the field is never announced with an undefined label.
+   */
+  accessibilityLabel?: string;
 };
 
 // state → border classes (UI-SPEC §ForgeField: focused = border-2 accent;
@@ -62,12 +68,18 @@ export function ForgeField({
   keyboardType,
   state,
   multiline = false,
+  accessibilityLabel,
 }: ForgeFieldProps) {
   const [focused, setFocused] = useState(false);
 
   // Controlled `state` prop wins; otherwise derive focused from internal state.
   const resolvedState: ForgeFieldState =
     state ?? (focused ? "focused" : "default");
+
+  // WR-02: never hand VoiceOver/TalkBack an undefined label. Prefer the
+  // explicit prop, then the placeholder, then a generic last-resort so the
+  // field is always announced even when a caller supplies neither.
+  const a11yLabel = accessibilityLabel ?? placeholder ?? "Text field";
 
   return (
     <View
@@ -88,7 +100,7 @@ export function ForgeField({
         multiline={multiline}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
-        accessibilityLabel={placeholder}
+        accessibilityLabel={a11yLabel}
         className="flex-1 text-[16px] text-forge-text-light dark:text-forge-text"
         style={multiline ? { textAlignVertical: "top" } : undefined}
       />
