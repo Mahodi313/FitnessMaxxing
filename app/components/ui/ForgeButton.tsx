@@ -25,6 +25,7 @@
 //   - .planning/phases/08-forge-foundation/08-PATTERNS.md §ForgeButton, §FIT-66
 
 import { ActivityIndicator, Pressable, Text } from "react-native";
+import { useColorScheme } from "nativewind";
 
 import { Icon, type IconName } from "./Icon";
 
@@ -104,13 +105,26 @@ export function ForgeButton({
   onPress,
 }: ForgeButtonProps) {
   const isDisabled = disabled || loading;
+  // WR-02 — light+dark parity for the Icon + ActivityIndicator, which take a
+  // raw color prop and so cannot use the VARIANT_LABEL NativeWind classes.
+  // Derive the hex from the active scheme so it tracks the same token pairs the
+  // label uses (tailwind.config.js: accentText, danger, text).
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
   // Label/icon ink color (matches VARIANT_LABEL tokens, for the Icon + spinner).
+  //   primary     → accentText  (#FFFFFF both modes)
+  //   destructive → danger      (light #D70015 / dark #FF453A)
+  //   secondary,ghost → text    (light #0A0A0A / dark #FFFFFF)
   const inkColor =
     variant === "primary"
       ? "#FFFFFF"
       : variant === "destructive"
-        ? "#D70015"
-        : "#0A0A0A";
+        ? isDark
+          ? "#FF453A"
+          : "#D70015"
+        : isDark
+          ? "#FFFFFF"
+          : "#0A0A0A";
 
   const iconNode = icon ? (
     <Icon name={icon} size={SIZE_ICON[size]} color={inkColor} strokeWidth={2} />
