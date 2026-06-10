@@ -13,8 +13,8 @@
 - [x] **DSGN-02**: Custom type system (Inter Display + Inter + JetBrains Mono) loads via expo-font with splash held until ready
 - [x] **DSGN-03**: Stat numerals render with tabular-nums (tnum/ss01) so figures align
 - [ ] **DSGN-04**: Forge component library exists (ForgeButton, ForgeField, ForgeCard, ForgeStat) and is theme-token-driven
-- [ ] **DSGN-05**: ProgressRing and Sparkline render via the installed Skia (no new charting dependency)
-- [ ] **DSGN-06**: Ascend brand logo + app icon render in gradient and white variants
+- [x] **DSGN-05**: ProgressRing and Sparkline render via the installed Skia (no new charting dependency)
+- [x] **DSGN-06**: Ascend brand logo + app icon render in gradient and white variants
 
 ### Screen Re-skin (SKIN)
 
@@ -111,8 +111,8 @@
 | DSGN-02 | Phase 8 | Complete |
 | DSGN-03 | Phase 8 | Complete |
 | DSGN-04 | Phase 8 | Pending |
-| DSGN-05 | Phase 8 | Pending |
-| DSGN-06 | Phase 8 | Pending |
+| DSGN-05 | Phase 8 | Complete |
+| DSGN-06 | Phase 8 | Complete |
 | I18N-01 | Phase 8 | Complete |
 | I18N-04 | Phase 8 | Complete |
 | SKIN-01 | Phase 9 | Pending |
