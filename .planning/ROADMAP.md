@@ -42,7 +42,7 @@ Infrastructure-first, then re-skin low-risk → high-risk, then net-new features
 3. ProgressRing and Sparkline render via the installed Skia (no new charting dependency)
 4. react-i18next is wired and flips a sample string between sv and en; numbers/dates format per locale
 
-**Plans:** 4/5 plans executed
+**Plans:** 5/5 plans complete
 Plans:
 **Wave 1**
 
@@ -62,7 +62,7 @@ Plans:
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
-- [ ] 08-05-PLAN.md — dev-only Forge gallery (manual UAT surface) proving all 8 requirements (Wave 5)
+- [x] 08-05-PLAN.md — dev-only Forge gallery (manual UAT surface) proving all 8 requirements (Wave 5)
 
 #### Phase 9: Auth, Settings & Preferences
 
@@ -160,7 +160,7 @@ Deferred to a later milestone (needs Apple Developer license + tooling). Mapped 
 | 5. Active Workout Hot Path                    | v1.0 | 7/7 | ✓ Complete | 2026-05-14 |
 | 6. History & Read-Side Polish                 | v1.0 | 4/4 | ✓ Complete | 2026-05-15 |
 | 7. V1 Polish Cut                              | v1.0 | 5/5 | ✓ Complete | 2026-05-16 |
-| 8. Forge Foundation                           | v2.0 | 4/5 | In Progress|  |
+| 8. Forge Foundation                           | v2.0 | 5/5 | Complete   | 2026-06-10 |
 | 9. Auth, Settings & Preferences               | v2.0 | 0/? | ○ Planned  | — |
 | 10. Plans & Exercises Re-skin                 | v2.0 | 0/? | ○ Planned  | — |
 | 11. Active Workout Re-skin (F13 risk)         | v2.0 | 0/? | ○ Planned  | — |
