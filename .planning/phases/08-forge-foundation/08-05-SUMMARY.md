@@ -110,7 +110,14 @@ completed: 2026-06-10
 - **Verification:** `npm run lint` → 0 errors / 0 warnings.
 - **Committed in:** `408c8f7` (Task 1 commit)
 
-**Total deviations:** 2 auto-fixed (1 missing-artifact, 1 lint). No scope creep — both keep the gallery compiling against the plan's stated import contract.
+**3. [Follow-up] Added __DEV__-guarded gallery entry point on settings screen**
+- **Found during:** post-execution follow-up (gallery route existed but had no navigation entry point, blocking the manual UAT gate)
+- **Fix:** Added a `__DEV__`-guarded outline button on the Settings tab (above "Logga ut") calling `router.push('/_forge-gallery')`. The plan explicitly sanctions a dev entry point on an existing dev-accessible screen; NOT added to the tab bar.
+- **Files modified:** app/app/(app)/(tabs)/settings.tsx
+- **Verification:** `npx tsc --noEmit` exit 0; `npx expo lint` clean.
+- **Committed in:** `6c6b099`
+
+**Total deviations:** 3 (2 auto-fixed during execution + 1 follow-up dev entry-point addition). No scope creep — all keep the gallery compiling against the plan's stated import contract and make the UAT surface reachable.
 
 ## Manual UAT (Task 2 — checkpoint:human-verify, BLOCKING)
 
