@@ -24,13 +24,13 @@ import { Text, type TextStyle, View } from "react-native";
 
 import { tnum } from "@/lib/utils/format";
 
+import { Icon } from "./Icon";
+
 // The Plan-01 `tnum` helper types `fontVariant` as a readonly tuple (`as const`)
 // so the constant is immutable; RN's TextStyle.fontVariant is a mutable
 // `FontVariant[]`. Copying the tuple into a fresh mutable array at the use-site
 // satisfies tsc without mutating the shared (prior-wave) format.ts artifact.
 const TNUM: TextStyle = { fontVariant: [...tnum.fontVariant] };
-
-import { Icon } from "./Icon";
 
 export type ForgeStatSize = "sm" | "md" | "lg";
 export type ForgeStatAlign = "left" | "center" | "right";
