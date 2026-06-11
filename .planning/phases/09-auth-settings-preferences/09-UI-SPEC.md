@@ -61,33 +61,42 @@ Inherited verbatim from Phase 8 (`08-UI-SPEC.md §Spacing Scale`). Layout values
 - Stepper `+/-` touch targets ≥ 44px (SET-04 D-05); segmented-control pill padding `6px 12px`.
 - Touch targets: primary CTA `56px` tall (`lg`); sign-out/secondary `52px` (`md`); SettingsRow `min-height 52px`.
 
+> **Implementation note (NativeWind 4 / Tailwind 3 purge):** the non-4-multiple optical values above (`28`, `14`, `6`, `26`, and the `44`/`52`/`56` touch dims where they are not on the Tailwind scale) MUST be applied as literal inline `style={{ }}` numbers, **NOT** as Tailwind arbitrary classes (e.g. avoid `gap-[14px]`, `p-[28px]`). NativeWind 4 on Tailwind 3 purges arbitrary classes whose values are not multiples of the configured scale by default, so an arbitrary-class form would silently drop. Inline `style` is the reliable carrier for optical exceptions.
+
 ---
 
 ## Typography
 
-Inherited from Phase 8 (`08-UI-SPEC.md §Typography`). Display = **Inter Display**; body = **System**; numerals (stepper value, weekly-goal count) = tabular-nums. **3-weight cap (400/600/700)** holds.
+**The full type ramp is inherited verbatim from Phase 8 — see `08-UI-SPEC.md §Typography`. It is NOT re-declared here.** Phase 9 is a re-skin that consumes the Phase-8 design-system handoff (`forge-screens.jsx`, a full ramp spanning 17 screens) without introducing new sizes or weights.
 
-| Role | Family | Size | Weight | Line Height | Notes (this phase) |
-|------|--------|------|--------|-------------|--------------------|
-| H1 auth hero (`t('welcome')`) | Inter Display | 44px | 700 | 1.02 | `letterSpacing: -1.4` — `FSignIn` hero |
-| Auth hero sub (`t('welcomeSub')`) | System | 16px | 400 | 1.4 | `text-forge-text2`, `marginTop 14` |
-| H1 settings title (`t('settings')`) | Inter Display | 36px | 700 | ~1.0 | `letterSpacing: -1.2`, inset `8px 20px 20px` |
-| Brand eyebrow ("FITNESSMAXXING") | System | 11px | 600 | — | UPPERCASE, `letterSpacing: 2`, `text-forge-text2` |
-| Section header (`SettingsSection` label) | System | 11px | 600 | — | UPPERCASE, `letterSpacing: 1.2`, `text-forge-text3` |
-| Profile name | System | 17px | 600 | — | `letterSpacing: -0.3`, `text-forge-text` |
-| Profile email | System | 13px | 400 | — | `text-forge-text2` |
-| SettingsRow label | System | 15px | 500 | — | `text-forge-text` |
-| SettingsRow value (right-aligned) | System | 15px | 400 | — | `text-forge-text2` |
-| Field value / placeholder | System | 16px | 400 | — | `letterSpacing: -0.2`; placeholder via `placeholderTextColor` (not class) |
-| Button label (CTA / sign-out) | System | 16–17px | 600 | — | `letterSpacing: -0.2` (lg=17px, md=16px) |
-| Segmented-control pill label | System | 12px | 600 | — | active=`text-forge-text`, inactive=`text-forge-text2` |
-| Stepper value (weekly goal) | Inter Display | 20–22px | 700 | 1.0 | tabular-nums (DSGN-03) |
-| Inline error (field-level) | System | 13–14px | 400–500 | 1.4 | `text-forge-danger` |
-| Form-level auth error (banner) | System | 15px | 500 | 1.4 | `text-forge-danger`, above submit (D-18) |
-| Forgot-password link | System | 14px | 400 | — | `text-forge-text3` (de-emphasized, `FSignIn` line 55) |
-| Sign-up nav link (`t('signUp')`) | System | 15px | 600 | — | `text-forge-accent` (D-18 accent inline link) |
+**Inherited locked decisions (from Phase 8 D-04 — evaluate as inherited, not as a new declaration this phase):**
+- **Weight set = 400 / 600 / 700** (Regular / SemiBold / Bold). This is the Phase-8 locked 3-weight cap. Phase 9 stays strictly within it — no weight 500, no 4th weight.
+- **Family split:** Display = **Inter Display** (display headings/numerals); body/labels = **System (SF Pro)**; numeric cells/axes = **JetBrains Mono**. Numerals use tabular-nums (`numStyle`, DSGN-03).
+- **Size ramp:** the Phase-8 ramp (display hero / H1 / H2 / stat / body / label / caption / eyebrow / mono / tab-label rows). Phase 9 selects from this existing ramp — see `08-UI-SPEC.md §Typography` for the authoritative size table.
 
-**Note for checker:** This screen set draws from the Phase-8 type ramp (a design-system handoff with a full ramp across 17 screens). The binding constraints — **3-weight cap (400/600/700)** and **display/mono family split** — are honored.
+**Net-new sizes/weights introduced in Phase 9:** **None.** Every text role on the auth and Settings screens maps onto an existing Phase-8 ramp row. The reference below is a *role→ramp mapping* for the executor — it is NOT a new size declaration and intentionally does not widen the inherited 3-size-band/4-cap. Weights shown are constrained to the inherited 400/600/700 set.
+
+| Role (this phase) | Maps to Phase-8 ramp row | Weight (inherited set) | Notes |
+|-------------------|--------------------------|------------------------|-------|
+| H1 auth hero (`t('welcome')`) | H1 auth hero | 700 | `letterSpacing: -1.4` — `FSignIn` hero |
+| Auth hero sub (`t('welcomeSub')`) | Body | 400 | `text-forge-text2`, `marginTop 14` |
+| H1 settings title (`t('settings')`) | H1 page title | 700 | `letterSpacing: -1.2`, inset `8px 20px 20px` |
+| Brand eyebrow ("FITNESSMAXXING") | Eyebrow / section header | 600 | UPPERCASE, `letterSpacing: 2`, `text-forge-text2` |
+| Section header (`SettingsSection` label) | Eyebrow / section header | 600 | UPPERCASE, `letterSpacing: 1.2`, `text-forge-text3` |
+| Profile name | Label (row label) | 600 | `letterSpacing: -0.3`, `text-forge-text` |
+| Profile email | Caption / meta | 400 | `text-forge-text2` |
+| SettingsRow label | Label (row label) | **600** | `text-forge-text` — semibold within inherited cap (was 500; normalized to 600 to honor the inherited 400/600/700 set) |
+| SettingsRow value (right-aligned) | Body | 400 | `text-forge-text2` |
+| Field value / placeholder | Body | 400 | `letterSpacing: -0.2`; placeholder via `placeholderTextColor` (not class) |
+| Button label (CTA / sign-out) | Label (row label) | 600 | `letterSpacing: -0.2` |
+| Segmented-control pill label | Caption / meta | 600 | active=`text-forge-text`, inactive=`text-forge-text2` |
+| Stepper value (weekly goal) | Input numeral (Stepper) | 700 | tabular-nums (DSGN-03) |
+| Inline error (field-level) | Caption / meta | 400 | `text-forge-danger` |
+| Form-level auth error (banner) | Body | 600 | `text-forge-danger`, above submit (D-18) |
+| Forgot-password link | Caption / meta | 400 | `text-forge-text3` (de-emphasized, `FSignIn` line 55) |
+| Sign-up nav link (`t('signUp')`) | Label (row label) | 600 | `text-forge-accent` (D-18 accent inline link) |
+
+**Note for checker:** Typography is a verbatim inheritance of the Phase-8 design system. The binding constraints — **inherited 3-weight cap (400/600/700)** and **display/system/mono family split** — are honored; Phase 9 declares **zero net-new sizes** and **zero net-new weights**. The size table lives in `08-UI-SPEC.md §Typography`; the mapping above is for executor reference only.
 
 ---
 
@@ -130,16 +139,19 @@ Inherited verbatim from `THEMES.forge` (live in `app/tailwind.config.js`). 60/30
 | Surface | Control | Behavior |
 |---------|---------|----------|
 | Auth field validation (D-18) | inline error beneath each `ForgeField` | RHF `mode: "onSubmit"`; error renders below the offending field in `text-forge-danger`; clears on re-type (reValidate onChange). Unchanged from Phase 3 logic. |
+| Password visibility | icon-only `eye` toggle inside `ForgeField` (password field) | toggles `secureTextEntry`. **`accessibilityLabel` REQUIRED** (icon-only control, no visible text): `t('showPassword')` when masked / `t('hidePassword')` when revealed. These are **new I18N keys** — see Copywriting "New keys" list. Hit target ≥ 44px. |
 | Auth server failure (D-18) | form-level message above submit | wrong credentials / `email_not_confirmed` / rate-limit / offline → single `text-forge-danger` line above the CTA, dismissible. Copy verbatim from Phase 3. |
 | Auth submit (D-19) | `ForgeButton primary loading` | inline `ActivityIndicator` + `disabled` during async auth (prevents double-submit). Built-in to `ForgeButton loading` prop. |
 | Theme (SET-08) | `SegmentedControl` 3-state | System / Light / Dark; writes `fm:theme`; `setColorScheme` live (existing). |
 | Language (SET-05 / I18N-02, D-10) | `SegmentedControl` 3-state | System / Svenska / English; writes `fm:language`; `i18n.changeLanguage()` live, no restart (D-12). `System` resolves via `expo-localization` → `sv` for Swedish locale, else `en` (D-11). |
 | Units (SET-03, D-03) | `SegmentedControl` 2-state | Metric (kg) / Imperial (lbs); writes `fm:units` (default Metric). Storage stays canonical kg; display converts via `lib/units.ts` helper, lbs rounded to nearest 0.5 (D-01). |
-| Weekly goal (SET-04, D-05) | `+/-` stepper in a SettingsRow | clamps 1–7, default 3; persists to `profiles.weekly_goal` (0007 migration). Tabular-nums value. |
+| Weekly goal (SET-04, D-05) | `+/-` stepper in a SettingsRow | clamps 1–7, default 3; persists to `profiles.weekly_goal` (0007 migration). Tabular-nums value. Icon-only `+`/`−` buttons each carry an `accessibilityLabel` (`t('increment')` / `t('decrement')` — new keys). |
 | Haptics (SET-06, D-08) | iOS-style switch (44×26) | writes `fm:haptics` (default ON); gates only NEW Phase 9 haptic calls. |
 | Notifications (SET-07, D-07) | iOS-style switch (44×26) | writes `fm:notifications` only — NO OS permission prompt, NO `expo-notifications` this phase (Phase 14). |
 | Profile (SET-02, D-15) | read-only card | avatar (gradient + initials, or `user` icon if name null) + display name + email. NO chevron, NO edit flow. Show email only when `display_name` is null. |
 | Sign-out (SET-09, D-16) | secondary `ForgeButton` (danger label), pinned bottom | `useAuthStore.signOut()` → `queryClient.clear()` → `supabase.auth.signOut()` → declarative `Stack.Protected` re-eval. No confirm, no imperative nav. |
+
+**Icon-only control accessibility (a11y):** every icon-only affordance this phase ships an `accessibilityLabel` (and `accessibilityRole`): the password-visibility `eye` toggle, and the weekly-goal stepper `+`/`−` buttons. Switches use the native `Switch` role; SegmentedControl segments carry their visible label text so no extra label is needed.
 
 **Settings section order (D-13):** Profile → Appearance (theme + language) → Workout (units + weekly goal) → Notifications (haptics + notifications) → Sign-out.
 
@@ -171,6 +183,10 @@ All strings render through `t()` against `app/locales/{sv,en}.json` (I18N-01). A
 **New keys this phase requires (NOT yet in locales — planner MUST add to both `sv.json` + `en.json`):**
 - `weeklyGoal` → `Veckomål` / `Weekly goal`
 - `sessionsPerWeek` (stepper unit/suffix) → `pass/vecka` / `sessions/week` (planner's call on exact suffix wording)
+- `showPassword` → `Visa lösenord` / `Show password` (a11y label, password-visibility toggle)
+- `hidePassword` → `Dölj lösenord` / `Hide password` (a11y label, password-visibility toggle)
+- `increment` → `Öka` / `Increase` (a11y label, stepper `+`)
+- `decrement` → `Minska` / `Decrease` (a11y label, stepper `−`)
 - `languageSystem` reuse `system`; no new key needed for language System option.
 
 **Destructive actions in this phase:** Sign-out (SET-09) — **non-destructive per project policy: NO confirmation dialog** (D-16, reversible by signing back in). Renders as danger-labeled secondary button. No `Alert`/overlay. No other destructive action (profile is view-only; no account-delete this phase).
@@ -187,11 +203,11 @@ All strings render through `t()` against `app/locales/{sv,en}.json` (I18N-01). A
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: PASS — all copy via `t()` from `I18N`; auth copy unchanged (D-17); new keys flagged for planner; sign-out no-confirm policy stated.
-- [ ] Dimension 2 Visuals: PASS — auth + Settings mirror `FSignIn`/`FSettings`; composed from Phase 8 primitives; light+dark parity on every surface; reference reconciliation noted.
+- [ ] Dimension 1 Copywriting: PASS — all copy via `t()` from `I18N`; auth copy unchanged (D-17); new keys flagged for planner (incl. a11y labels); sign-out no-confirm policy stated.
+- [ ] Dimension 2 Visuals: PASS — auth + Settings mirror `FSignIn`/`FSettings`; composed from Phase 8 primitives; light+dark parity on every surface; icon-only controls carry `accessibilityLabel`; reference reconciliation noted.
 - [ ] Dimension 3 Color: PASS — `THEMES.forge` verbatim; 60/30/10 with explicit accent reserved-for list; gradient brand-only; sign-out danger-secondary not solid fill.
-- [ ] Dimension 4 Typography: PASS — 3-weight cap (400/600/700), display/system split, tnum on stepper numerals.
-- [ ] Dimension 5 Spacing: PASS — Phase-8 4-multiple scale + `forge.radius` tokens; optical exceptions enumerated.
+- [ ] Dimension 4 Typography: PASS — full ramp inherited verbatim from Phase 8 (`08-UI-SPEC.md §Typography`), zero net-new sizes; inherited 3-weight cap 400/600/700 honored (no weight 500); display/system/mono family split.
+- [ ] Dimension 5 Spacing: PASS — Phase-8 4-multiple scale + `forge.radius` tokens; optical exceptions enumerated and flagged inline-`style`-only (NativeWind purge note).
 - [ ] Dimension 6 Registry Safety: PASS — N/A, no registry surface.
 
 **Approval:** pending
