@@ -70,6 +70,13 @@ type Props<T extends string> = {
   value: T;
   onChange: (v: T) => void;
   accessibilityLabel: string;
+  /**
+   * Compact, content-sized variant for inline Settings rows (FSettings mockup
+   * parity): pills size to their text (no flex stretch), 12px label, track
+   * padding 3 + 2px gap, selected pill = `forge-surface`. Default (false) keeps
+   * the full-width `flex-1` segments the Phase-6 chart toggles rely on.
+   */
+  compact?: boolean;
 };
 
 // iOS shadow style for the selected segment — matches Tailwind's shadow-sm
@@ -86,15 +93,34 @@ export function SegmentedControl<T extends string>({
   value,
   onChange,
   accessibilityLabel,
+  compact = false,
 }: Props<T>) {
   return (
     <View
-      className="flex-row rounded-forge-sm bg-forge-surface2-light dark:bg-forge-surface2 p-1"
+      className="flex-row rounded-forge-sm bg-forge-surface2-light dark:bg-forge-surface2"
+      // Track padding/gap as optical inline numbers (NativeWind 4 / Tailwind 3
+      // purges off-scale arbitrary classes). Compact = content-sized + right of
+      // its row; default = full-width flex segments (chart toggles).
+      style={
+        compact
+          ? { padding: 3, columnGap: 2, alignSelf: "center" }
+          : { padding: 4 }
+      }
       accessibilityRole="tablist"
       accessibilityLabel={accessibilityLabel}
     >
       {options.map((option) => {
         const selected = option.value === value;
+        const base = compact
+          ? "rounded-forge-sm items-center justify-center"
+          : "flex-1 rounded-forge-sm items-center justify-center";
+        // Selected pill: compact → `forge-surface` (FSettings mockup); default →
+        // `forge-surface3` (raised look the chart toggles use).
+        const selectedBg = !selected
+          ? ""
+          : compact
+            ? " bg-forge-surface-light dark:bg-forge-surface"
+            : " bg-forge-surface3-light dark:bg-forge-surface3";
         return (
           <Pressable
             key={option.value}
@@ -102,17 +128,16 @@ export function SegmentedControl<T extends string>({
             accessibilityRole="tab"
             accessibilityState={{ selected }}
             accessibilityLabel={option.label}
-            hitSlop={{ top: 4, bottom: 4 }}
-            className={
-              selected
-                ? "flex-1 rounded-forge-sm items-center justify-center bg-forge-surface3-light dark:bg-forge-surface3"
-                : "flex-1 rounded-forge-sm items-center justify-center"
-            }
+            hitSlop={compact ? { top: 8, bottom: 8 } : { top: 4, bottom: 4 }}
+            className={base + selectedBg}
             // Optical pill padding (6px 12px) via inline style — NativeWind 4 /
-            // Tailwind 3 purges off-scale arbitrary classes.
+            // Tailwind 3 purges off-scale arbitrary classes. FIT-66: pressed
+            // feedback + selected shadow stay on the style callback / inline
+            // objects, never `active:`/`shadow-*` classes.
             style={({ pressed }) => [
               { paddingVertical: 6, paddingHorizontal: 12 },
-              selected ? selectedShadow : null,
+              compact ? { borderRadius: 8 } : null,
+              selected && !compact ? selectedShadow : null,
               pressed ? { opacity: 0.8 } : null,
             ]}
           >
@@ -120,10 +145,10 @@ export function SegmentedControl<T extends string>({
               // Caption/600 — active=forge-text, inactive=forge-text2.
               className={
                 selected
-                  ? "text-sm text-forge-text-light dark:text-forge-text"
-                  : "text-sm text-forge-text2-light dark:text-forge-text2"
+                  ? "text-forge-text-light dark:text-forge-text"
+                  : "text-forge-text2-light dark:text-forge-text2"
               }
-              style={{ fontWeight: "600" }}
+              style={{ fontWeight: "600", fontSize: compact ? 12 : 14 }}
             >
               {option.label}
             </Text>

@@ -72,7 +72,16 @@ function Toggle({
     >
       <View
         className="h-[22px] w-[22px] rounded-full bg-white"
-        style={{ transform: [{ translateX: value ? 18 : 0 }] }}
+        // Knob drop-shadow matches the FSettings mockup (boxShadow 0 1px 2px
+        // rgba(0,0,0,0.2)); inline iOS shadow object, never a `shadow-*` class
+        // (FIT-66). Without it the knob reads flat against the track.
+        style={{
+          transform: [{ translateX: value ? 18 : 0 }],
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.2,
+          shadowRadius: 2,
+        }}
       />
     </Pressable>
   );

@@ -410,6 +410,7 @@ export default function SettingsTab() {
                 value={theme}
                 onChange={onThemeChange}
                 accessibilityLabel={t("theme")}
+                compact
               />
             }
           />
