@@ -98,6 +98,16 @@
             "timeout": 5
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"C:/Program Files/nodejs/node.exe\" \"\\\"$CLAUDE_PROJECT_DIR\\\"/.claude/hooks/gsd-guard-phase-branch.js\"",
+            "timeout": 20
+          }
+        ]
       }
     ]
   }
