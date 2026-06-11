@@ -305,6 +305,31 @@ async function main() {
     "A cannot UPDATE B's profile (display_name)",
     await clientA.from("profiles").update({ display_name: "hacked" }).eq("id", userB.id).select(),
   );
+  // Phase 9 (0007): weekly_goal is covered by the same own-row update policy.
+  // Cross-user write must be blocked (BOLA / API1 — T-09-03).
+  assertWriteBlocked(
+    "A cannot UPDATE B's profile (weekly_goal)",
+    await clientA.from("profiles").update({ weekly_goal: 7 }).eq("id", userB.id).select(),
+  );
+  // Own-row weekly_goal update MUST succeed (positive path — confirms the policy
+  // is permissive for the owner, not deny-all).
+  {
+    const ownGoal = await clientA
+      .from("profiles")
+      .update({ weekly_goal: 5 })
+      .eq("id", userA.id)
+      .select();
+    if (ownGoal.error) {
+      fail("A CAN UPDATE own profile (weekly_goal)", { error: ownGoal.error });
+    } else if (ownGoal.data && ownGoal.data.length === 1) {
+      pass("A CAN UPDATE own profile (weekly_goal)");
+    } else {
+      fail("A CAN UPDATE own profile (weekly_goal)", {
+        reason: "expected 1 row returned",
+        got: ownGoal.data?.length ?? 0,
+      });
+    }
+  }
   // (no INSERT/DELETE assertion on profiles — handle_new_user owns inserts; deletes cascade from auth.users)
 
   // ---- exercises ---------------------------------------------------------

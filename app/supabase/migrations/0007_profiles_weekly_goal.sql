@@ -1,0 +1,21 @@
+-- File: app/supabase/migrations/0007_profiles_weekly_goal.sql
+--
+-- Phase 9 (Auth, Settings & Preferences), Plan 09-01.
+-- Adds profiles.weekly_goal — the user's target training sessions per week
+-- (SET-04, D-05). Additive ALTER TABLE ADD COLUMN only.
+--
+-- RLS: NO new policy. public.profiles is already RLS-enabled (0001) with own-row
+-- policies that cover ALL columns of the row:
+--   "Users can view own profile"   for select using ((select auth.uid()) = id)
+--   "Users can update own profile" for update using ((select auth.uid()) = id)
+--                                              with check ((select auth.uid()) = id)
+-- ADD COLUMN inherits these — adding a per-column policy would be redundant and
+-- is forbidden by CLAUDE.md DB conventions (one policy pair per table).
+--
+-- Defense-in-depth: NOT NULL DEFAULT 3 + CHECK (1..7) clamps the value at the DB
+-- layer (T-09-05) so a tampered client write can never persist an out-of-range
+-- goal. The dormant profiles.preferred_unit column is intentionally left
+-- untouched — fm:units (client AsyncStorage) is the units source of truth this
+-- phase (RESEARCH A3 / D-03).
+alter table public.profiles
+  add column weekly_goal int not null default 3 check (weekly_goal between 1 and 7);

@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       exercise_sets: {
@@ -152,18 +177,21 @@ export type Database = {
           display_name: string | null
           id: string
           preferred_unit: string | null
+          weekly_goal: number
         }
         Insert: {
           created_at?: string | null
           display_name?: string | null
           id: string
           preferred_unit?: string | null
+          weekly_goal?: number
         }
         Update: {
           created_at?: string | null
           display_name?: string | null
           id?: string
           preferred_unit?: string | null
+          weekly_goal?: number
         }
         Relationships: []
       }
@@ -394,6 +422,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       set_type: ["working", "warmup", "dropset", "failure"],
