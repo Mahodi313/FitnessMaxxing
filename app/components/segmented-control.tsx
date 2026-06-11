@@ -103,7 +103,7 @@ export function SegmentedControl<T extends string>({
       // its row; default = full-width flex segments (chart toggles).
       style={
         compact
-          ? { padding: 4, columnGap: 10, alignSelf: "center" }
+          ? { padding: 13, columnGap: 24, alignSelf: "center" }
           : { padding: 4 }
       }
       accessibilityRole="tablist"

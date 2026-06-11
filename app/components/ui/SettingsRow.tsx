@@ -30,6 +30,9 @@ import { Icon, type IconName } from "./Icon";
 export type SettingsRowProps = {
   icon: IconName;
   label: string;
+  /** Secondary caption under the label (e.g. a unit hint). Stacks vertically so
+   *  it never competes for row width — locale-safe against truncation. */
+  subtitle?: string;
   value?: string;
   chevron?: boolean;
   toggle?: boolean;
@@ -92,6 +95,7 @@ function Toggle({
 export function SettingsRow({
   icon,
   label,
+  subtitle,
   value,
   chevron,
   toggle,
@@ -116,13 +120,24 @@ export function SettingsRow({
         <Icon name={icon} size={15} color={ACCENT_LIGHT} strokeWidth={1.8} />
       </View>
 
-      <Text
-        className="flex-1 text-[15px] text-forge-text-light dark:text-forge-text"
-        style={{ fontWeight: "500" }}
-        numberOfLines={1}
-      >
-        {label}
-      </Text>
+      <View className="flex-1">
+        <Text
+          className="text-[15px] text-forge-text-light dark:text-forge-text"
+          style={{ fontWeight: "500" }}
+          numberOfLines={1}
+        >
+          {label}
+        </Text>
+        {subtitle ? (
+          <Text
+            className="text-[13px] text-forge-text2-light dark:text-forge-text2"
+            style={{ marginTop: 1 }}
+            numberOfLines={1}
+          >
+            {subtitle}
+          </Text>
+        ) : null}
+      </View>
 
       {value ? (
         <Text className="text-[15px] text-forge-text2-light dark:text-forge-text2">

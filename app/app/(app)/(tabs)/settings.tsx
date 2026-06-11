@@ -445,7 +445,7 @@ export default function SettingsTab() {
             icon="barbell"
             label={t("weeklyGoal")}
             last
-            value={t("sessionsPerWeek")}
+            subtitle={t("sessionsPerWeek")}
             control={
               <GoalStepper
                 value={goal}
