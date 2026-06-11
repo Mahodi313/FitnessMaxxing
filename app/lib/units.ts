@@ -36,5 +36,10 @@ export function toDisplayWeight(kg: number, unit: UnitPref): number {
  */
 export function formatWeight(kg: number, unit: UnitPref): string {
   const v = toDisplayWeight(kg, unit);
-  return `${v} ${unit === "imperial" ? "lb" : "kg"}`;
+  // WR-04: normalize BOTH branches' display. The metric branch is a raw
+  // passthrough (toDisplayWeight doesn't round kg), so without this a stored
+  // float like 72.4999 would print verbatim. Integers stay integer; fractional
+  // values trim to one decimal — consistent across unit modes.
+  const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
+  return `${fmt(v)} ${unit === "imperial" ? "lb" : "kg"}`;
 }
