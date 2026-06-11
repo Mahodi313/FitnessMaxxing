@@ -187,7 +187,7 @@ export default function SignUpScreen() {
           }}
           keyboardShouldPersistTaps="handled"
         >
-          <View className="flex-1">
+          <View>
             {/* Brand mark */}
             <View className="flex-row items-center gap-2 pt-1">
               <BrandMark />
@@ -204,8 +204,9 @@ export default function SignUpScreen() {
               </Text>
             </View>
 
-            {/* Hero heading — pushed to bottom via mt-auto */}
-            <View style={{ marginTop: "auto", marginBottom: 36 }}>
+            {/* Hero heading — fixed top gap so it never bunches toward the fields
+                when the keyboard opens (was marginTop:auto). */}
+            <View style={{ marginTop: 40, marginBottom: 36 }}>
               <Text
                 className="text-forge-text-light dark:text-forge-text font-display-bold"
                 style={{ fontSize: 44, letterSpacing: -1.4, lineHeight: 45 }}
@@ -415,7 +416,7 @@ export default function SignUpScreen() {
             {/* Sign-in nav link — 6px gap, pushed to bottom */}
             <View
               className="flex-row items-center justify-center"
-              style={{ marginTop: "auto", paddingTop: 24, gap: 6 }}
+              style={{ marginTop: 28, gap: 6 }}
             >
               <Text className="text-forge-text2-light dark:text-forge-text2" style={{ fontSize: 15 }}>
                 Har du redan ett konto?

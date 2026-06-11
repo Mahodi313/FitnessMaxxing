@@ -151,7 +151,7 @@ export default function SignInScreen() {
           }}
           keyboardShouldPersistTaps="handled"
         >
-          <View className="flex-1">
+          <View>
             {/* Brand mark (FSignIn line 11) */}
             <View className="flex-row items-center gap-2 pt-1">
               <BrandMark />
@@ -168,8 +168,9 @@ export default function SignInScreen() {
               </Text>
             </View>
 
-            {/* Hero heading (FSignIn line 27) — pushed to bottom via mt-auto */}
-            <View style={{ marginTop: "auto", marginBottom: 36 }}>
+            {/* Hero heading (FSignIn line 27) — fixed top gap so it never bunches
+                toward the fields when the keyboard opens (was marginTop:auto). */}
+            <View style={{ marginTop: 40, marginBottom: 36 }}>
               <Text
                 className="text-forge-text-light dark:text-forge-text font-display-bold"
                 style={{ fontSize: 44, letterSpacing: -1.4, lineHeight: 45 }}
@@ -296,10 +297,11 @@ export default function SignInScreen() {
               </View>
             </View>
 
-            {/* Sign-up nav link (FSignIn line 61) — 6px gap, pushed to bottom */}
+            {/* Sign-up nav link (FSignIn line 61) — fixed gap below the CTA block
+                (was marginTop:auto, which collapsed on keyboard open). */}
             <View
               className="flex-row items-center justify-center"
-              style={{ marginTop: "auto", paddingTop: 24, gap: 6 }}
+              style={{ marginTop: 28, gap: 6 }}
             >
               <Text className="text-forge-text2-light dark:text-forge-text2" style={{ fontSize: 15 }}>
                 {t("noAccount")}
