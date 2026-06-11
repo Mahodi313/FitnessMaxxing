@@ -321,8 +321,11 @@ export default function SettingsTab() {
       .single()
       .then(({ data, error }) => {
         if (error || !data) {
-          // Roll back optimistic update on RLS/write failure.
-          setGoal(previous);
+          // Roll back optimistic update on RLS/write failure — but ONLY if a
+          // later tap hasn't already superseded this write (last-writer-wins
+          // race: a failed early write must not resurrect a stale value the
+          // user has since advanced past). WR-02.
+          setGoal((cur) => (cur === clamped ? previous : cur));
           console.warn("[settings] weekly_goal persist failed — rolled back");
         }
       });
