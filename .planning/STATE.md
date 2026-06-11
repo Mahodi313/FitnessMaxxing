@@ -4,13 +4,13 @@ milestone: v2.0
 milestone_name: Forge Redesign
 status: executing
 stopped_at: Phase 9 UI-SPEC approved
-last_updated: "2026-06-11T17:12:17.739Z"
-last_activity: 2026-06-11 -- Phase 09 planning complete
+last_updated: "2026-06-11T17:28:02.942Z"
+last_activity: 2026-06-11
 progress:
   total_phases: 8
   completed_phases: 1
   total_plans: 8
-  completed_plans: 5
+  completed_plans: 6
   percent: 13
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-09)
 
 **Core value:** Logga ett set och omedelbart se vad jag tog senast på samma övning — utan att tappa data, någonsin.
-**Current focus:** Phase 9 — auth, settings & preferences
+**Current focus:** Phase 09 — auth-settings-preferences
 
 ## Current Position
 
-Phase: 9
-Plan: Not started
+Phase: 09 (auth-settings-preferences) — EXECUTING
+Plan: 2 of 3
 Status: Ready to execute
-Last activity: 2026-06-11 -- Phase 09 planning complete
+Last activity: 2026-06-11
 
 ## Performance Metrics
 
@@ -64,6 +64,7 @@ Last activity: 2026-06-11 -- Phase 09 planning complete
 | Phase 08 P03 | ~12min | 2 tasks | 5 files |
 | Phase 08 P04 | ~18min | 3 tasks | 7 files |
 | Phase 08 P05 | ~20min | 2 tasks | 2 files |
+| Phase 09 P01 | ~18min | 3 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -103,6 +104,8 @@ Recent decisions affecting current work:
 - [Phase ?]: Forge light+dark token parity: base = forge-<token>-light + dark: sibling = forge-<token> DEFAULT (Plan 08-04, first forge.* consumer)
 - [Phase ?]: TabBar built standalone (active/onSelect props), NOT wired to live <Tabs> per OQ-5 — live re-skin deferred to Phase 9+ (Plan 08-04)
 - [Phase ?]: Phase 8 Plan 05: dev-only Forge gallery at (app)/_forge-gallery.tsx — __DEV__-guarded, outside (tabs), reachable via router.push('/_forge-gallery'); added components/ui barrel; live <Tabs> untouched (OQ-5)
+- **2026-06-11 [Phase 09 Plan 01]**: resolveLanguage pure core extracted to lib/resolve-language.ts — importing lib/i18n.ts under Node tsx breaks (expo-localization → untranspiled react-native; esbuild "Unexpected typeof" in react-native/index.js). lib/i18n.ts keeps a `resolveLanguage(pref, deviceLang?)` wrapper delegating to the core (supplies live Localization locale by default); pure unit tests import resolveLanguageCore from the pure module. Pattern: any Phase 9+ Node test of i18n-adjacent logic must target a pure module, not i18n.ts. Same boundary will apply if units/prefs ever gain Expo imports.
+- **2026-06-11 [Phase 09 Plan 01]**: profiles.weekly_goal landed live (0007) — int NOT NULL DEFAULT 3 CHECK (1..7); no new RLS policy (own-row profiles policies from 0001 cover the column). Checkpoint:human-action push resolved non-interactively (`supabase db push` with empty stdin → Y). fm:* prefs centralized in lib/prefs.ts with catch-parse on every read + booleans as "true"/"false" strings (no JSON.parse throw surface). Plans 09-02/03 consume these.
 
 ### Pending Todos
 
@@ -133,9 +136,9 @@ Items acknowledged for later:
 
 ## Session Continuity
 
-Last session: 2026-06-11T16:36:07.857Z
+Last session: 2026-06-11T17:28:02.931Z
 Stopped at: Phase 9 UI-SPEC approved
-Resume file: .planning/phases/09-auth-settings-preferences/09-UI-SPEC.md
+Resume file: None
 Next: Orchestrator runs phase-level closeout — `/gsd-secure-phase 4` (close threat register T-04-01 … T-04-12 against implementation; produce 04-SECURITY.md with threats_open: 0) → `/gsd-verify-work 4` (write 04-VERIFICATION.md with all 5 success criteria MET) → `/gsd-code-review` (post-phase audit) → phase.complete (advance ROADMAP Phase 4 → ✓ Complete). Then plan Phase 5 (Active Workout Hot Path — F13 lives or dies).
 
 ## Operator Next Steps
