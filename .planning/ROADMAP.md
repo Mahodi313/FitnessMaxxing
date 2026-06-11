@@ -75,6 +75,17 @@ Plans:
 3. Choosing kg/lbs changes every displayed weight while storage stays canonical kg; weekly goal persists to `profiles.weekly_goal`
 4. Switching language overrides the device locale and the app text updates live
 
+**Plans:** 3 plans
+Plans:
+**Wave 1**
+
+- [ ] 09-01-PLAN.md — Foundation: 0007 weekly_goal migration (pushed live) + units helper + prefs wrappers + resolveLanguage + 6 i18n keys + Wave-0 unit tests + test-rls extension (Wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 09-02-PLAN.md — Forge Settings screen (Profile/Appearance/Workout/Notifications/Sign-out) + three-state LocaleBootstrap + segmented-control re-skin (Wave 2)
+- [ ] 09-03-PLAN.md — Forge re-skin of sign-in/sign-up (ForgeField/ForgeButton, t()-keyed labels, inline+form errors, loading CTA) (Wave 2)
+
 #### Phase 10: Plans & Exercises Re-skin
 
 **Goal:** Re-skin the plan/exercise CRUD screens and surface the schema fields v1 hid (muscle group, equipment, targets, descriptions).
@@ -161,7 +172,7 @@ Deferred to a later milestone (needs Apple Developer license + tooling). Mapped 
 | 6. History & Read-Side Polish                 | v1.0 | 4/4 | ✓ Complete | 2026-05-15 |
 | 7. V1 Polish Cut                              | v1.0 | 5/5 | ✓ Complete | 2026-05-16 |
 | 8. Forge Foundation                           | v2.0 | 5/5 | Complete   | 2026-06-10 |
-| 9. Auth, Settings & Preferences               | v2.0 | 0/? | ○ Planned  | — |
+| 9. Auth, Settings & Preferences               | v2.0 | 0/3 | ◔ Planned  | — |
 | 10. Plans & Exercises Re-skin                 | v2.0 | 0/? | ○ Planned  | — |
 | 11. Active Workout Re-skin (F13 risk)         | v2.0 | 0/? | ○ Planned  | — |
 | 12. History, Detail, Chart & Dashboard        | v2.0 | 0/? | ○ Planned  | — |
