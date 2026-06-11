@@ -369,6 +369,7 @@ export default function SettingsTab() {
           <SettingsRow
             icon="spark"
             label={t("theme")}
+            stacked
             control={
               <SegmentedControl<ThemePref>
                 options={[
@@ -386,6 +387,7 @@ export default function SettingsTab() {
             icon="globe"
             label={t("language")}
             last
+            stacked
             control={
               <SegmentedControl<LanguagePref>
                 options={[
@@ -411,6 +413,7 @@ export default function SettingsTab() {
             // "220.5 lb" in imperial). DSGN-03 tabular-nums via the row value
             // style; storage stays kg (D-02, no retrofit).
             value={formatWeight(UNIT_PREVIEW_KG, units)}
+            stacked
             control={
               <SegmentedControl<UnitPref>
                 options={[

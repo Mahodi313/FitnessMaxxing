@@ -40,6 +40,13 @@ export type SettingsRowProps = {
   onPress?: () => void;
   /** Suppress the bottom hairline (last row in a section). */
   last?: boolean;
+  /**
+   * Two-line layout: `[icon][label][value]` on line 1, then `control` on a
+   * full-width line below. Used for wide segmented controls (Theme / Language /
+   * Units) whose pills would otherwise overflow / clip on a single inline row
+   * (UAT fix). Toggle/chevron/stepper rows stay inline.
+   */
+  stacked?: boolean;
 };
 
 const TEXT3_LIGHT = "#8B8B8B";
@@ -89,8 +96,47 @@ export function SettingsRow({
   control,
   onPress,
   last = false,
+  stacked = false,
 }: SettingsRowProps) {
   const interactive = !!onPress && !toggle;
+
+  // Stacked two-line layout: line 1 = [icon][label][value], line 2 = control
+  // spanning the full row width so the SegmentedControl's flex-1 segments
+  // expand to equal full-width pills (UAT fix — no clipping, visible labels).
+  if (stacked) {
+    return (
+      <View
+        className={`px-4 py-[14px] ${
+          last
+            ? ""
+            : "border-b border-forge-border-light dark:border-forge-border"
+        }`}
+      >
+        <View className="flex-row items-center gap-3">
+          {/* 28x28 accent-soft icon tile + 15px accent icon. */}
+          <View className="h-7 w-7 items-center justify-center rounded-lg bg-forge-accentSoft-light dark:bg-forge-accentSoft">
+            <Icon name={icon} size={15} color={ACCENT_LIGHT} strokeWidth={1.8} />
+          </View>
+
+          <Text
+            className="flex-1 text-[15px] text-forge-text-light dark:text-forge-text"
+            style={{ fontWeight: "500" }}
+            numberOfLines={1}
+          >
+            {label}
+          </Text>
+
+          {value ? (
+            <Text className="text-[15px] text-forge-text2-light dark:text-forge-text2">
+              {value}
+            </Text>
+          ) : null}
+        </View>
+
+        <View style={{ marginTop: 10 }}>{control ?? null}</View>
+      </View>
+    );
+  }
 
   const inner = (
     <View
