@@ -7,17 +7,20 @@
 //   → Notifications (haptics + notifications) → Sign-out.
 //
 // Every visible label routes through t() via useTranslation() so the language
-// SegmentedControl re-renders text LIVE with no restart (D-12; never capture t
-// in module scope). Theme reuses the existing fm:theme + setColorScheme wiring.
+// row's value re-renders text LIVE with no restart (D-12; never capture t in
+// module scope). Theme reuses the existing fm:theme + setColorScheme wiring.
 //
 // Preference layer (all reads corrupt-tolerant via lib/prefs.ts catch-parse —
 // T-09-06):
-//   - Language (SET-05/I18N-02): 3-state System/Svenska/English → fm:language;
-//     onChange calls i18n.changeLanguage(resolveLanguage(next)) LIVE (D-12) then
-//     persists via setPref. resolveLanguage returns only 'sv'|'en' (T-09-08).
-//   - Units (SET-03): 2-state Metric/Imperial → fm:units; net-new weight values
-//     display via formatWeight/toDisplayWeight (lib/units.ts). NO retrofit (D-02);
-//     storage stays canonical kg; profiles.preferred_unit left dormant (A3).
+//   - Language (SET-05/I18N-02): chevron disclosure row → iOS ActionSheet
+//     (System/Svenska/English) → fm:language. On select: i18n.changeLanguage(
+//     resolveLanguage(next)) LIVE (D-12) then persists via setPref.
+//     resolveLanguage returns only 'sv'|'en' (T-09-08). (UAT: mockup parity —
+//     overrides D-10's segmented-control rendering, decision intact.)
+//   - Units (SET-03): chevron disclosure row → iOS ActionSheet (Metric/Imperial)
+//     → fm:units. NO retrofit (D-02); storage stays canonical kg;
+//     profiles.preferred_unit left dormant (A3). (UAT: mockup parity — overrides
+//     D-03's segmented-control + preview rendering, decision intact.)
 //   - Weekly goal (SET-04/D-05): +/- stepper clamped 1..7 (default 3); optimistic
 //     local set then persists to profiles.weekly_goal via own-row RLS write
 //     (.eq id + .select().single() — verify returned row, T-09-07 / Pitfall 6).
@@ -42,7 +45,7 @@
 //   - 09-UI-SPEC.md §Interaction Contract + §Color + §Copywriting + §Spacing
 //   - 09-CONTEXT.md D-02/D-05/D-07/D-08/D-13/D-15/D-16
 import { useEffect, useId, useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { ActionSheetIOS, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -55,19 +58,12 @@ import { useAuthStore } from "@/lib/auth-store";
 import { supabase } from "@/lib/supabase";
 import { getPref, setPref, type UnitPref } from "@/lib/prefs";
 import i18n, { resolveLanguage, type LanguagePref } from "@/lib/i18n";
-import { formatWeight } from "@/lib/units";
 import { SegmentedControl } from "@/components/segmented-control";
 import { SettingsRow, SettingsSection } from "@/components/ui/SettingsRow";
 import { ForgeButton } from "@/components/ui/ForgeButton";
 import { Icon } from "@/components/ui/Icon";
 
 type ThemePref = "system" | "light" | "dark";
-
-// Sample weight (canonical kg) shown next to the Units control as a live
-// conversion preview — exercises the lib/units.ts helper on a net-new Phase 9
-// surface without retrofitting any existing weight screen (D-02). 100kg is the
-// helper's documented round-trip case (→ 220.5 lb in imperial).
-const UNIT_PREVIEW_KG = 100;
 
 // 56px gradient avatar (brand gradFrom→gradTo) with initials, or a `user` icon
 // when display_name is null. react-native-svg engine (same as AppIcon) — NO new
@@ -260,6 +256,41 @@ export default function SettingsTab() {
     setPref("fm:units", value);
   };
 
+  // Units row → iOS ActionSheet picker (mockup: tap row → väljare). V1 is
+  // iOS-only (locked), so ActionSheetIOS is the correct native picker.
+  const openUnitsSheet = () => {
+    ActionSheetIOS.showActionSheetWithOptions(
+      {
+        options: [t("metric"), t("imperial"), t("cancel")],
+        cancelButtonIndex: 2,
+      },
+      (index) => {
+        if (index === 0) onUnitsChange("metric");
+        else if (index === 1) onUnitsChange("imperial");
+      },
+    );
+  };
+
+  // Language row → iOS ActionSheet picker. Language MUST still switch LIVE
+  // (D-12) — onLanguageChange calls i18n.changeLanguage on selection.
+  const openLanguageSheet = () => {
+    ActionSheetIOS.showActionSheetWithOptions(
+      {
+        options: [t("system"), "Svenska", "English", t("cancel")],
+        cancelButtonIndex: 3,
+      },
+      (index) => {
+        if (index === 0) onLanguageChange("system");
+        else if (index === 1) onLanguageChange("sv");
+        else if (index === 2) onLanguageChange("en");
+      },
+    );
+  };
+
+  // Display value for the Language disclosure row (current choice).
+  const languageValue =
+    language === "system" ? t("system") : language === "sv" ? "Svenska" : "English";
+
   const onHapticsToggle = (next: boolean) => {
     setHaptics(next);
     setPref("fm:haptics", next);
@@ -369,7 +400,6 @@ export default function SettingsTab() {
           <SettingsRow
             icon="spark"
             label={t("theme")}
-            stacked
             control={
               <SegmentedControl<ThemePref>
                 options={[
@@ -383,48 +413,28 @@ export default function SettingsTab() {
               />
             }
           />
+          {/* Language → chevron disclosure → iOS ActionSheet (mockup parity).
+              Live-switches on selection (D-12). */}
           <SettingsRow
             icon="globe"
             label={t("language")}
             last
-            stacked
-            control={
-              <SegmentedControl<LanguagePref>
-                options={[
-                  { label: t("system"), value: "system" },
-                  { label: "Svenska", value: "sv" },
-                  { label: "English", value: "en" },
-                ]}
-                value={language}
-                onChange={onLanguageChange}
-                accessibilityLabel={t("language")}
-              />
-            }
+            value={languageValue}
+            chevron
+            onPress={openLanguageSheet}
           />
         </SettingsSection>
 
         {/* ── Workout (units + weekly goal) ── */}
         <SettingsSection label={t("workoutPrefs")}>
+          {/* Units → chevron disclosure → iOS ActionSheet (mockup parity).
+              Storage stays canonical kg (D-02, no retrofit). */}
           <SettingsRow
             icon="scale"
             label={t("units")}
-            // Live preview of the chosen unit on a net-new Phase 9 weight
-            // surface — formatWeight converts the canonical-kg sample (100kg →
-            // "220.5 lb" in imperial). DSGN-03 tabular-nums via the row value
-            // style; storage stays kg (D-02, no retrofit).
-            value={formatWeight(UNIT_PREVIEW_KG, units)}
-            stacked
-            control={
-              <SegmentedControl<UnitPref>
-                options={[
-                  { label: t("metric"), value: "metric" },
-                  { label: t("imperial"), value: "imperial" },
-                ]}
-                value={units}
-                onChange={onUnitsChange}
-                accessibilityLabel={t("units")}
-              />
-            }
+            value={units === "metric" ? t("metric") : t("imperial")}
+            chevron
+            onPress={openUnitsSheet}
           />
           <SettingsRow
             icon="barbell"

@@ -104,6 +104,7 @@
   "signOut": "Sign out",
   "appearance": "Appearance",
   "workoutPrefs": "Workout",
+  "cancel": "Cancel",
 
   "offline": "You're offline — changes will sync when you're back online."
 }
