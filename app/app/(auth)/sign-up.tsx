@@ -44,7 +44,6 @@ import { signUpSchema, type SignUpInput } from "@/lib/schemas/auth";
 import { supabase } from "@/lib/supabase";
 import { ForgeField } from "@/components/ui/ForgeField";
 import { ForgeButton } from "@/components/ui/ForgeButton";
-import { Icon } from "@/components/ui/Icon";
 import { Logo } from "@/components/ui/Logo";
 
 // 28×28 brand-mark tile (mirrors sign-in.tsx BrandMark) — Logo (white) on the
@@ -75,8 +74,6 @@ export default function SignUpScreen() {
   const { t } = useTranslation();
   const [bannerError, setBannerError] = useState<string | null>(null);
   const [infoBanner, setInfoBanner] = useState<string | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
   const {
     control,
     handleSubmit,
@@ -89,13 +86,21 @@ export default function SignUpScreen() {
     // presses the CTA, not when they tab between empty fields. After first
     // submit, RHF auto-revalidates onChange (default reValidateMode).
     mode: "onSubmit",
-    defaultValues: { email: "", password: "", confirmPassword: "" },
+    defaultValues: { name: "", email: "", password: "", confirmPassword: "" },
   });
 
-  const onSubmit = async ({ email, password }: SignUpInput) => {
+  const onSubmit = async ({ name, email, password }: SignUpInput) => {
     setBannerError(null);
     setInfoBanner(null);
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    // Pass the display name as user metadata. The 0008 handle_new_user trigger
+    // reads raw_user_meta_data->>'display_name' and writes it to
+    // profiles.display_name on the auth.users insert. Trimmed at the form
+    // boundary (Zod also caps it at 80 chars).
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { display_name: name.trim() } },
+    });
     if (!error) {
       // Pitfall §6 (debug session signup-silent-no-ui-feedback): if the project
       // has email confirmation enabled server-side, signUp returns
@@ -273,6 +278,34 @@ export default function SignUpScreen() {
                 </Pressable>
               )}
 
+              {/* Name field (FSignUp line 1061) — first field, person icon.
+                  Collected here and stored to profiles.display_name via the
+                  0008 trigger + signUp metadata. */}
+              <Controller
+                control={control}
+                name="name"
+                render={({ field: { onChange, value } }) => (
+                  <View style={{ gap: 6 }}>
+                    <ForgeField
+                      icon="user"
+                      state={errors.name ? "error" : "default"}
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder={t("name")}
+                      accessibilityLabel={t("name")}
+                    />
+                    {errors.name && (
+                      <Text
+                        className="text-sm text-forge-danger-light dark:text-forge-danger"
+                        accessibilityLiveRegion="polite"
+                      >
+                        {errors.name.message}
+                      </Text>
+                    )}
+                  </View>
+                )}
+              />
+
               {/* Email field */}
               <Controller
                 control={control}
@@ -300,45 +333,25 @@ export default function SignUpScreen() {
                 )}
               />
 
-              {/* Password field — ForgeField + `eye` toggle (D-18). Helper text
-                  "Minst 12 tecken" stays until validation fires (D-17 copy). */}
+              {/* Password field — ForgeField with integrated `secureToggle`
+                  eye (D-18). Helper text "Minst 12 tecken" stays until
+                  validation fires (D-17 copy). */}
               <Controller
                 control={control}
                 name="password"
                 render={({ field: { onChange, value } }) => (
                   <View style={{ gap: 6 }}>
-                    <View style={{ position: "relative", justifyContent: "center" }}>
-                      <ForgeField
-                        icon="lock"
-                        state={errors.password ? "error" : "default"}
-                        value={value}
-                        onChangeText={onChange}
-                        placeholder={t("password")}
-                        secureTextEntry={!showPassword}
-                        accessibilityLabel={t("password")}
-                      />
-                      <Pressable
-                        onPress={() => setShowPassword((v) => !v)}
-                        accessibilityRole="button"
-                        accessibilityLabel={
-                          showPassword ? t("hidePassword") : t("showPassword")
-                        }
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        style={({ pressed }) => [
-                          {
-                            position: "absolute",
-                            right: 6,
-                            width: 44,
-                            height: 44,
-                            alignItems: "center",
-                            justifyContent: "center",
-                          },
-                          pressed ? { opacity: 0.6 } : null,
-                        ]}
-                      >
-                        <Icon name="eye" size={18} color="#8B8B8B" strokeWidth={1.8} />
-                      </Pressable>
-                    </View>
+                    <ForgeField
+                      icon="lock"
+                      state={errors.password ? "error" : "default"}
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder={t("password")}
+                      secureToggle
+                      showPasswordLabel={t("showPassword")}
+                      hidePasswordLabel={t("hidePassword")}
+                      accessibilityLabel={t("password")}
+                    />
                     {errors.password ? (
                       <Text
                         className="text-sm text-forge-danger-light dark:text-forge-danger"
@@ -356,44 +369,24 @@ export default function SignUpScreen() {
                 )}
               />
 
-              {/* Confirm password field — ForgeField + `eye` toggle (D-18). */}
+              {/* Confirm password field — ForgeField with integrated
+                  `secureToggle` eye (D-18). */}
               <Controller
                 control={control}
                 name="confirmPassword"
                 render={({ field: { onChange, value } }) => (
                   <View style={{ gap: 6 }}>
-                    <View style={{ position: "relative", justifyContent: "center" }}>
-                      <ForgeField
-                        icon="lock"
-                        state={errors.confirmPassword ? "error" : "default"}
-                        value={value}
-                        onChangeText={onChange}
-                        placeholder={t("password")}
-                        secureTextEntry={!showConfirm}
-                        accessibilityLabel="Bekräfta lösenord"
-                      />
-                      <Pressable
-                        onPress={() => setShowConfirm((v) => !v)}
-                        accessibilityRole="button"
-                        accessibilityLabel={
-                          showConfirm ? t("hidePassword") : t("showPassword")
-                        }
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        style={({ pressed }) => [
-                          {
-                            position: "absolute",
-                            right: 6,
-                            width: 44,
-                            height: 44,
-                            alignItems: "center",
-                            justifyContent: "center",
-                          },
-                          pressed ? { opacity: 0.6 } : null,
-                        ]}
-                      >
-                        <Icon name="eye" size={18} color="#8B8B8B" strokeWidth={1.8} />
-                      </Pressable>
-                    </View>
+                    <ForgeField
+                      icon="lock"
+                      state={errors.confirmPassword ? "error" : "default"}
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder={t("password")}
+                      secureToggle
+                      showPasswordLabel={t("showPassword")}
+                      hidePasswordLabel={t("hidePassword")}
+                      accessibilityLabel="Bekräfta lösenord"
+                    />
                     {errors.confirmPassword && (
                       <Text
                         className="text-sm text-forge-danger-light dark:text-forge-danger"

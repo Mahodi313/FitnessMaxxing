@@ -38,7 +38,6 @@ import { signInSchema, type SignInInput } from "@/lib/schemas/auth";
 import { supabase } from "@/lib/supabase";
 import { ForgeField } from "@/components/ui/ForgeField";
 import { ForgeButton } from "@/components/ui/ForgeButton";
-import { Icon } from "@/components/ui/Icon";
 import { Logo } from "@/components/ui/Logo";
 
 // 28×28 brand-mark tile (FSignIn line 11) — Logo (white) on the brand gradient.
@@ -69,7 +68,6 @@ export default function SignInScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const [bannerError, setBannerError] = useState<string | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
   const {
     control,
     handleSubmit,
@@ -246,46 +244,26 @@ export default function SignInScreen() {
                 )}
               />
 
-              {/* Password field — ForgeField + an `eye` visibility toggle (D-18).
-                  The toggle is absolutely positioned over the right edge of the
-                  field; hit target ≥44px; FIT-66-safe pressed feedback. */}
+              {/* Password field — ForgeField with its integrated `secureToggle`
+                  eye (D-18). The eye now lives INSIDE the field as a trailing
+                  flex child (right-aligned, vertically centered, FIT-66-safe);
+                  no absolute positioning → no drift / no focus layout shift. */}
               <Controller
                 control={control}
                 name="password"
                 render={({ field: { onChange, value } }) => (
                   <View style={{ gap: 6 }}>
-                    <View style={{ position: "relative", justifyContent: "center" }}>
-                      <ForgeField
-                        icon="lock"
-                        state={errors.password ? "error" : "default"}
-                        value={value}
-                        onChangeText={onChange}
-                        placeholder={t("password")}
-                        secureTextEntry={!showPassword}
-                        accessibilityLabel={t("password")}
-                      />
-                      <Pressable
-                        onPress={() => setShowPassword((v) => !v)}
-                        accessibilityRole="button"
-                        accessibilityLabel={
-                          showPassword ? t("hidePassword") : t("showPassword")
-                        }
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        style={({ pressed }) => [
-                          {
-                            position: "absolute",
-                            right: 6,
-                            width: 44,
-                            height: 44,
-                            alignItems: "center",
-                            justifyContent: "center",
-                          },
-                          pressed ? { opacity: 0.6 } : null,
-                        ]}
-                      >
-                        <Icon name="eye" size={18} color="#8B8B8B" strokeWidth={1.8} />
-                      </Pressable>
-                    </View>
+                    <ForgeField
+                      icon="lock"
+                      state={errors.password ? "error" : "default"}
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder={t("password")}
+                      secureToggle
+                      showPasswordLabel={t("showPassword")}
+                      hidePasswordLabel={t("hidePassword")}
+                      accessibilityLabel={t("password")}
+                    />
                     {errors.password && (
                       <Text
                         className="text-sm text-forge-danger-light dark:text-forge-danger"
