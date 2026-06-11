@@ -24,6 +24,7 @@
 
 import { type ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
+import { useColorScheme } from "nativewind";
 
 import { Icon, type IconName } from "./Icon";
 
@@ -45,8 +46,11 @@ export type SettingsRowProps = {
 const TEXT3_LIGHT = "#8B8B8B";
 const ACCENT_LIGHT = "#E14E10";
 
-// The 44x26 toggle pill — a custom Pressable (FIT-66: pressed feedback + knob
-// position via style callback, never a NativeWind active:/transition class).
+// iOS-standard 51×31 toggle — a custom Pressable (FIT-66: pressed feedback +
+// knob position + track color via style callback / inline objects, never a
+// NativeWind active:/transition class). Track color is inline so the OFF state
+// is a visible iOS-style grey (#39393D dark / #E9E9EA light) instead of a dark
+// near-invisible surface; ON is the Forge accent.
 function Toggle({
   value,
   onToggle,
@@ -56,6 +60,15 @@ function Toggle({
   onToggle?: (next: boolean) => void;
   label: string;
 }) {
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
+  const trackColor = value
+    ? isDark
+      ? "#FF5A1F"
+      : "#E14E10"
+    : isDark
+      ? "#39393D"
+      : "#E9E9EA";
   return (
     <Pressable
       onPress={() => onToggle?.(!value)}
@@ -63,20 +76,19 @@ function Toggle({
       accessibilityState={{ checked: value }}
       accessibilityLabel={label}
       hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-      className={`h-[26px] w-11 justify-center rounded-full px-[2px] ${
-        value
-          ? "bg-forge-accent-light dark:bg-forge-accent"
-          : "bg-forge-surface3-light dark:bg-forge-surface3"
-      }`}
-      style={({ pressed }) => (pressed ? { opacity: 0.85 } : null)}
+      className="h-[31px] w-[51px] justify-center rounded-full px-[2px]"
+      style={({ pressed }) => [
+        { backgroundColor: trackColor },
+        pressed ? { opacity: 0.85 } : null,
+      ]}
     >
       <View
-        className="h-[22px] w-[22px] rounded-full bg-white"
-        // Knob drop-shadow matches the FSettings mockup (boxShadow 0 1px 2px
-        // rgba(0,0,0,0.2)); inline iOS shadow object, never a `shadow-*` class
-        // (FIT-66). Without it the knob reads flat against the track.
+        className="h-[27px] w-[27px] rounded-full bg-white"
+        // Knob drop-shadow (boxShadow 0 1px 2px rgba(0,0,0,0.2)); inline iOS
+        // shadow object, never a `shadow-*` class (FIT-66). Travel = 51 - 2 - 2
+        // - 27 = 20.
         style={{
-          transform: [{ translateX: value ? 18 : 0 }],
+          transform: [{ translateX: value ? 20 : 0 }],
           shadowColor: "#000",
           shadowOffset: { width: 0, height: 1 },
           shadowOpacity: 0.2,

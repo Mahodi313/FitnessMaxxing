@@ -138,32 +138,36 @@ function GoalStepper({
 }) {
   const { colorScheme } = useColorScheme();
   const ink = colorScheme === "dark" ? "#FF5A1F" : "#E14E10";
+  // 46px circular accent-soft buttons (bigger, clearly tappable, matches the
+  // accent-soft icon-tile motif). FIT-66: pressed feedback via style callback.
+  const btn =
+    "items-center justify-center rounded-full bg-forge-accentSoft-light dark:bg-forge-accentSoft";
   return (
-    <View className="flex-row items-center gap-3">
+    <View className="flex-row items-center gap-4">
       <Pressable
         onPress={() => onChange(value - 1)}
         accessibilityRole="button"
         accessibilityLabel={decrementLabel}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        className="items-center justify-center rounded-forge-sm border border-forge-borderStrong-light bg-forge-surface3-light dark:border-forge-borderStrong dark:bg-forge-surface3"
+        className={btn}
         style={({ pressed }) => [
-          { width: 44, height: 44 },
-          pressed ? { opacity: 0.85 } : null,
+          { width: 46, height: 46 },
+          pressed ? { opacity: 0.7 } : null,
         ]}
       >
-        {/* No `minus` glyph in the Icon set — render the U+2212 minus sign in
-            the accent ink (matches the `+` Icon weight). */}
-        <Text style={{ color: ink, fontSize: 22, fontWeight: "700", lineHeight: 24 }}>
-          −
-        </Text>
+        {/* Crisp minus BAR (a View, not a text glyph) — matches the plus icon's
+            stroke weight so − and + read as a matched pair. */}
+        <View
+          style={{ width: 18, height: 2.6, borderRadius: 2, backgroundColor: ink }}
+        />
       </Pressable>
       <Text
         className="text-forge-text-light dark:text-forge-text"
         style={{
-          fontSize: 18,
+          fontSize: 20,
           fontWeight: "700",
           fontVariant: ["tabular-nums"],
-          minWidth: 22,
+          minWidth: 26,
           textAlign: "center",
         }}
       >
@@ -174,13 +178,13 @@ function GoalStepper({
         accessibilityRole="button"
         accessibilityLabel={incrementLabel}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        className="items-center justify-center rounded-forge-sm border border-forge-borderStrong-light bg-forge-surface3-light dark:border-forge-borderStrong dark:bg-forge-surface3"
+        className={btn}
         style={({ pressed }) => [
-          { width: 44, height: 44 },
-          pressed ? { opacity: 0.85 } : null,
+          { width: 46, height: 46 },
+          pressed ? { opacity: 0.7 } : null,
         ]}
       >
-        <Icon name="plus" size={18} color={ink} strokeWidth={2.2} />
+        <Icon name="plus" size={20} color={ink} strokeWidth={2.4} />
       </Pressable>
     </View>
   );
