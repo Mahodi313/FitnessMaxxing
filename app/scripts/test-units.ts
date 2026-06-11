@@ -29,6 +29,12 @@ const cases: Case[] = [
   { name: "formatWeight(100,'metric') === '100 kg'", actual: formatWeight(100, "metric"), expected: "100 kg" },
   { name: "formatWeight(100,'imperial') === '220.5 lb'", actual: formatWeight(100, "imperial"), expected: "220.5 lb" },
   { name: "formatWeight(0,'imperial') === '0 lb'", actual: formatWeight(0, "imperial"), expected: "0 lb" },
+  // WR-04 — fractional metric must round/trim in formatWeight (not raw float).
+  { name: "formatWeight(72.5,'metric') === '72.5 kg'", actual: formatWeight(72.5, "metric"), expected: "72.5 kg" },
+  { name: "formatWeight(72.4999999,'metric') === '72.5 kg'", actual: formatWeight(72.4999999, "metric"), expected: "72.5 kg" },
+  // WR-04 — fractional-metric passthrough stays unrounded in toDisplayWeight
+  // (display formatting lives in formatWeight; the transform is canonical kg).
+  { name: "toDisplayWeight(72.5,'metric') === 72.5", actual: toDisplayWeight(72.5, "metric"), expected: 72.5 },
 ];
 
 // Type-level smoke: UnitPref is exported and usable.

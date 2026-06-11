@@ -228,16 +228,26 @@ export default function SettingsTab() {
   // Load profile (display_name + weekly_goal) — own-row read (RLS).
   useEffect(() => {
     if (!userId) return;
-    void supabase
-      .from("profiles")
-      .select("display_name, weekly_goal")
-      .eq("id", userId)
-      .single()
-      .then(({ data }) => {
+    void Promise.resolve(
+      supabase
+        .from("profiles")
+        .select("display_name, weekly_goal")
+        .eq("id", userId)
+        .single(),
+    )
+      .then(({ data, error }) => {
+        // WR-03: surface the error branch — a transient RLS/network failure
+        // resolves with data === null and must not silently leave stale
+        // optimistic defaults (name=null / goal=3) with no signal.
+        if (error) {
+          console.warn("[settings] profile load failed", error.message);
+          return;
+        }
         if (!data) return;
         setDisplayName(data.display_name ?? null);
         if (typeof data.weekly_goal === "number") setGoal(data.weekly_goal);
-      });
+      })
+      .catch((e) => console.warn("[settings] profile load threw", e));
   }, [userId]);
 
   const onThemeChange = (value: ThemePref) => {
@@ -321,8 +331,11 @@ export default function SettingsTab() {
       .single()
       .then(({ data, error }) => {
         if (error || !data) {
-          // Roll back optimistic update on RLS/write failure.
-          setGoal(previous);
+          // Roll back optimistic update on RLS/write failure — but ONLY if a
+          // later tap hasn't already superseded this write (last-writer-wins
+          // race: a failed early write must not resurrect a stale value the
+          // user has since advanced past). WR-02.
+          setGoal((cur) => (cur === clamped ? previous : cur));
           console.warn("[settings] weekly_goal persist failed — rolled back");
         }
       });

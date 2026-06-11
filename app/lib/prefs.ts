@@ -83,8 +83,13 @@ export async function getPref<K extends PrefKey>(key: K): Promise<PrefMap[K]> {
  * and is swallowed, never blocking the UI.
  */
 export function setPref<K extends PrefKey>(key: K, value: PrefMap[K]): void {
+  // WR-05: total, explicit serializer. The else branch's residual type
+  // (UnitPref | LanguagePref) happens to be string-assignable today, but
+  // `String(value)` makes "everything serializes to string" the explicit
+  // contract — future-proofs against a non-string non-boolean pref (e.g. a
+  // numeric `fm:restSeconds`) silently coercing through a lying annotation.
   const stored: string =
-    typeof value === "boolean" ? (value ? "true" : "false") : value;
+    typeof value === "boolean" ? (value ? "true" : "false") : String(value);
   void AsyncStorage.setItem(key, stored).catch(() => {
     console.warn(`[prefs] AsyncStorage write failed — ${key} not persisted`);
   });

@@ -24,10 +24,11 @@ files_reviewed_list:
   - app/scripts/test-rls.ts
 findings:
   critical: 0
-  warning: 5
+  warning: 0
   info: 6
   total: 11
-status: issues_found
+warnings_resolved: 5
+status: warnings_resolved
 ---
 
 # Phase 9: Code Review Report
@@ -35,7 +36,7 @@ status: issues_found
 **Reviewed:** 2026-06-11
 **Depth:** standard
 **Files Reviewed:** 18
-**Status:** issues_found
+**Status:** warnings_resolved (all 5 warnings fixed 2026-06-11; 6 Info items remain open by scope)
 
 ## Summary
 
@@ -71,7 +72,7 @@ optimistic write has a last-writer-wins race that can resurrect a stale value).
 
 ## Warnings
 
-### WR-01: `display_name` trust boundary is client-side only — direct API bypass stores unbounded text
+### WR-01: `display_name` trust boundary is client-side only — direct API bypass stores unbounded text — RESOLVED bc1ad5a
 
 **File:** `app/supabase/migrations/0008_handle_new_user_display_name.sql:34-38`
 **Issue:** The migration header asserts "The trust boundary is the Zod
@@ -97,7 +98,7 @@ values (
 column in a follow-up migration). `left(...)` is the lighter touch since it never
 fails the signup insert.
 
-### WR-02: Weekly-goal optimistic update has a last-writer-wins race that can resurrect a stale value
+### WR-02: Weekly-goal optimistic update has a last-writer-wins race that can resurrect a stale value — RESOLVED f6caad6
 
 **File:** `app/app/(app)/(tabs)/settings.tsx:310-329`
 **Issue:** `onGoalChange` captures `previous = goal` (the value at call time) and
@@ -125,7 +126,7 @@ void supabase.from("profiles").update({ weekly_goal: clamped }).eq("id", userId)
   });
 ```
 
-### WR-03: Profile/prefs load effects swallow the error branch — a failed read leaves stale optimistic UI with no signal
+### WR-03: Profile/prefs load effects swallow the error branch — a failed read leaves stale optimistic UI with no signal — RESOLVED 16f35a3
 
 **File:** `app/app/(app)/(tabs)/settings.tsx:229-241`
 **Issue:** The profile-load `.then(({ data }) => ...)` destructures only `data`
@@ -149,7 +150,7 @@ call that rejects (rare, but possible on a thrown fetch) is an unhandled rejecti
 .catch((e) => console.warn("[settings] profile load threw", e));
 ```
 
-### WR-04: `formatWeight` emits locale-naive / unrounded metric strings — fractional kg render with full float noise
+### WR-04: `formatWeight` emits locale-naive / unrounded metric strings — fractional kg render with full float noise — RESOLVED 30a69e0
 
 **File:** `app/lib/units.ts:28-40`
 **Issue:** `toDisplayWeight` rounds the *imperial* branch to 0.5 but the metric
@@ -169,7 +170,7 @@ return `${fmt(v)} ${unit === "imperial" ? "lb" : "kg"}`;
 ```
 and add a fractional-kg case to `test-units.ts`.
 
-### WR-05: `setPref` boolean coercion relies on a non-exhaustive ternary that types `string` as `boolean`-or-`string`
+### WR-05: `setPref` boolean coercion relies on a non-exhaustive ternary that types `string` as `boolean`-or-`string` — RESOLVED 7a0f15e
 
 **File:** `app/lib/prefs.ts:85-91`
 **Issue:** `const stored: string = typeof value === "boolean" ? (...) : value;`
