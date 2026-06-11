@@ -91,6 +91,12 @@
   "units": "Enheter",
   "metric": "Metrisk (kg)",
   "imperial": "Imperial (lbs)",
+  "weeklyGoal": "Veckomål",
+  "sessionsPerWeek": "pass/vecka",
+  "increment": "Öka",
+  "decrement": "Minska",
+  "showPassword": "Visa lösenord",
+  "hidePassword": "Dölj lösenord",
   "notifications": "Notiser",
   "restTimer": "Vilotimer",
   "haptics": "Haptik",
@@ -98,6 +104,7 @@
   "signOut": "Logga ut",
   "appearance": "Utseende",
   "workoutPrefs": "Träning",
+  "cancel": "Avbryt",
 
   "offline": "Du är offline — ändringar synkar när nätet är tillbaka."
 }

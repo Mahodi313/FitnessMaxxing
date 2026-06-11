@@ -30,6 +30,9 @@ import { Icon, type IconName } from "./Icon";
 export type SettingsRowProps = {
   icon: IconName;
   label: string;
+  /** Secondary caption under the label (e.g. a unit hint). Stacks vertically so
+   *  it never competes for row width — locale-safe against truncation. */
+  subtitle?: string;
   value?: string;
   chevron?: boolean;
   toggle?: boolean;
@@ -45,8 +48,10 @@ export type SettingsRowProps = {
 const TEXT3_LIGHT = "#8B8B8B";
 const ACCENT_LIGHT = "#E14E10";
 
-// The 44x26 toggle pill — a custom Pressable (FIT-66: pressed feedback + knob
-// position via style callback, never a NativeWind active:/transition class).
+// iOS-standard 51×31 toggle — a custom Pressable (FIT-66: pressed feedback via
+// style callback, never a NativeWind active:/transition class). Track bg via
+// className (ON=accent, OFF=surface3) — NativeWind reliably renders className
+// backgrounds; putting the bg in the style callback left the track transparent.
 function Toggle({
   value,
   onToggle,
@@ -63,7 +68,7 @@ function Toggle({
       accessibilityState={{ checked: value }}
       accessibilityLabel={label}
       hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-      className={`h-[26px] w-11 justify-center rounded-full px-[2px] ${
+      className={`h-[31px] w-[51px] justify-center rounded-full px-[2px] ${
         value
           ? "bg-forge-accent-light dark:bg-forge-accent"
           : "bg-forge-surface3-light dark:bg-forge-surface3"
@@ -71,8 +76,17 @@ function Toggle({
       style={({ pressed }) => (pressed ? { opacity: 0.85 } : null)}
     >
       <View
-        className="h-[22px] w-[22px] rounded-full bg-white"
-        style={{ transform: [{ translateX: value ? 18 : 0 }] }}
+        className="h-[27px] w-[27px] rounded-full bg-white"
+        // Knob drop-shadow (boxShadow 0 1px 2px rgba(0,0,0,0.2)); inline iOS
+        // shadow object, never a `shadow-*` class (FIT-66). Travel = 51 - 2 - 2
+        // - 27 = 20.
+        style={{
+          transform: [{ translateX: value ? 20 : 0 }],
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.2,
+          shadowRadius: 2,
+        }}
       />
     </Pressable>
   );
@@ -81,6 +95,7 @@ function Toggle({
 export function SettingsRow({
   icon,
   label,
+  subtitle,
   value,
   chevron,
   toggle,
@@ -105,13 +120,24 @@ export function SettingsRow({
         <Icon name={icon} size={15} color={ACCENT_LIGHT} strokeWidth={1.8} />
       </View>
 
-      <Text
-        className="flex-1 text-[15px] text-forge-text-light dark:text-forge-text"
-        style={{ fontWeight: "500" }}
-        numberOfLines={1}
-      >
-        {label}
-      </Text>
+      <View className="flex-1">
+        <Text
+          className="text-[15px] text-forge-text-light dark:text-forge-text"
+          style={{ fontWeight: "500" }}
+          numberOfLines={1}
+        >
+          {label}
+        </Text>
+        {subtitle ? (
+          <Text
+            className="text-[13px] text-forge-text2-light dark:text-forge-text2"
+            style={{ marginTop: 1 }}
+            numberOfLines={1}
+          >
+            {subtitle}
+          </Text>
+        ) : null}
+      </View>
 
       {value ? (
         <Text className="text-[15px] text-forge-text2-light dark:text-forge-text2">

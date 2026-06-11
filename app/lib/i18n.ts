@@ -32,6 +32,7 @@ import { initReactI18next } from "react-i18next";
 
 import en from "../locales/en.json";
 import sv from "../locales/sv.json";
+import { resolveLanguageCore, type LanguagePref } from "./resolve-language";
 
 i18n.use(initReactI18next).init({
   resources: {
@@ -45,3 +46,32 @@ i18n.use(initReactI18next).init({
 });
 
 export default i18n;
+
+// ---------------------------------------------------------------------------
+// resolveLanguage — three-state (fm:language) → two-state (engine language)
+//
+// Phase 9 (Plan 09-01), D-10/D-11 (RESEARCH Pattern 2). The Settings language
+// control and LocaleBootstrap both pipe the stored fm:language pref through
+// this resolver before calling i18n.changeLanguage(); only the 'sv'|'en'
+// literals ever reach the engine (T-09-04 / T-08-11 lineage — no free text).
+//
+// `deviceLang` is injectable so the resolver is unit-testable in a Node `tsx`
+// run with no Expo runtime (scripts/test-locale-resolve.ts). When omitted it
+// reads the live device locale via expo-localization.
+//
+// NOTE: this does NOT alter the init block above — `fallbackLng: "sv"` stays as
+// the *missing-key* fallback (Swedish is the authored primary), per RESEARCH
+// Pitfall 1 / Open Question 1. D-11 (Swedish device → sv, anything else → en)
+// lives here, not in fallbackLng.
+// ---------------------------------------------------------------------------
+
+// LanguagePref re-exported from the pure core so screen code keeps a single
+// import surface (`@/lib/i18n`).
+export type { LanguagePref };
+
+export function resolveLanguage(pref: LanguagePref, deviceLang?: string): "sv" | "en" {
+  // Supply the live device locale by default; the pure core (resolve-language.ts)
+  // owns the mapping and stays Node-importable for tests. D-11 lives in the core.
+  const lang = deviceLang ?? Localization.getLocales()[0]?.languageCode ?? undefined;
+  return resolveLanguageCore(pref, lang);
+}

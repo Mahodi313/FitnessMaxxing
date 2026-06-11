@@ -11,8 +11,10 @@
 // the route group (Phase 3 D-08). The tabs layout is rendered INSIDE the
 // protected tree.
 //
-// Tab tints bound via useColorScheme() per UI-SPEC §Color (light: #2563EB
-// active / #6B7280 inactive; dark: #60A5FA / #9CA3AF).
+// Tab tints bound via useColorScheme() — Forge re-skin (Plan 09-02 UAT, color-
+// only, no nav/structure/icon change): active accent (#E14E10 light / #FF5A1F
+// dark), inactive forge-text2 (#4D4D4D light / rgba(255,255,255,0.62) dark),
+// surface + hairline border match the Forge dark chrome elsewhere on screen.
 //
 // headerShown: false at the (tabs) layer because each tab screen renders
 // its own SafeAreaView + heading. Plan-detail (Plan 03) will opt headers in
@@ -34,18 +36,25 @@ export default function TabsLayout() {
   const isDark = colorScheme === "dark";
 
   return (
-    <SafeAreaView edges={["top"]} className="flex-1 bg-white dark:bg-gray-900">
+    <SafeAreaView
+      edges={["top"]}
+      className="flex-1 bg-forge-bg-light dark:bg-forge-bg"
+    >
       <OfflineBanner />
       <ActiveSessionBanner />
       <Tabs
         screenOptions={{
           headerShown: false,
           tabBarStyle: {
-            backgroundColor: isDark ? "#1F2937" : "#F3F4F6",
-            borderTopColor: isDark ? "#374151" : "#E5E7EB",
+            backgroundColor: isDark ? "#0E0E10" : "#FFFFFF",
+            borderTopColor: isDark
+              ? "rgba(255,255,255,0.08)"
+              : "rgba(0,0,0,0.07)",
           },
-          tabBarActiveTintColor: isDark ? "#60A5FA" : "#2563EB",
-          tabBarInactiveTintColor: isDark ? "#9CA3AF" : "#6B7280",
+          tabBarActiveTintColor: isDark ? "#FF5A1F" : "#E14E10",
+          tabBarInactiveTintColor: isDark
+            ? "rgba(255,255,255,0.62)"
+            : "#4D4D4D",
         }}
       >
         <Tabs.Screen
