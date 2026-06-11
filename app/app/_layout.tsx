@@ -44,6 +44,11 @@ import "@/lib/i18n";
 // the LOAD-BEARING side-effect explicit while giving LocaleBootstrap the handle.
 // eslint-disable-next-line import/no-duplicates
 import i18n from "@/lib/i18n";
+// resolveLanguage (Plan 09-01): three-state fm:language pref → two-state engine
+// language. Imported here so LocaleBootstrap can resolve a stored 'system' pref
+// via the device locale instead of silently rewriting it to 'sv'.
+// eslint-disable-next-line import/no-duplicates
+import { resolveLanguage } from "@/lib/i18n";
 import { usePersistenceStore } from "@/lib/persistence-store";
 import { useFontStore } from "@/lib/font-store";
 
@@ -146,18 +151,27 @@ function FontBootstrap() {
 /**
  * Applies the user's saved language override (fm:language) before the splash
  * clears, then flips localeReady (I18N-01). Reuses ThemeBootstrap's exact
- * corrupt-value-tolerant idiom: z.enum(['sv','en']).catch('sv').parse(v) — a
- * tampered/garbage value falls back to 'sv' and never throws (T-08-03). FAIL-
- * OPEN via .finally(): localeReady flips on success AND IO failure so a read
- * error can't hang the splash (T-08-04 / Pitfall 7).
+ * corrupt-value-tolerant idiom — a tampered/garbage value falls back to the
+ * default and never throws (T-09-06 / T-08-03).
+ *
+ * Phase 9 (Plan 09-02, RESEARCH Pitfall 2): the pref is THREE-STATE
+ * (`system | sv | en`). The enum is widened to include `"system"` (default
+ * `"system"`) and the parsed pref is piped through `resolveLanguage()` before
+ * `i18n.changeLanguage()` — so a stored `'system'` resolves via the device
+ * locale (D-11) instead of being silently rewritten to `'sv'` on cold launch.
+ * resolveLanguage returns only the `'sv'|'en'` literal union, so no free text
+ * reaches the engine (T-09-08).
+ *
+ * FAIL-OPEN via .finally(): localeReady flips on success AND IO failure so a
+ * read error / corrupt pref can never hang the splash (T-09-09 / Pitfall 7).
  */
 function LocaleBootstrap() {
   const setLocaleReady = useFontStore((s) => s.setLocaleReady);
   useEffect(() => {
     void AsyncStorage.getItem("fm:language")
       .then((v) => {
-        const l = z.enum(["sv", "en"]).catch("sv").parse(v);
-        return i18n.changeLanguage(l);
+        const pref = z.enum(["system", "sv", "en"]).catch("system").parse(v);
+        return i18n.changeLanguage(resolveLanguage(pref));
       })
       .catch(() => {
         // IO error reading fm:language — i18n keeps its init language; the

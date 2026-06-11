@@ -47,6 +47,19 @@
 //   - `shadow-sm`         → explicit iOS shadow style props (V1 is iOS-only)
 // All other styling stays on NativeWind className — the pressed-state and
 // shadow are the only properties css-interop is unsafe with here.
+//
+// Phase 9 Forge re-skin (Plan 09-02, 09-UI-SPEC §Color):
+//   - track   `bg-gray-100 dark:bg-gray-800`  → `forge-surface2` (light+dark parity)
+//   - active  pill `bg-white dark:bg-gray-700` → `forge-surface3`
+//   - active  text → `text-forge-text`; inactive text → `text-forge-text2`
+//   Each `-light` base token pairs with a `dark:` DEFAULT token per the
+//   established Forge light+dark parity rule (08-PATTERNS §Light+dark token
+//   parity). The generic `<T extends string>` API + a11y tablist roles are
+//   UNCHANGED. FIT-66 stays preserved: pressed feedback + selected-pill shadow
+//   remain on `style={({ pressed }) => [...]}` callbacks + explicit iOS shadow
+//   objects — NEVER `active:opacity-*` / `shadow-*` classes. Pill label is
+//   Caption/600; optical pill padding (6px 12px) is applied via inline `style`,
+//   not arbitrary Tailwind classes (NativeWind 4 / Tailwind 3 purge).
 
 import { Pressable, Text, View } from "react-native";
 
@@ -76,7 +89,7 @@ export function SegmentedControl<T extends string>({
 }: Props<T>) {
   return (
     <View
-      className="flex-row rounded-lg bg-gray-100 dark:bg-gray-800 p-1"
+      className="flex-row rounded-forge-sm bg-forge-surface2-light dark:bg-forge-surface2 p-1"
       accessibilityRole="tablist"
       accessibilityLabel={accessibilityLabel}
     >
@@ -92,20 +105,25 @@ export function SegmentedControl<T extends string>({
             hitSlop={{ top: 4, bottom: 4 }}
             className={
               selected
-                ? "flex-1 py-2 px-3 rounded-md items-center justify-center bg-white dark:bg-gray-700"
-                : "flex-1 py-2 px-3 rounded-md items-center justify-center"
+                ? "flex-1 rounded-forge-sm items-center justify-center bg-forge-surface3-light dark:bg-forge-surface3"
+                : "flex-1 rounded-forge-sm items-center justify-center"
             }
+            // Optical pill padding (6px 12px) via inline style — NativeWind 4 /
+            // Tailwind 3 purges off-scale arbitrary classes.
             style={({ pressed }) => [
+              { paddingVertical: 6, paddingHorizontal: 12 },
               selected ? selectedShadow : null,
               pressed ? { opacity: 0.8 } : null,
             ]}
           >
             <Text
+              // Caption/600 — active=forge-text, inactive=forge-text2.
               className={
                 selected
-                  ? "text-sm font-semibold text-gray-900 dark:text-gray-50"
-                  : "text-sm font-semibold text-gray-500 dark:text-gray-400"
+                  ? "text-sm text-forge-text-light dark:text-forge-text"
+                  : "text-sm text-forge-text2-light dark:text-forge-text2"
               }
+              style={{ fontWeight: "600" }}
             >
               {option.label}
             </Text>
