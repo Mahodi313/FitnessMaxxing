@@ -103,7 +103,7 @@ export function SegmentedControl<T extends string>({
       // its row; default = full-width flex segments (chart toggles).
       style={
         compact
-          ? { padding: 4, columnGap: 4, alignSelf: "center" }
+          ? { padding: 4, columnGap: 5, alignSelf: "center" }
           : { padding: 4 }
       }
       accessibilityRole="tablist"
@@ -139,12 +139,12 @@ export function SegmentedControl<T extends string>({
             style={({ pressed }) => [
               compact
                 ? {
-                    paddingVertical: 8,
-                    paddingHorizontal: 10,
-                    borderRadius: 8,
+                    paddingVertical: 11,
+                    paddingHorizontal: 12,
+                    borderRadius: 9,
                     // Uniform pill width so System/Ljust/Mörkt read as an even
                     // 3-segment control, not ragged content-sized chips.
-                    minWidth: 68,
+                    minWidth: 70,
                   }
                 : { paddingVertical: 6, paddingHorizontal: 12 },
               selected ? selectedShadow : null,
@@ -158,7 +158,7 @@ export function SegmentedControl<T extends string>({
                   ? "text-forge-text-light dark:text-forge-text"
                   : "text-forge-text2-light dark:text-forge-text2"
               }
-              style={{ fontWeight: "600", fontSize: 14 }}
+              style={{ fontWeight: "600", fontSize: compact ? 15 : 14 }}
             >
               {option.label}
             </Text>
