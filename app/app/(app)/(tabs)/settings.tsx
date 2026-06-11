@@ -490,7 +490,7 @@ export default function SettingsTab() {
         ) : null}
         <ForgeButton
           label={t("signOut")}
-          variant="secondary"
+          variant="destructive"
           size="md"
           fullWidth
           onPress={signOut}

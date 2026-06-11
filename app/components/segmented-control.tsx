@@ -103,7 +103,7 @@ export function SegmentedControl<T extends string>({
       // its row; default = full-width flex segments (chart toggles).
       style={
         compact
-          ? { padding: 3, columnGap: 2, alignSelf: "center" }
+          ? { padding: 4, columnGap: 3, alignSelf: "center" }
           : { padding: 4 }
       }
       accessibilityRole="tablist"
@@ -116,11 +116,13 @@ export function SegmentedControl<T extends string>({
           : "flex-1 rounded-forge-sm items-center justify-center";
         // Selected pill: compact → `forge-surface` (FSettings mockup); default →
         // `forge-surface3` (raised look the chart toggles use).
-        const selectedBg = !selected
-          ? ""
-          : compact
-            ? " bg-forge-surface-light dark:bg-forge-surface"
-            : " bg-forge-surface3-light dark:bg-forge-surface3";
+        // Selected pill raised in `forge-surface3` (lighter than the surface2
+        // track) so the active segment reads clearly instead of as crammed
+        // text — both variants. (The mockup's recessed `forge-surface` had near-
+        // zero contrast on device.)
+        const selectedBg = selected
+          ? " bg-forge-surface3-light dark:bg-forge-surface3"
+          : "";
         return (
           <Pressable
             key={option.value}
@@ -135,9 +137,10 @@ export function SegmentedControl<T extends string>({
             // feedback + selected shadow stay on the style callback / inline
             // objects, never `active:`/`shadow-*` classes.
             style={({ pressed }) => [
-              { paddingVertical: 6, paddingHorizontal: 12 },
-              compact ? { borderRadius: 8 } : null,
-              selected && !compact ? selectedShadow : null,
+              compact
+                ? { paddingVertical: 7, paddingHorizontal: 14, borderRadius: 8 }
+                : { paddingVertical: 6, paddingHorizontal: 12 },
+              selected ? selectedShadow : null,
               pressed ? { opacity: 0.8 } : null,
             ]}
           >
@@ -148,7 +151,7 @@ export function SegmentedControl<T extends string>({
                   ? "text-forge-text-light dark:text-forge-text"
                   : "text-forge-text2-light dark:text-forge-text2"
               }
-              style={{ fontWeight: "600", fontSize: compact ? 12 : 14 }}
+              style={{ fontWeight: "600", fontSize: compact ? 13 : 14 }}
             >
               {option.label}
             </Text>
