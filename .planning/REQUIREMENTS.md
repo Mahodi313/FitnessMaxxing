@@ -19,13 +19,13 @@
 ### Screen Re-skin (SKIN)
 
 - [ ] **SKIN-01**: Auth screens (sign-in, sign-up) match the Forge design in light + dark
-- [ ] **SKIN-02**: Plans list / Home, plan detail, and new-plan screens match the Forge design
-- [ ] **SKIN-03**: Exercise picker (browse + create-new) and plan-exercise edit screens match the Forge design
+- [x] **SKIN-02**: Plans list / Home, plan detail, and new-plan screens match the Forge design
+- [x] **SKIN-03**: Exercise picker (browse + create-new) and plan-exercise edit screens match the Forge design
 - [ ] **SKIN-04**: Active-workout screen matches the Forge design with the set log, input row, and progress dots
 - [ ] **SKIN-05**: The three session overlays (finish, draft-resume, saved-toast) and the active-session banner match the Forge design and stay inline-rendered (no modal portals)
 - [ ] **SKIN-06**: History list, session detail, and exercise chart screens match the Forge design
 - [ ] **SKIN-07**: Tab bar matches the Forge design (Planer / Historik / Inställningar) in light + dark
-- [ ] **SKIN-08**: Re-skin introduces no regression to the ≤3s log-set budget or F13 (`npm run test:f13-brutal` stays green)
+- [x] **SKIN-08**: Re-skin introduces no regression to the ≤3s log-set budget or F13 (`npm run test:f13-brutal` stays green)
 
 ### Settings & Preferences (SET)
 
@@ -126,13 +126,13 @@
 | SET-08 | Phase 9 | Pending |
 | SET-09 | Phase 9 | Pending |
 | I18N-02 | Phase 9 | Pending |
-| SKIN-02 | Phase 10 | Pending |
-| SKIN-03 | Phase 10 | Pending |
+| SKIN-02 | Phase 10 | Complete |
+| SKIN-03 | Phase 10 | Complete |
 | SKIN-07 | Phase 10 | Pending |
 | I18N-05 | Phase 10 | Pending |
 | SKIN-04 | Phase 11 | Pending |
 | SKIN-05 | Phase 11 | Pending |
-| SKIN-08 | Phase 11 | Pending |
+| SKIN-08 | Phase 11 | Complete |
 | MOTN-01 | Phase 11 | Pending |
 | MOTN-04 | Phase 11 | Pending |
 | MOTN-05 | Phase 11 | Pending |

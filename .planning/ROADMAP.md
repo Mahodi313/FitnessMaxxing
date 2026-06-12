@@ -97,11 +97,11 @@ Plans:
 3. The tab bar (Planer / Historik / Inställningar) matches the design in light + dark
 4. User-created names and notes are stored exactly as written, never auto-translated
 
-**Plans:** 6 plans
+**Plans:** 1/6 plans executed
 Plans:
 **Wave 1**
 
-- [ ] 10-01-PLAN.md — Foundation: migration 0010 (seed_key + plan_name_snapshot + RPC re-deploy) + useDeletePlan/[plan,delete] + snapshot-on-start + schema/verify-deploy/test-rls extensions (Wave 1)
+- [x] 10-01-PLAN.md — Foundation: migration 0010 (seed_key + plan_name_snapshot + RPC re-deploy) + useDeletePlan/[plan,delete] + snapshot-on-start + schema/verify-deploy/test-rls extensions (Wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -199,7 +199,7 @@ Deferred to a later milestone (needs Apple Developer license + tooling). Mapped 
 | 7. V1 Polish Cut                              | v1.0 | 5/5 | ✓ Complete | 2026-05-16 |
 | 8. Forge Foundation                           | v2.0 | 5/5 | Complete   | 2026-06-10 |
 | 9. Auth, Settings & Preferences               | v2.0 | 3/3 | Complete   | 2026-06-11 |
-| 10. Plans & Exercises Re-skin                 | v2.0 | 0/? | ○ Planned  | — |
+| 10. Plans & Exercises Re-skin                 | v2.0 | 1/6 | In Progress|  |
 | 11. Active Workout Re-skin (F13 risk)         | v2.0 | 0/? | ○ Planned  | — |
 | 12. History, Detail, Chart & Dashboard        | v2.0 | 0/? | ○ Planned  | — |
 | 13. PR Celebration (F18)                      | v2.0 | 0/? | ○ Planned  | — |

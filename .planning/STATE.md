@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Forge Redesign
 status: executing
-stopped_at: Phase 10 UI-SPEC approved
-last_updated: "2026-06-12T18:18:39.170Z"
-last_activity: 2026-06-12 -- Phase 10 planning complete
+stopped_at: Completed 10-01-PLAN.md
+last_updated: "2026-06-12T18:42:13.655Z"
+last_activity: 2026-06-12
 progress:
   total_phases: 8
   completed_phases: 2
   total_plans: 14
-  completed_plans: 8
+  completed_plans: 9
   percent: 25
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-09)
 
 **Core value:** Logga ett set och omedelbart se vad jag tog senast på samma övning — utan att tappa data, någonsin.
-**Current focus:** Phase 10 — plans & exercises re skin
+**Current focus:** Phase 10 — plans-exercises-re-skin
 
 ## Current Position
 
-Phase: 10
-Plan: Not started
+Phase: 10 (plans-exercises-re-skin) — EXECUTING
+Plan: 2 of 6
 Status: Ready to execute
-Last activity: 2026-06-12 -- Phase 10 planning complete
+Last activity: 2026-06-12
 
 ## Performance Metrics
 
@@ -65,6 +65,7 @@ Last activity: 2026-06-12 -- Phase 10 planning complete
 | Phase 08 P04 | ~18min | 3 tasks | 7 files |
 | Phase 08 P05 | ~20min | 2 tasks | 2 files |
 | Phase 09 P01 | ~18min | 3 tasks | 12 files |
+| Phase 10 P10-01 | 5 | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -106,6 +107,8 @@ Recent decisions affecting current work:
 - [Phase ?]: Phase 8 Plan 05: dev-only Forge gallery at (app)/_forge-gallery.tsx — __DEV__-guarded, outside (tabs), reachable via router.push('/_forge-gallery'); added components/ui barrel; live <Tabs> untouched (OQ-5)
 - **2026-06-11 [Phase 09 Plan 01]**: resolveLanguage pure core extracted to lib/resolve-language.ts — importing lib/i18n.ts under Node tsx breaks (expo-localization → untranspiled react-native; esbuild "Unexpected typeof" in react-native/index.js). lib/i18n.ts keeps a `resolveLanguage(pref, deviceLang?)` wrapper delegating to the core (supplies live Localization locale by default); pure unit tests import resolveLanguageCore from the pure module. Pattern: any Phase 9+ Node test of i18n-adjacent logic must target a pure module, not i18n.ts. Same boundary will apply if units/prefs ever gain Expo imports.
 - **2026-06-11 [Phase 09 Plan 01]**: profiles.weekly_goal landed live (0007) — int NOT NULL DEFAULT 3 CHECK (1..7); no new RLS policy (own-row profiles policies from 0001 cover the column). Checkpoint:human-action push resolved non-interactively (`supabase db push` with empty stdin → Y). fm:* prefs centralized in lib/prefs.ts with catch-parse on every read + booleans as "true"/"false" strings (no JSON.parse throw surface). Plans 09-02/03 consume these.
+- [Phase ?]: D-06: exercises.seed_key nullable additive column; reuses column-agnostic own-row RLS (no new policy)
+- [Phase ?]: D-11: hard-delete preserves history via FK ON DELETE SET NULL + plan_name_snapshot backfill + get_session_summaries coalesce + useDeletePlan
 
 ### Pending Todos
 
@@ -136,9 +139,9 @@ Items acknowledged for later:
 
 ## Session Continuity
 
-Last session: 2026-06-12T17:37:23.122Z
-Stopped at: Phase 10 UI-SPEC approved
-Resume file: .planning/phases/10-plans-exercises-re-skin/10-UI-SPEC.md
+Last session: 2026-06-12T18:42:13.646Z
+Stopped at: Completed 10-01-PLAN.md
+Resume file: None
 Next: Orchestrator runs phase-level closeout — `/gsd-secure-phase 4` (close threat register T-04-01 … T-04-12 against implementation; produce 04-SECURITY.md with threats_open: 0) → `/gsd-verify-work 4` (write 04-VERIFICATION.md with all 5 success criteria MET) → `/gsd-code-review` (post-phase audit) → phase.complete (advance ROADMAP Phase 4 → ✓ Complete). Then plan Phase 5 (Active Workout Hot Path — F13 lives or dies).
 
 ## Operator Next Steps
