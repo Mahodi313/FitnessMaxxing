@@ -65,7 +65,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslation } from "react-i18next";
 import Svg, { Path, Circle } from "react-native-svg";
 
-import { Icon } from "@/components/ui";
+import { Icon, ForgeButton } from "@/components/ui";
 import {
   exerciseFormSchema,
   MUSCLE_GROUP_KEYS,
@@ -496,41 +496,19 @@ export default function ExercisePicker() {
                 ) : null}
               </FieldBlock>
 
-              {/* Submit — chains create→add under shared scope (SP-2 .mutate) */}
-              <Pressable
+              {/* Submit — chains create→add under shared scope (SP-2 .mutate).
+                  ForgeButton primitive (box decoration via className) so the
+                  accent fill renders under NativeWind 4. */}
+              <ForgeButton
+                label={t("createAndAdd")}
+                icon="plus"
+                iconPosition="trailing"
+                variant="primary"
+                size="lg"
+                fullWidth
+                loading={isSubmitting}
                 onPress={handleSubmit(onCreateAndAdd)}
-                disabled={isSubmitting}
-                accessibilityRole="button"
-                accessibilityLabel={t("createAndAdd")}
-                style={({ pressed }) => [
-                  {
-                    height: 60,
-                    borderRadius: 18,
-                    backgroundColor: tk.accent,
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexDirection: "row",
-                    gap: 8,
-                    shadowColor: tk.accent,
-                    shadowOffset: { width: 0, height: 8 },
-                    shadowOpacity: 0.45,
-                    shadowRadius: 16,
-                  },
-                  isSubmitting ? { opacity: 0.4 } : pressed ? { opacity: 0.85 } : null,
-                ]}
-              >
-                <Text
-                  style={{
-                    fontSize: 17,
-                    fontWeight: "600",
-                    color: tk.accentText,
-                    letterSpacing: -0.2,
-                  }}
-                >
-                  {t("createAndAdd")}
-                </Text>
-                <Icon name="plus" size={18} color={tk.accentText} strokeWidth={2.2} />
-              </Pressable>
+              />
             </ScrollView>
           ) : (
             // ── FExercisePicker — browse (search + filter pills + list) ─────
@@ -611,21 +589,8 @@ export default function ExercisePicker() {
                   onPress={() => setShowCreateForm(true)}
                   accessibilityRole="button"
                   accessibilityLabel={t("createExercise")}
-                  style={({ pressed }) => [
-                    {
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 12,
-                      paddingVertical: 12,
-                      paddingHorizontal: 16,
-                      borderRadius: 14,
-                      borderWidth: 1,
-                      borderStyle: "dashed",
-                      borderColor: `${tk.accent}80`,
-                      backgroundColor: tk.accentSoft,
-                    },
-                    pressed ? { opacity: 0.85 } : null,
-                  ]}
+                  className="flex-row items-center gap-3 py-3 px-4 rounded-forge-md border border-dashed border-forge-accent-light dark:border-forge-accent bg-forge-accentSoft-light dark:bg-forge-accentSoft"
+                  style={({ pressed }) => (pressed ? { opacity: 0.85 } : null)}
                 >
                   <View
                     style={{
@@ -767,19 +732,8 @@ export default function ExercisePicker() {
                         accessibilityRole="button"
                         accessibilityLabel={`${t("addExercise")}: ${name}`}
                         hitSlop={8}
-                        style={({ pressed }) => [
-                          {
-                            width: 30,
-                            height: 30,
-                            borderRadius: 15,
-                            backgroundColor: tk.accentSoft,
-                            borderWidth: 1,
-                            borderColor: `${tk.accent}66`,
-                            alignItems: "center",
-                            justifyContent: "center",
-                          },
-                          pressed ? { opacity: 0.7 } : null,
-                        ]}
+                        className="w-[30px] h-[30px] rounded-full items-center justify-center border border-forge-accent-light dark:border-forge-accent bg-forge-accentSoft-light dark:bg-forge-accentSoft"
+                        style={({ pressed }) => (pressed ? { opacity: 0.7 } : null)}
                       >
                         <Icon name="plus" size={16} color={tk.accent} strokeWidth={2.4} />
                       </Pressable>
@@ -923,20 +877,12 @@ function MuscleGroupDropdown({
         accessibilityRole="button"
         accessibilityLabel={currentLabel}
         accessibilityState={{ expanded: open }}
-        style={({ pressed }) => [
-          {
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            height: 56,
-            borderRadius: 14,
-            backgroundColor: tk.surface,
-            borderWidth: 1,
-            borderColor: open ? tk.accent : tk.border,
-            paddingHorizontal: 16,
-          },
-          pressed ? { opacity: 0.85 } : null,
-        ]}
+        className={`flex-row items-center justify-between h-14 rounded-forge-md px-4 border bg-forge-surface-light dark:bg-forge-surface ${
+          open
+            ? "border-forge-accent-light dark:border-forge-accent"
+            : "border-forge-border-light dark:border-forge-border"
+        }`}
+        style={({ pressed }) => (pressed ? { opacity: 0.85 } : null)}
       >
         <Text
           style={{
@@ -973,19 +919,14 @@ function MuscleGroupDropdown({
                 accessibilityRole="button"
                 accessibilityLabel={labelFor(key)}
                 accessibilityState={{ selected }}
-                style={({ pressed }) => [
-                  {
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    paddingHorizontal: 16,
-                    paddingVertical: 14,
-                    borderTopWidth: i === 0 ? 0 : 1,
-                    borderTopColor: tk.border,
-                    backgroundColor: selected ? tk.accentSoft : "transparent",
-                  },
-                  pressed ? { opacity: 0.7 } : null,
-                ]}
+                className={`flex-row items-center justify-between px-4 py-3.5 ${
+                  i === 0
+                    ? ""
+                    : "border-t border-forge-border-light dark:border-forge-border"
+                } ${
+                  selected ? "bg-forge-accentSoft-light dark:bg-forge-accentSoft" : ""
+                }`}
+                style={({ pressed }) => (pressed ? { opacity: 0.7 } : null)}
               >
                 <Text
                   style={{
@@ -1029,17 +970,12 @@ function FilterPill({
       accessibilityLabel={label}
       accessibilityState={{ selected: active }}
       hitSlop={6}
-      style={({ pressed }) => [
-        {
-          paddingVertical: 6,
-          paddingHorizontal: 12,
-          borderRadius: 18,
-          backgroundColor: active ? tk.accent : tk.surface,
-          borderWidth: 1,
-          borderColor: active ? tk.accent : tk.border,
-        },
-        pressed ? { opacity: 0.8 } : null,
-      ]}
+      className={`py-1.5 px-3 rounded-full border ${
+        active
+          ? "bg-forge-accent-light dark:bg-forge-accent border-forge-accent-light dark:border-forge-accent"
+          : "bg-forge-surface-light dark:bg-forge-surface border-forge-border-light dark:border-forge-border"
+      }`}
+      style={({ pressed }) => (pressed ? { opacity: 0.8 } : null)}
     >
       <Text
         style={{
