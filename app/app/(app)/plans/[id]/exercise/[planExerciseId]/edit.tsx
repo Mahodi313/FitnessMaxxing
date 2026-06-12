@@ -171,17 +171,8 @@ function FStepperInput({
         accessibilityRole="button"
         accessibilityLabel={decrementLabel}
         hitSlop={8}
-        style={({ pressed }) => [
-          {
-            width: 32,
-            height: 32,
-            borderRadius: 8,
-            backgroundColor: tk.surface2,
-            alignItems: "center",
-            justifyContent: "center",
-          },
-          pressed ? { opacity: 0.7 } : null,
-        ]}
+        className="w-8 h-8 rounded-lg items-center justify-center bg-forge-surface2-light dark:bg-forge-surface2"
+        style={({ pressed }) => (pressed ? { opacity: 0.7 } : null)}
       >
         {/* − glyph: a 14×2.4 rounded bar (matches FStepperInput line 1567) */}
         <View style={{ width: 14, height: 2.4, borderRadius: 2, backgroundColor: tk.text2 }} />
@@ -221,17 +212,8 @@ function FStepperInput({
         accessibilityRole="button"
         accessibilityLabel={incrementLabel}
         hitSlop={8}
-        style={({ pressed }) => [
-          {
-            width: 32,
-            height: 32,
-            borderRadius: 8,
-            backgroundColor: tk.accent,
-            alignItems: "center",
-            justifyContent: "center",
-          },
-          pressed ? { opacity: 0.85 } : null,
-        ]}
+        className="w-8 h-8 rounded-lg items-center justify-center bg-forge-accent-light dark:bg-forge-accent"
+        style={({ pressed }) => (pressed ? { opacity: 0.85 } : null)}
       >
         <Icon name="plus" size={14} color={tk.accentText} strokeWidth={2.4} />
       </Pressable>
