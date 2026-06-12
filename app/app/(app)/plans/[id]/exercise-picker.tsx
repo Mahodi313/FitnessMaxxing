@@ -121,7 +121,7 @@ export default function ExercisePicker() {
   } = useForm<ExerciseFormInput>({
     resolver: zodResolver(exerciseFormSchema),
     mode: "onSubmit",
-    defaultValues: { name: "", muscle_group: "", equipment: "", notes: "" },
+    defaultValues: { name: "", muscle_group: null, equipment: "", notes: "" },
   });
 
   const onCreateAndAdd = (input: ExerciseFormInput) => {
@@ -213,21 +213,22 @@ export default function ExercisePicker() {
               </View>
             )}
 
-            {/* Four Controller-wrapped fields: name (required), muscle_group,
-                equipment, notes. Iterating over a tuple keeps the form layout
-                consistent and the labels/placeholders co-located with their
-                fields per UI-SPEC §"Inline create-form". */}
-            {(["name", "muscle_group", "equipment", "notes"] as const).map(
+            {/* Three free-text Controller fields: name (required), equipment,
+                notes. muscle_group is INTENTIONALLY excluded here: Phase 10 D-01
+                constrained exerciseFormSchema.muscle_group to the 5 keyed values
+                (chest/back/legs/shoulders/arms), which the legacy free-text input
+                can no longer satisfy. The keyed muscle-group dropdown ships with
+                the picker re-skin (downstream Phase 10 plan); until then the field
+                submits its `null` default so creation still works. */}
+            {(["name", "equipment", "notes"] as const).map(
               (fieldName) => {
                 const labels: Record<typeof fieldName, string> = {
                   name: "Namn",
-                  muscle_group: "Muskelgrupp",
                   equipment: "Utrustning",
                   notes: "Anteckningar",
                 };
                 const placeholders: Record<typeof fieldName, string> = {
                   name: "t.ex. Bänkpress",
-                  muscle_group: "t.ex. Bröst",
                   equipment: "t.ex. Skivstång",
                   notes: "(valfritt)",
                 };
