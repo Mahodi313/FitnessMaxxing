@@ -69,7 +69,7 @@
 - [ ] **I18N-02**: App language follows the device locale by default and the Settings override
 - [ ] **I18N-03**: Both Swedish and English are complete with no missing keys across every screen
 - [x] **I18N-04**: Dates and numbers format per the active locale (Swedish decimal handling preserved)
-- [ ] **I18N-05**: User-created content (plan/exercise names, notes) is stored as written and never auto-translated
+- [x] **I18N-05**: User-created content (plan/exercise names, notes) is stored as written and never auto-translated
 
 ### Motion & Haptics (MOTN)
 
@@ -129,7 +129,7 @@
 | SKIN-02 | Phase 10 | Complete |
 | SKIN-03 | Phase 10 | Complete |
 | SKIN-07 | Phase 10 | Pending |
-| I18N-05 | Phase 10 | Pending |
+| I18N-05 | Phase 10 | Complete |
 | SKIN-04 | Phase 11 | Pending |
 | SKIN-05 | Phase 11 | Pending |
 | SKIN-08 | Phase 11 | Complete |
