@@ -445,22 +445,42 @@ queryClient.setMutationDefaults(["plan", "delete"], {
   // scope.id is set at call-site via mutate() options — pass `scope: { id: 'plan:<planId>' }`.
   onMutate: async (vars: PlanDeleteVars) => {
     await queryClient.cancelQueries({ queryKey: plansKeys.list() });
+    await queryClient.cancelQueries({ queryKey: plansKeys.detail(vars.id) });
     const previous = queryClient.getQueryData<PlanRow[]>(plansKeys.list());
+    // WR-05: snapshot + clear the deleted plan's detail slot so a re-entry to
+    // its route (frozen screen via freezeOnBlur, or persisted-cache rehydration
+    // after restart) can't render the deleted plan as if alive — the detail
+    // screen's loading gate is `!plan`.
+    const previousDetail = queryClient.getQueryData<PlanRow>(
+      plansKeys.detail(vars.id),
+    );
     queryClient.setQueryData<PlanRow[]>(plansKeys.list(), (old = []) =>
       old.filter((r) => r.id !== vars.id),
     );
-    return { previous };
+    queryClient.setQueryData(plansKeys.detail(vars.id), undefined);
+    return { previous, previousDetail };
   },
-  onError: (_err, _vars, ctx) => {
-    const c = ctx as { previous?: PlanRow[] } | undefined;
+  onError: (_err, vars, ctx) => {
+    const c = ctx as
+      | { previous?: PlanRow[]; previousDetail?: PlanRow }
+      | undefined;
     if (c?.previous) queryClient.setQueryData(plansKeys.list(), c.previous);
+    if (c?.previousDetail)
+      queryClient.setQueryData(plansKeys.detail(vars.id), c.previousDetail);
   },
-  onSettled: () => {
+  onSettled: (_data, _err, vars) => {
     void queryClient.invalidateQueries({ queryKey: plansKeys.list() });
     // History rows reference this plan by name via plan_name_snapshot coalesce —
     // re-fetch so the now-deleted plan's sessions render the snapshot name.
     void queryClient.invalidateQueries({
       queryKey: sessionsKeys.listInfinite(),
+    });
+    // WR-05: drop the orphaned detail + plan_exercises caches for the deleted
+    // plan (its plan_exercises rows were cascade-deleted server-side), so they
+    // don't linger for gcTime (24h) holding a plan that no longer exists.
+    void queryClient.invalidateQueries({ queryKey: plansKeys.detail(vars.id) });
+    void queryClient.invalidateQueries({
+      queryKey: planExercisesKeys.list(vars.id),
     });
   },
   retry: 1,

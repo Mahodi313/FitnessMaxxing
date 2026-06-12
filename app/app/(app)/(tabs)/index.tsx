@@ -154,8 +154,8 @@ export default function PlansTab() {
     : "";
   const draftBody =
     setsCount > 0
-      ? `Du har ett pågående pass från ${startedAt} med ${setsCount} set sparade.`
-      : `Du startade ett pass ${startedAt} men har inte loggat något set än.`;
+      ? t("draftBodyWithSets", { time: startedAt, count: setsCount })
+      : t("draftBodyNoSets", { time: startedAt });
 
   // Loading state (≤500ms typical due to AsyncStorage cache hydration).
   if (isPending) {

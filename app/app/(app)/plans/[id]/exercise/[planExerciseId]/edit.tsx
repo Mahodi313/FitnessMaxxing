@@ -51,7 +51,7 @@
 //   - 10-PATTERNS.md edit assignment + SP-2/SP-5/SP-6/SP-7/SP-8
 //   - app/app/(app)/plans/[id]/exercise-picker.tsx (GHRV wrapper idiom)
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -263,17 +263,28 @@ export default function PlanExerciseEditScreen() {
   );
   const [notes, setNotes] = useState<string>(planExercise?.notes ?? "");
 
-  // SP-7: reset local overlay/edit state on focus. Frozen screens (freezeOnBlur)
-  // retain React state across navigation; re-seed from the freshest cached row
-  // each time the modal gains focus so stale local edits never linger.
+  // SP-7: reset local edit state on focus. Frozen screens (freezeOnBlur) retain
+  // React state across navigation; re-seed from the freshest cached row each
+  // time the modal gains focus so stale local edits never linger.
+  //
+  // WR-03: read planExercises IMPERATIVELY via a ref so the callback identity
+  // stays stable ([planExerciseId] only). Depending on `planExercises` directly
+  // made useFocusEffect re-run on every background refetch of the
+  // plan_exercises cache (stale after 30s / reconnect / a prior mutation's
+  // onSettled invalidate) — silently wiping the user's in-progress stepper and
+  // notes edits while the modal was open.
+  const planExercisesRef = useRef(planExercises);
+  planExercisesRef.current = planExercises;
   useFocusEffect(
     useCallback(() => {
-      const row = planExercises?.find((px) => px.id === planExerciseId);
+      const row = planExercisesRef.current?.find(
+        (px) => px.id === planExerciseId,
+      );
       setSets(row?.target_sets ?? null);
       setRepsMin(row?.target_reps_min ?? null);
       setRepsMax(row?.target_reps_max ?? null);
       setNotes(row?.notes ?? "");
-    }, [planExercises, planExerciseId]),
+    }, [planExerciseId]),
   );
 
   // Null-safe target preview string from the LIVE stepper state (not the cached

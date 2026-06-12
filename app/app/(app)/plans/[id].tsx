@@ -270,13 +270,12 @@ export default function PlanDetailScreen() {
     setShowDeleteConfirm(false);
     deletePlan.mutate(
       { id: plan.id },
-      {
-        onError: () => setBannerError(t("errorGeneric")),
-        onSuccess: () => router.back(),
-      },
+      { onError: () => setBannerError(t("errorGeneric")) },
     );
-    // Navigate immediately — the optimistic onMutate already removed the row
-    // from the active-plans cache, so the list is correct offline too.
+    // Navigate back exactly once. The optimistic onMutate already removed the
+    // row from the active-plans cache, so the list is correct offline too. (A
+    // second router.back() via the mutate-level onSuccess raced the pop
+    // transition on fast networks and double-popped — WR-01.)
     router.back();
   };
 
@@ -535,10 +534,10 @@ export default function PlanDetailScreen() {
                     color: tk.text,
                   }}
                 >
-                  {t("noPlans")}
+                  {t("noExercisesInPlan")}
                 </Text>
                 <Text style={{ fontSize: 15, color: tk.text2 }}>
-                  {t("addExercise")}
+                  {t("noExercisesInPlanSub")}
                 </Text>
               </View>
             </View>
