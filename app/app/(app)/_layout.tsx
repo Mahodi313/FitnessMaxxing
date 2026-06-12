@@ -41,9 +41,79 @@
 //   The key uses session.user.id (guaranteed non-null at this point because the
 //   `if (!session) return <Redirect ... />` guard above ensures session is defined).
 //   The fallback 'anon' string is defensive-only and unreachable in normal flow.
+import { useEffect } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useColorScheme } from "nativewind";
 import { Redirect, Stack } from "expo-router";
 import { useAuthStore } from "@/lib/auth-store";
+import { useCreateExercise } from "@/lib/queries/exercises";
+import { SEED_EXERCISES } from "@/lib/seed/exercises";
+
+// Phase 10 (Plan 10-02), D-07. Auth-gated first-run starter-exercise seed.
+//
+// Mount point (RESEARCH Pitfall 1): this MUST live inside the session-gated
+// (app) tree — NOT the root _layout.tsx — because useCreateExercise requires
+// `user_id = session.user.id` to satisfy the exercises RLS `with check`. The
+// root bootstraps (Theme/Font/Locale) run during the PRE-auth splash window
+// where no user_id exists yet (T-10-06: the seed user_id is always the live
+// signed-in user; RLS rejects any other).
+//
+// Behaviour:
+//   - no-op render (return null) — never blocks the Stack or any frame (T-10-08).
+//   - fires only when userId is present.
+//   - fast-path skip via the per-user fm:exercises_seeded:<userId> flag
+//     (namespaced so a second user on the same device still gets seeded).
+//   - fire-and-forget, fail-open: a read/write error swallows silently
+//     (catch) and never hangs render — mirrors LocaleBootstrap's shape.
+//   - idempotent: deterministic seed UUIDs + the ['exercise','create'] upsert
+//     default (onConflict:'id', ignoreDuplicates:true) make a re-run a no-op
+//     even if the flag write fails mid-batch (T-10-07).
+//
+// Hook-rules: useCreateExercise() is called ONCE at component top-level (its
+// mutationKey is static); firing .mutate() N times in the loop is the correct
+// v5 pattern. SP-2: use .mutate(...) (offline-safe, optimistic) — NOT
+// .mutateAsync (which never resolves while a mutation is paused offline,
+// Phase 4 lesson).
+function ExerciseSeedBootstrap() {
+  const userId = useAuthStore((s) => s.session?.user.id);
+  const createExercise = useCreateExercise();
+  useEffect(() => {
+    if (!userId) return;
+    const flag = `fm:exercises_seeded:${userId}`;
+    void AsyncStorage.getItem(flag)
+      .then((v) => {
+        if (v === "true") return;
+        for (const ex of SEED_EXERCISES) {
+          createExercise.mutate(
+            {
+              id: ex.id,
+              user_id: userId,
+              name: ex.name,
+              muscle_group: ex.muscle_group,
+              equipment: ex.equipment,
+              seed_key: ex.seed_key,
+            },
+            {
+              onError: () => {
+                // Per-row failure is non-fatal: the upsert is idempotent so a
+                // later launch (flag still unset on a hard failure path) retries
+                // the same deterministic IDs without duplicating.
+              },
+            },
+          );
+        }
+        // Flip the flag after enqueuing the batch. The offline queue persists
+        // any paused mutates; deterministic UUIDs keep replay duplicate-free.
+        return AsyncStorage.setItem(flag, "true");
+      })
+      .catch(() => {
+        // IO error reading/writing the flag — fail open, never block render.
+      });
+    // createExercise is a stable hook result; userId is the real trigger.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
+  return null;
+}
 
 // FIT-5 Cycle 5 fix — anchor the (app) stack to (tabs) as the default route.
 // Without this, expo-router's default-route resolution can land on the FIRST
@@ -64,60 +134,64 @@ export default function AppLayout() {
     return <Redirect href="/(auth)/sign-in" />;
   }
   return (
-    <Stack
-      key={session.user.id}
-      screenOptions={{
-        headerShown: false,
-        headerStyle: { backgroundColor: isDark ? "#111827" : "#FFFFFF" },
-        headerTintColor: isDark ? "#F9FAFB" : "#111827",
-        headerTitleStyle: { color: isDark ? "#F9FAFB" : "#111827" },
-        headerBackButtonDisplayMode: "minimal",
-        // contentStyle paints the screen-container behind the SafeAreaView so
-        // the brief frame visible during stack push/pop animations matches the
-        // rest of the app instead of falling through to react-native-screens'
-        // default white. UAT 2026-05-10: noticed a white flash on swipe-back
-        // from the picker modal to plan-detail.
-        contentStyle: { backgroundColor: isDark ? "#111827" : "#FFFFFF" },
-        // freezeOnBlur unmounts the JS subscriptions of off-screen stack
-        // siblings, freeing the JS thread during transitions. UAT 2026-05-10:
-        // navigation felt "60Hz" on a ProMotion iPhone — the underlying
-        // native animation IS 120Hz capable (Expo Go has
-        // CADisableMinimumFrameDurationOnPhone enabled) but background-screen
-        // useEffect/query-subscription work was stealing frames. Pairs with
-        // the same Info.plist key now set in app.json for production builds.
-        freezeOnBlur: true,
-      }}
-    >
-      {/* FIT-5 Cycle 5: (tabs) declared FIRST and explicitly so expo-router's
-          default-route resolution prefers it over the modal screens below.
-          Paired with unstable_settings.initialRouteName='(tabs)' above. */}
-      <Stack.Screen name="(tabs)" />
-      {/* Modal route presentation MUST be declared at the layout level. The
-          `presentation` prop on react-native-screens is static — setting it
-          via <Stack.Screen options={{ presentation: 'modal' }} /> inside the
-          child screen file doesn't take effect because the screen has
-          already registered with its default 'card' (push) presentation by
-          the time the dynamic options apply. UAT 2026-05-10: picker and
-          targets-edit were pushing sideways instead of presenting as
-          modals. (#expo-router) */}
-      <Stack.Screen
-        name="plans/[id]/exercise-picker"
-        options={{ presentation: "modal" }}
-      />
-      <Stack.Screen
-        name="plans/[id]/exercise/[planExerciseId]/edit"
-        options={{ presentation: "modal" }}
-      />
-      {/* Phase 5 / Plan 05-02 D-03 — workout/[sessionId] is a regular Stack
-          screen (NOT modal). It inherits the centralized header styling
-          declared in screenOptions above (Phase 4 commit b57d1c2). The
-          headerRight Avsluta-button is declared per-screen inside
-          [sessionId].tsx because it needs access to the screen-local
-          Avsluta-overlay state. */}
-      <Stack.Screen
-        name="workout/[sessionId]"
-        options={{ headerShown: true, title: "Pass" }}
-      />
-    </Stack>
+    <>
+      {/* D-07 first-run seed — no-op render, fires once per signed-in user. */}
+      <ExerciseSeedBootstrap />
+      <Stack
+        key={session.user.id}
+        screenOptions={{
+          headerShown: false,
+          headerStyle: { backgroundColor: isDark ? "#111827" : "#FFFFFF" },
+          headerTintColor: isDark ? "#F9FAFB" : "#111827",
+          headerTitleStyle: { color: isDark ? "#F9FAFB" : "#111827" },
+          headerBackButtonDisplayMode: "minimal",
+          // contentStyle paints the screen-container behind the SafeAreaView so
+          // the brief frame visible during stack push/pop animations matches the
+          // rest of the app instead of falling through to react-native-screens'
+          // default white. UAT 2026-05-10: noticed a white flash on swipe-back
+          // from the picker modal to plan-detail.
+          contentStyle: { backgroundColor: isDark ? "#111827" : "#FFFFFF" },
+          // freezeOnBlur unmounts the JS subscriptions of off-screen stack
+          // siblings, freeing the JS thread during transitions. UAT 2026-05-10:
+          // navigation felt "60Hz" on a ProMotion iPhone — the underlying
+          // native animation IS 120Hz capable (Expo Go has
+          // CADisableMinimumFrameDurationOnPhone enabled) but background-screen
+          // useEffect/query-subscription work was stealing frames. Pairs with
+          // the same Info.plist key now set in app.json for production builds.
+          freezeOnBlur: true,
+        }}
+      >
+        {/* FIT-5 Cycle 5: (tabs) declared FIRST and explicitly so expo-router's
+            default-route resolution prefers it over the modal screens below.
+            Paired with unstable_settings.initialRouteName='(tabs)' above. */}
+        <Stack.Screen name="(tabs)" />
+        {/* Modal route presentation MUST be declared at the layout level. The
+            `presentation` prop on react-native-screens is static — setting it
+            via <Stack.Screen options={{ presentation: 'modal' }} /> inside the
+            child screen file doesn't take effect because the screen has
+            already registered with its default 'card' (push) presentation by
+            the time the dynamic options apply. UAT 2026-05-10: picker and
+            targets-edit were pushing sideways instead of presenting as
+            modals. (#expo-router) */}
+        <Stack.Screen
+          name="plans/[id]/exercise-picker"
+          options={{ presentation: "modal" }}
+        />
+        <Stack.Screen
+          name="plans/[id]/exercise/[planExerciseId]/edit"
+          options={{ presentation: "modal" }}
+        />
+        {/* Phase 5 / Plan 05-02 D-03 — workout/[sessionId] is a regular Stack
+            screen (NOT modal). It inherits the centralized header styling
+            declared in screenOptions above (Phase 4 commit b57d1c2). The
+            headerRight Avsluta-button is declared per-screen inside
+            [sessionId].tsx because it needs access to the screen-local
+            Avsluta-overlay state. */}
+        <Stack.Screen
+          name="workout/[sessionId]"
+          options={{ headerShown: true, title: "Pass" }}
+        />
+      </Stack>
+    </>
   );
 }

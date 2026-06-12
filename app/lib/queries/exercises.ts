@@ -43,6 +43,12 @@ type CreateVars = {
   muscle_group?: string | null;
   equipment?: string | null;
   notes?: string | null;
+  // Phase 10 D-06: the first-run seed (ExerciseSeedBootstrap) passes the
+  // language-neutral seed_key so the picker can render bilingual seed names +
+  // equipment. User-created exercises leave this undefined (NULL on the wire).
+  // The ['exercise','create'] mutation default already accepts it via
+  // Partial<ExerciseRow>; widening CreateVars surfaces it to callers.
+  seed_key?: string | null;
 };
 
 // Pass `planId` when calling from the picker so the chained add-to-plan
