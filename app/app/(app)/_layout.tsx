@@ -48,6 +48,7 @@ import { Redirect, Stack } from "expo-router";
 import { useAuthStore } from "@/lib/auth-store";
 import { useCreateExercise } from "@/lib/queries/exercises";
 import { SEED_EXERCISES } from "@/lib/seed/exercises";
+import { deterministicUUID } from "@/lib/utils/uuid";
 
 // Phase 10 (Plan 10-02), D-07. Auth-gated first-run starter-exercise seed.
 //
@@ -65,9 +66,18 @@ import { SEED_EXERCISES } from "@/lib/seed/exercises";
 //     (namespaced so a second user on the same device still gets seeded).
 //   - fire-and-forget, fail-open: a read/write error swallows silently
 //     (catch) and never hangs render — mirrors LocaleBootstrap's shape.
-//   - idempotent: deterministic seed UUIDs + the ['exercise','create'] upsert
-//     default (onConflict:'id', ignoreDuplicates:true) make a re-run a no-op
-//     even if the flag write fails mid-batch (T-10-07).
+//   - PER-USER deterministic ids (CR-01): the row id is
+//     deterministicUUID(`fm-exercise-seed:${userId}:${seed_key}`), so two users
+//     on the same device get DISTINCT ids for the same seed_key and never
+//     collide on the global exercises PK. The original global-hardcoded-id seed
+//     let the first user claim the id and silently starved every later user.
+//   - idempotent: the same per-user ids + the ['exercise','create'] upsert
+//     default (onConflict:'id', ignoreDuplicates:true) make a re-run a no-op.
+//   - the flag is set ONLY after all 18 rows confirm success (counted
+//     onSuccess), NOT after enqueue — so a partial/failed seed retries on the
+//     next launch instead of being permanently marked done with missing rows.
+//     Offline the mutations pause (onSuccess fires on reconnect), so the flag
+//     simply sets later; every interim re-run is a duplicate-free no-op.
 //
 // Hook-rules: useCreateExercise() is called ONCE at component top-level (its
 // mutationKey is static); firing .mutate() N times in the loop is the correct
@@ -80,13 +90,27 @@ function ExerciseSeedBootstrap() {
   useEffect(() => {
     if (!userId) return;
     const flag = `fm:exercises_seeded:${userId}`;
-    void AsyncStorage.getItem(flag)
-      .then((v) => {
-        if (v === "true") return;
-        for (const ex of SEED_EXERCISES) {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const seeded = await AsyncStorage.getItem(flag);
+        if (seeded === "true" || cancelled) return;
+
+        // Derive a per-user deterministic id for each seed row up front.
+        const ids = await Promise.all(
+          SEED_EXERCISES.map((ex) =>
+            deterministicUUID(`fm-exercise-seed:${userId}:${ex.seed_key}`),
+          ),
+        );
+        if (cancelled) return;
+
+        let succeeded = 0;
+        let failed = false;
+        const total = SEED_EXERCISES.length;
+        SEED_EXERCISES.forEach((ex, i) => {
           createExercise.mutate(
             {
-              id: ex.id,
+              id: ids[i],
               user_id: userId,
               name: ex.name,
               muscle_group: ex.muscle_group,
@@ -94,21 +118,28 @@ function ExerciseSeedBootstrap() {
               seed_key: ex.seed_key,
             },
             {
+              onSuccess: () => {
+                succeeded += 1;
+                // Mark seeded only once EVERY row has confirmed (server) success.
+                if (!failed && succeeded === total) {
+                  void AsyncStorage.setItem(flag, "true").catch(() => {});
+                }
+              },
               onError: () => {
-                // Per-row failure is non-fatal: the upsert is idempotent so a
-                // later launch (flag still unset on a hard failure path) retries
-                // the same deterministic IDs without duplicating.
+                // Leave the flag UNSET so the next launch retries the same
+                // per-user deterministic ids (idempotent upsert, no duplicates).
+                failed = true;
               },
             },
           );
-        }
-        // Flip the flag after enqueuing the batch. The offline queue persists
-        // any paused mutates; deterministic UUIDs keep replay duplicate-free.
-        return AsyncStorage.setItem(flag, "true");
-      })
-      .catch(() => {
-        // IO error reading/writing the flag — fail open, never block render.
-      });
+        });
+      } catch {
+        // crypto / IO error — fail open, never block render.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
     // createExercise is a stable hook result; userId is the real trigger.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);

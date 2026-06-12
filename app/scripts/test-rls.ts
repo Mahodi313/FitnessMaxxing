@@ -294,6 +294,39 @@ async function main() {
     .single();
   if (exAErr || !exA) throw new Error(`Seed A exercise failed: ${exAErr?.message}`);
 
+  // ---- Phase 10 CR-01 regression — per-user starter-seed ids -----------------
+  // The original first-run seed hardcoded ONE global UUID per seed_key, so the
+  // first user to seed claimed the id and every later user's upsert hit
+  // `ON CONFLICT (id) DO NOTHING` → zero starter exercises, silently. The fix
+  // derives the id PER USER (deterministicUUID(`…:${userId}:${seed_key}`)). exB
+  // already holds seed_key='bench_press' for user B; user A seeding the SAME
+  // seed_key (its own row) MUST succeed with a DISTINCT id.
+  {
+    const aBench = await clientA
+      .from("exercises")
+      .insert({
+        user_id: userA.id,
+        name: "rls-test-a-bench-press",
+        seed_key: "bench_press",
+      })
+      .select()
+      .single();
+    if (aBench.error || !aBench.data) {
+      fail(
+        "CR-01: A CAN seed its own bench_press while B already holds one",
+        { error: aBench.error },
+      );
+    } else if (aBench.data.id === exB.id) {
+      fail("CR-01: A's bench_press reused B's id (global-id regression)", {
+        id: aBench.data.id,
+      });
+    } else {
+      pass(
+        "CR-01: two users hold seed_key='bench_press' with distinct ids (no PK collision)",
+      );
+    }
+  }
+
   // =========================================================================
   // ASSERTION BATTERY — clientA against User B's namespace
   // =========================================================================
