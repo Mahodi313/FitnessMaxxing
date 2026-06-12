@@ -16,6 +16,7 @@
     "test:locale-resolve": "tsx scripts/test-locale-resolve.ts",
     "test:plan-schemas": "tsx scripts/test-plan-schemas.ts",
     "test:exercise-schemas": "tsx scripts/test-exercise-schemas.ts",
+    "test:muscle-group": "tsx scripts/test-muscle-group.ts",
     "test:plan-exercise-schemas": "tsx scripts/test-plan-exercise-schemas.ts",
     "test:session-schemas": "tsx scripts/test-session-schemas.ts",
     "test:set-schemas": "tsx scripts/test-set-schemas.ts",
