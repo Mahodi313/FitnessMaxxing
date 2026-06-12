@@ -57,7 +57,7 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslation } from "react-i18next";
 
-import { Icon } from "@/components/ui";
+import { Icon, ForgeButton } from "@/components/ui";
 import { planFormSchema, type PlanFormInput } from "@/lib/schemas/plans";
 import { useCreatePlan } from "@/lib/queries/plans";
 import { useAuthStore } from "@/lib/auth-store";
@@ -161,19 +161,8 @@ export default function NewPlanScreen() {
               accessibilityRole="button"
               accessibilityLabel={t("back")}
               hitSlop={8}
-              style={({ pressed }) => [
-                {
-                  width: 40,
-                  height: 40,
-                  borderRadius: 20,
-                  backgroundColor: tk.surface,
-                  borderWidth: 1,
-                  borderColor: tk.border,
-                  alignItems: "center",
-                  justifyContent: "center",
-                },
-                pressed ? { opacity: 0.6 } : null,
-              ]}
+              className="w-10 h-10 rounded-full items-center justify-center border bg-forge-surface-light dark:bg-forge-surface border-forge-border-light dark:border-forge-border"
+              style={({ pressed }) => (pressed ? { opacity: 0.6 } : null)}
             >
               <Icon
                 name="chevronLeft"
@@ -420,53 +409,20 @@ export default function NewPlanScreen() {
               />
             </View>
 
-            {/* Primary CTA — Skapa plan, trailing arrowRight (accent shadow) */}
+            {/* Primary CTA — Skapa plan, trailing arrowRight. ForgeButton
+                primitive (box decoration via className) so the accent fill
+                renders under NativeWind 4. */}
             <View style={{ paddingHorizontal: 16, paddingTop: 32 }}>
-              <Pressable
+              <ForgeButton
+                label={t("createPlan")}
+                icon="arrowRight"
+                iconPosition="trailing"
+                variant="primary"
+                size="lg"
+                fullWidth
+                loading={isSubmitting}
                 onPress={handleSubmit(onSubmit)}
-                disabled={isSubmitting}
-                accessibilityRole="button"
-                accessibilityLabel={t("createPlan")}
-                accessibilityState={{ disabled: isSubmitting, busy: isSubmitting }}
-                style={({ pressed }) => [
-                  {
-                    width: "100%",
-                    height: 60,
-                    borderRadius: 16,
-                    backgroundColor: tk.accent,
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 8,
-                    shadowColor: "#FF5A1F",
-                    shadowOffset: { width: 0, height: 8 },
-                    shadowOpacity: 0.4,
-                    shadowRadius: 16,
-                  },
-                  isSubmitting
-                    ? { opacity: 0.5 }
-                    : pressed
-                      ? { opacity: 0.85 }
-                      : null,
-                ]}
-              >
-                <Text
-                  style={{
-                    fontSize: 17,
-                    fontWeight: "600",
-                    letterSpacing: -0.2,
-                    color: tk.accentText,
-                  }}
-                >
-                  {t("createPlan")}
-                </Text>
-                <Icon
-                  name="arrowRight"
-                  size={18}
-                  color={tk.accentText}
-                  strokeWidth={2.2}
-                />
-              </Pressable>
+              />
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
