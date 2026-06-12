@@ -1,7 +1,8 @@
 ---
 phase: 10-plans-exercises-re-skin
 verified: 2026-06-12T12:00:00Z
-status: human_needed
+status: passed
+human_uat: approved 2026-06-12 (device UAT — all Forge screens, banner timer/progress, locale toggle, light+dark confirmed by user)
 score: 4/4 must-haves verified
 overrides_applied: 0
 re_verification:
