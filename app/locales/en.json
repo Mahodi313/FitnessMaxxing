@@ -43,6 +43,11 @@
   "archivePlan": "Archive plan",
 
   "planEyebrow": "PLAN",
+  "namePlaceholder": "e.g. Push, Pull, Legs",
+  "planDescHelp": "Add a short description to keep track of what this plan focuses on.",
+  "exercisesStat": "Exercises",
+  "lastStat": "Last",
+  "avgTime": "Avg time",
   "closeModal": "Close",
   "editTargets": "Edit targets",
   "saveTargets": "Save targets",

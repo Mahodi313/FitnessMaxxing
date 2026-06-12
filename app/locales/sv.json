@@ -43,6 +43,11 @@
   "archivePlan": "Arkivera plan",
 
   "planEyebrow": "PLAN",
+  "namePlaceholder": "t.ex. Push, Pull, Ben",
+  "planDescHelp": "Lägg till en kort beskrivning för att hålla koll på vad planen fokuserar på.",
+  "exercisesStat": "Övningar",
+  "lastStat": "Senast",
+  "avgTime": "Snitt-tid",
   "closeModal": "Stäng",
   "editTargets": "Redigera mål",
   "saveTargets": "Spara mål",
