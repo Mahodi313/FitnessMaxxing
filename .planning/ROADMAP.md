@@ -99,11 +99,28 @@ Plans:
 
 **Plans:** 6 plans
 Plans:
+**Wave 1**
+
 - [ ] 10-01-PLAN.md — Foundation: migration 0010 (seed_key + plan_name_snapshot + RPC re-deploy) + useDeletePlan/[plan,delete] + snapshot-on-start + schema/verify-deploy/test-rls extensions (Wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 10-02-PLAN.md — Muscle-group util + 18-row bilingual seed module + auth-gated first-run bootstrap + test-muscle-group + seed/taxonomy locale keys (Wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 10-03-PLAN.md — Exercise picker re-skin: filter pills + AND-search + mg dropdown create-new + bilingual rows + picker locale keys (Wave 3)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
 - [ ] 10-04-PLAN.md — Plan-exercise edit re-skin (FExerciseEdit steppers, optional targets, remove) + edit locale keys (Wave 4)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
 - [ ] 10-05-PLAN.md — Plans list (FHome) + new-plan (FNewPlan) + tab bar light+dark (SKIN-07) + their locale keys (Wave 5)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+
 - [ ] 10-06-PLAN.md — Plan detail (FPlanDetail) re-skin + hard-delete confirm dialog + snapshot wiring + phase-gate suite (Wave 6)
 
 #### Phase 11: Active Workout Re-skin (HIGH RISK — F13)
