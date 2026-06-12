@@ -41,6 +41,10 @@
   "addExercise": "Lägg till övning",
   "needExercise": "Lägg till minst en övning för att kunna starta.",
   "archivePlan": "Arkivera plan",
+  "deletePlanQ": "Ta bort planen?",
+  "deletePlanBody": "Planen och dess övningar tas bort. Din loggade träningshistorik påverkas inte.",
+  "delete": "Ta bort",
+  "keepPlan": "Behåll plan",
 
   "planEyebrow": "PLAN",
   "namePlaceholder": "t.ex. Push, Pull, Ben",

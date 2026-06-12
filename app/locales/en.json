@@ -41,6 +41,10 @@
   "addExercise": "Add exercise",
   "needExercise": "Add at least one exercise to start.",
   "archivePlan": "Archive plan",
+  "deletePlanQ": "Delete plan?",
+  "deletePlanBody": "The plan and its exercises will be removed. Your logged workout history is not affected.",
+  "delete": "Delete",
+  "keepPlan": "Keep plan",
 
   "planEyebrow": "PLAN",
   "namePlaceholder": "e.g. Push, Pull, Legs",
