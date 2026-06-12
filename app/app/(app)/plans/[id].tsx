@@ -64,7 +64,11 @@ import DraggableFlatList, {
   type RenderItemParams,
 } from "react-native-draggable-flatlist";
 import { Icon } from "@/components/ui";
-import { usePlanQuery, useArchivePlan } from "@/lib/queries/plans";
+import {
+  usePlanQuery,
+  useArchivePlan,
+  useDeletePlan,
+} from "@/lib/queries/plans";
 import {
   usePlanExercisesQuery,
   useRemovePlanExercise,
@@ -156,6 +160,10 @@ export default function PlanDetailScreen() {
   // 04-01's resource-hook contract — chained mutations on the same plan
   // replay serially on reconnect.
   const archivePlan = useArchivePlan(id);
+  // Phase 10 D-10/D-11 — hard-delete. Static scope baked at construction (SP-3);
+  // pass plan id so the delete groups FIFO with any in-flight plan-scoped
+  // mutation. FK ON DELETE SET NULL + plan_name_snapshot keep history readable.
+  const deletePlan = useDeletePlan(id);
   const removePlanExercise = useRemovePlanExercise(id!);
   const reorderPlanExercises = useReorderPlanExercises(id!);
 
@@ -180,6 +188,7 @@ export default function PlanDetailScreen() {
   const [bannerError, setBannerError] = useState<string | null>(null);
   const [showOverflowMenu, setShowOverflowMenu] = useState(false);
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // freezeOnBlur (set on the (app) Stack screenOptions) keeps this screen
   // mounted across navigation. Reset overlay state every time the screen gains
@@ -188,6 +197,7 @@ export default function PlanDetailScreen() {
     useCallback(() => {
       setShowOverflowMenu(false);
       setShowArchiveConfirm(false);
+      setShowDeleteConfirm(false);
     }, []),
   );
 
@@ -241,6 +251,33 @@ export default function PlanDetailScreen() {
   const onOverflowArchivePress = () => {
     setShowOverflowMenu(false);
     setTimeout(() => setShowArchiveConfirm(true), 50);
+  };
+
+  const onOverflowDeletePress = () => {
+    setShowOverflowMenu(false);
+    // Open on next tick so the popover dismiss settles before the dialog
+    // mounts (stacked overlays can flicker on iOS otherwise).
+    setTimeout(() => setShowDeleteConfirm(true), 50);
+  };
+
+  // Hard-delete confirm (D-10/D-11). .mutate (NOT mutateAsync) — SP-2. The
+  // optimistic onMutate filters plansKeys.list + invalidates
+  // sessionsKeys.listInfinite; FK ON DELETE SET NULL keeps the user's sessions
+  // (and their plan_name_snapshot) intact. Navigate back to the list on
+  // success so the now-deleted plan's detail screen is not left mounted.
+  const onDeleteConfirm = () => {
+    if (!plan) return;
+    setShowDeleteConfirm(false);
+    deletePlan.mutate(
+      { id: plan.id },
+      {
+        onError: () => setBannerError(t("errorGeneric")),
+        onSuccess: () => router.back(),
+      },
+    );
+    // Navigate immediately — the optimistic onMutate already removed the row
+    // from the active-plans cache, so the list is correct offline too.
+    router.back();
   };
 
   // Loading state intentionally gates on `!plan` only (not isPending). With
@@ -635,6 +672,22 @@ export default function PlanDetailScreen() {
                 {t("archivePlan")}
               </Text>
             </Pressable>
+            {/* Hard-delete — danger-labeled (D-10). Opens a confirm dialog. */}
+            <Pressable
+              onPress={onOverflowDeletePress}
+              accessibilityRole="button"
+              accessibilityLabel={t("delete")}
+              style={({ pressed }) => [
+                { paddingHorizontal: 16, paddingVertical: 12 },
+                pressed ? { opacity: 0.6 } : null,
+              ]}
+            >
+              <Text
+                style={{ color: tk.danger, fontSize: 16, fontWeight: "600" }}
+              >
+                {t("delete")}
+              </Text>
+            </Pressable>
           </View>
         </Pressable>
       ) : null}
@@ -726,6 +779,105 @@ export default function PlanDetailScreen() {
                   }}
                 >
                   {t("archivePlan")}
+                </Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      ) : null}
+
+      {/* Hard-delete confirm dialog (D-10/D-11) — cloned from the archive-confirm
+          overlay (SP-7; inline absolute-positioned <Pressable> scrim + inner
+          card, NEVER a portal Modal). Danger primary (Ta bort) + neutral
+          secondary (Behåll plan); the danger primary is the ONLY colored
+          action. Body states history is unaffected. Light+dark parity. */}
+      {showDeleteConfirm ? (
+        <Pressable
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: tk.scrim,
+            paddingHorizontal: 32,
+            zIndex: 2000,
+          }}
+          onPress={() => setShowDeleteConfirm(false)}
+          accessibilityRole="button"
+          accessibilityLabel={t("closeModal")}
+        >
+          <Pressable
+            style={{
+              width: "100%",
+              maxWidth: 400,
+              backgroundColor: tk.surface,
+              borderWidth: 1,
+              borderColor: tk.border,
+              borderRadius: 20,
+              padding: 24,
+              gap: 12,
+            }}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text
+              style={{ fontSize: 20, fontWeight: "700", color: tk.text }}
+              accessibilityRole="header"
+            >
+              {t("deletePlanQ")}
+            </Text>
+            <Text style={{ fontSize: 15, color: tk.text2, lineHeight: 21 }}>
+              {t("deletePlanBody")}
+            </Text>
+            <View
+              style={{
+                flexDirection: "row",
+                gap: 12,
+                justifyContent: "flex-end",
+                marginTop: 8,
+              }}
+            >
+              {/* Neutral secondary — Behåll plan (NOT accent, NOT danger). */}
+              <Pressable
+                onPress={() => setShowDeleteConfirm(false)}
+                accessibilityRole="button"
+                accessibilityLabel={t("keepPlan")}
+                style={({ pressed }) => [
+                  { paddingHorizontal: 16, paddingVertical: 12, borderRadius: 8 },
+                  pressed ? { opacity: 0.6 } : null,
+                ]}
+              >
+                <Text
+                  style={{ fontSize: 16, fontWeight: "600", color: tk.text }}
+                >
+                  {t("keepPlan")}
+                </Text>
+              </Pressable>
+              {/* Danger primary — Ta bort. */}
+              <Pressable
+                onPress={onDeleteConfirm}
+                accessibilityRole="button"
+                accessibilityLabel={t("delete")}
+                style={({ pressed }) => [
+                  {
+                    paddingHorizontal: 16,
+                    paddingVertical: 12,
+                    borderRadius: 8,
+                    backgroundColor: tk.danger,
+                  },
+                  pressed ? { opacity: 0.85 } : null,
+                ]}
+              >
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: "600",
+                    color: "#FFFFFF",
+                  }}
+                >
+                  {t("delete")}
                 </Text>
               </Pressable>
             </View>
