@@ -106,5 +106,42 @@
   "workoutPrefs": "Workout",
   "cancel": "Cancel",
 
-  "offline": "You're offline — changes will sync when you're back online."
+  "offline": "You're offline — changes will sync when you're back online.",
+
+  "mgAll": "All",
+  "mgChest": "Chest",
+  "mgBack": "Back",
+  "mgLegs": "Legs",
+  "mgShoulders": "Shoulders",
+  "mgArms": "Arms",
+  "mgOther": "Other",
+
+  "equip": {
+    "barbell": "Barbell",
+    "dumbbell": "Dumbbells",
+    "cable": "Cable",
+    "machine": "Machine",
+    "bodyweight": "Bodyweight"
+  },
+
+  "exercise": {
+    "bench_press": { "name": "Bench press" },
+    "incline_db_press": { "name": "Incline DB press" },
+    "dips": { "name": "Dips" },
+    "deadlift": { "name": "Deadlift" },
+    "pull_ups": { "name": "Pull-ups" },
+    "barbell_row": { "name": "Barbell row" },
+    "lat_pulldown": { "name": "Lat pulldown" },
+    "squat": { "name": "Squat" },
+    "leg_press": { "name": "Leg press" },
+    "romanian_deadlift": { "name": "Romanian deadlift" },
+    "lunges": { "name": "Lunges" },
+    "overhead_press": { "name": "Overhead press" },
+    "lateral_raise": { "name": "Lateral raise" },
+    "face_pull": { "name": "Face pull" },
+    "db_curl": { "name": "DB curl" },
+    "hammer_curl": { "name": "Hammer curl" },
+    "triceps_pushdown": { "name": "Triceps pushdown" },
+    "skullcrusher": { "name": "Skullcrusher" }
+  }
 }
