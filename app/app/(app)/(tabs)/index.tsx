@@ -342,13 +342,18 @@ export default function PlansTab() {
                 via className, so the accent fill actually renders. A hand-rolled
                 Pressable that carries all box styling in an inline style()
                 callback renders naked under NativeWind 4 (device UAT 2026-06-12). */}
-            <ForgeButton
-              label={t("createPlan")}
-              icon="arrowRight"
-              iconPosition="trailing"
-              size="lg"
-              onPress={() => router.push("/plans/new" as Href)}
-            />
+            {/* Wrapper centers the button — ForgeButton is `self-start` by
+                default (not fullWidth), which would otherwise left-align it
+                inside the centered empty-state column. */}
+            <View className="flex-row">
+              <ForgeButton
+                label={t("createPlan")}
+                icon="arrowRight"
+                iconPosition="trailing"
+                size="lg"
+                onPress={() => router.push("/plans/new" as Href)}
+              />
+            </View>
           </View>
         }
         renderItem={({ item: plan, index }) => {
