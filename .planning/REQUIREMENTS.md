@@ -24,7 +24,7 @@
 - [ ] **SKIN-04**: Active-workout screen matches the Forge design with the set log, input row, and progress dots
 - [ ] **SKIN-05**: The three session overlays (finish, draft-resume, saved-toast) and the active-session banner match the Forge design and stay inline-rendered (no modal portals)
 - [ ] **SKIN-06**: History list, session detail, and exercise chart screens match the Forge design
-- [ ] **SKIN-07**: Tab bar matches the Forge design (Planer / Historik / Inställningar) in light + dark
+- [x] **SKIN-07**: Tab bar matches the Forge design (Planer / Historik / Inställningar) in light + dark
 - [x] **SKIN-08**: Re-skin introduces no regression to the ≤3s log-set budget or F13 (`npm run test:f13-brutal` stays green)
 
 ### Settings & Preferences (SET)
@@ -128,7 +128,7 @@
 | I18N-02 | Phase 9 | Pending |
 | SKIN-02 | Phase 10 | Complete |
 | SKIN-03 | Phase 10 | Complete |
-| SKIN-07 | Phase 10 | Pending |
+| SKIN-07 | Phase 10 | Complete |
 | I18N-05 | Phase 10 | Complete |
 | SKIN-04 | Phase 11 | Pending |
 | SKIN-05 | Phase 11 | Pending |
