@@ -63,7 +63,7 @@ import DraggableFlatList, {
   ScaleDecorator,
   type RenderItemParams,
 } from "react-native-draggable-flatlist";
-import { Icon } from "@/components/ui";
+import { Icon, ForgeButton } from "@/components/ui";
 import {
   usePlanQuery,
   useArchivePlan,
@@ -328,19 +328,8 @@ export default function PlanDetailScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={t("back")}
                 hitSlop={8}
-                style={({ pressed }) => [
-                  {
-                    width: 40,
-                    height: 40,
-                    borderRadius: 20,
-                    backgroundColor: tk.surface,
-                    borderWidth: 1,
-                    borderColor: tk.border,
-                    alignItems: "center",
-                    justifyContent: "center",
-                  },
-                  pressed ? { opacity: 0.6 } : null,
-                ]}
+                className="w-10 h-10 rounded-full items-center justify-center border bg-forge-surface-light dark:bg-forge-surface border-forge-border-light dark:border-forge-border"
+                style={({ pressed }) => (pressed ? { opacity: 0.6 } : null)}
               >
                 <Icon
                   name="chevronLeft"
@@ -354,19 +343,8 @@ export default function PlanDetailScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={t("settings")}
                 hitSlop={8}
-                style={({ pressed }) => [
-                  {
-                    width: 40,
-                    height: 40,
-                    borderRadius: 20,
-                    backgroundColor: tk.surface,
-                    borderWidth: 1,
-                    borderColor: tk.border,
-                    alignItems: "center",
-                    justifyContent: "center",
-                  },
-                  pressed ? { opacity: 0.6 } : null,
-                ]}
+                className="w-10 h-10 rounded-full items-center justify-center border bg-forge-surface-light dark:bg-forge-surface border-forge-border-light dark:border-forge-border"
+                style={({ pressed }) => (pressed ? { opacity: 0.6 } : null)}
               >
                 <Icon name="ellipsis" size={18} color={tk.text} />
               </Pressable>
@@ -438,42 +416,19 @@ export default function PlanDetailScreen() {
 
             {/* Starta pass — primary accent CTA (64 tall) */}
             <View style={{ paddingHorizontal: 16, paddingBottom: 20 }}>
-              <Pressable
-                onPress={onStarta}
+              {/* ForgeButton primitive (box decoration via className) — a
+                  hand-rolled Pressable carrying the accent fill in an inline
+                  style() callback renders naked under NativeWind 4. */}
+              <ForgeButton
+                label={t("startSession")}
+                icon="play"
+                iconPosition="leading"
+                variant="primary"
+                size="lg"
+                fullWidth
                 disabled={!canStart}
-                accessibilityRole="button"
-                accessibilityLabel={t("startSession")}
-                accessibilityState={{ disabled: !canStart }}
-                style={({ pressed }) => [
-                  {
-                    width: "100%",
-                    height: 64,
-                    borderRadius: 18,
-                    backgroundColor: tk.accent,
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 10,
-                    shadowColor: tk.accent,
-                    shadowOffset: { width: 0, height: 8 },
-                    shadowOpacity: 0.35,
-                    shadowRadius: 16,
-                  },
-                  !canStart ? { opacity: 0.4 } : pressed ? { opacity: 0.85 } : null,
-                ]}
-              >
-                <Icon name="play" size={18} color={tk.accentText} />
-                <Text
-                  style={{
-                    fontSize: 18,
-                    fontWeight: "600",
-                    letterSpacing: -0.3,
-                    color: tk.accentText,
-                  }}
-                >
-                  {t("startSession")}
-                </Text>
-              </Pressable>
+                onPress={onStarta}
+              />
               {!canStart ? (
                 <Text
                   style={{
@@ -628,14 +583,8 @@ export default function PlanDetailScreen() {
           the transparent backdrop to dismiss. */}
       {showOverflowMenu ? (
         <Pressable
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            zIndex: 1000,
-          }}
+          className="absolute inset-0"
+          style={{ zIndex: 1000 }}
           onPress={() => setShowOverflowMenu(false)}
           accessibilityRole="button"
           accessibilityLabel={t("closeModal")}
@@ -661,10 +610,8 @@ export default function PlanDetailScreen() {
               onPress={onOverflowArchivePress}
               accessibilityRole="button"
               accessibilityLabel={t("archivePlan")}
-              style={({ pressed }) => [
-                { paddingHorizontal: 16, paddingVertical: 12 },
-                pressed ? { opacity: 0.6 } : null,
-              ]}
+              className="px-4 py-3"
+              style={({ pressed }) => (pressed ? { opacity: 0.6 } : null)}
             >
               <Text
                 style={{ color: tk.text, fontSize: 16, fontWeight: "600" }}
@@ -677,10 +624,8 @@ export default function PlanDetailScreen() {
               onPress={onOverflowDeletePress}
               accessibilityRole="button"
               accessibilityLabel={t("delete")}
-              style={({ pressed }) => [
-                { paddingHorizontal: 16, paddingVertical: 12 },
-                pressed ? { opacity: 0.6 } : null,
-              ]}
+              className="px-4 py-3"
+              style={({ pressed }) => (pressed ? { opacity: 0.6 } : null)}
             >
               <Text
                 style={{ color: tk.danger, fontSize: 16, fontWeight: "600" }}
@@ -696,33 +641,15 @@ export default function PlanDetailScreen() {
           NOT a Modal portal). Re-skinned to Forge tokens. */}
       {showArchiveConfirm ? (
         <Pressable
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundColor: tk.scrim,
-            paddingHorizontal: 32,
-            zIndex: 2000,
-          }}
+          className="absolute inset-0 items-center justify-center px-8"
+          style={{ backgroundColor: tk.scrim, zIndex: 2000 }}
           onPress={() => setShowArchiveConfirm(false)}
           accessibilityRole="button"
           accessibilityLabel={t("closeModal")}
         >
           <Pressable
-            style={{
-              width: "100%",
-              maxWidth: 400,
-              backgroundColor: tk.surface,
-              borderWidth: 1,
-              borderColor: tk.border,
-              borderRadius: 20,
-              padding: 24,
-              gap: 12,
-            }}
+            className="w-full rounded-[20px] p-6 gap-3 border bg-forge-surface-light dark:bg-forge-surface border-forge-border-light dark:border-forge-border"
+            style={{ maxWidth: 400 }}
             onPress={(e) => e.stopPropagation()}
           >
             <Text
@@ -746,10 +673,8 @@ export default function PlanDetailScreen() {
                 onPress={() => setShowArchiveConfirm(false)}
                 accessibilityRole="button"
                 accessibilityLabel={t("cancel")}
-                style={({ pressed }) => [
-                  { paddingHorizontal: 16, paddingVertical: 12, borderRadius: 8 },
-                  pressed ? { opacity: 0.6 } : null,
-                ]}
+                className="px-4 py-3 rounded-lg"
+                style={({ pressed }) => (pressed ? { opacity: 0.6 } : null)}
               >
                 <Text
                   style={{ fontSize: 16, fontWeight: "600", color: tk.text }}
@@ -761,15 +686,8 @@ export default function PlanDetailScreen() {
                 onPress={onArchiveConfirm}
                 accessibilityRole="button"
                 accessibilityLabel={t("archivePlan")}
-                style={({ pressed }) => [
-                  {
-                    paddingHorizontal: 16,
-                    paddingVertical: 12,
-                    borderRadius: 8,
-                    backgroundColor: tk.accent,
-                  },
-                  pressed ? { opacity: 0.85 } : null,
-                ]}
+                className="px-4 py-3 rounded-lg bg-forge-accent-light dark:bg-forge-accent"
+                style={({ pressed }) => (pressed ? { opacity: 0.85 } : null)}
               >
                 <Text
                   style={{
@@ -793,33 +711,15 @@ export default function PlanDetailScreen() {
           action. Body states history is unaffected. Light+dark parity. */}
       {showDeleteConfirm ? (
         <Pressable
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundColor: tk.scrim,
-            paddingHorizontal: 32,
-            zIndex: 2000,
-          }}
+          className="absolute inset-0 items-center justify-center px-8"
+          style={{ backgroundColor: tk.scrim, zIndex: 2000 }}
           onPress={() => setShowDeleteConfirm(false)}
           accessibilityRole="button"
           accessibilityLabel={t("closeModal")}
         >
           <Pressable
-            style={{
-              width: "100%",
-              maxWidth: 400,
-              backgroundColor: tk.surface,
-              borderWidth: 1,
-              borderColor: tk.border,
-              borderRadius: 20,
-              padding: 24,
-              gap: 12,
-            }}
+            className="w-full rounded-[20px] p-6 gap-3 border bg-forge-surface-light dark:bg-forge-surface border-forge-border-light dark:border-forge-border"
+            style={{ maxWidth: 400 }}
             onPress={(e) => e.stopPropagation()}
           >
             <Text
@@ -844,10 +744,8 @@ export default function PlanDetailScreen() {
                 onPress={() => setShowDeleteConfirm(false)}
                 accessibilityRole="button"
                 accessibilityLabel={t("keepPlan")}
-                style={({ pressed }) => [
-                  { paddingHorizontal: 16, paddingVertical: 12, borderRadius: 8 },
-                  pressed ? { opacity: 0.6 } : null,
-                ]}
+                className="px-4 py-3 rounded-lg"
+                style={({ pressed }) => (pressed ? { opacity: 0.6 } : null)}
               >
                 <Text
                   style={{ fontSize: 16, fontWeight: "600", color: tk.text }}
@@ -860,15 +758,8 @@ export default function PlanDetailScreen() {
                 onPress={onDeleteConfirm}
                 accessibilityRole="button"
                 accessibilityLabel={t("delete")}
-                style={({ pressed }) => [
-                  {
-                    paddingHorizontal: 16,
-                    paddingVertical: 12,
-                    borderRadius: 8,
-                    backgroundColor: tk.danger,
-                  },
-                  pressed ? { opacity: 0.85 } : null,
-                ]}
+                className="px-4 py-3 rounded-lg bg-forge-danger-light dark:bg-forge-danger"
+                style={({ pressed }) => (pressed ? { opacity: 0.85 } : null)}
               >
                 <Text
                   style={{
@@ -956,20 +847,10 @@ function PlanExerciseRow({
       onPress={onEdit}
       accessibilityRole="button"
       accessibilityLabel={dragLabel}
-      style={({ pressed }) => [
-        {
-          marginHorizontal: 16,
-          borderRadius: 16,
-          backgroundColor: tk.surface,
-          borderWidth: 1,
-          borderColor: tk.border,
-          padding: 14,
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 10,
-        },
-        isActive ? { opacity: 0.85 } : pressed ? { opacity: 0.6 } : null,
-      ]}
+      className="mx-4 rounded-2xl p-3.5 flex-row items-center gap-2.5 border bg-forge-surface-light dark:bg-forge-surface border-forge-border-light dark:border-forge-border"
+      style={({ pressed }) =>
+        isActive ? { opacity: 0.85 } : pressed ? { opacity: 0.6 } : null
+      }
     >
       {/* Grip drag-handle — long-press to reorder. */}
       <Pressable
