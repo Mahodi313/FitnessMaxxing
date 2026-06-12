@@ -56,7 +56,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
 import { format } from "date-fns";
-import { Icon, Logo } from "@/components/ui";
+import { Icon, Logo, ForgeButton } from "@/components/ui";
 import { usePlansQuery } from "@/lib/queries/plans";
 import {
   useActiveSessionQuery,
@@ -338,40 +338,17 @@ export default function PlansTab() {
                 {t("noPlansSub")}
               </Text>
             </View>
-            <Pressable
+            {/* Use the proven ForgeButton primitive (Phase 8) — box decoration
+                via className, so the accent fill actually renders. A hand-rolled
+                Pressable that carries all box styling in an inline style()
+                callback renders naked under NativeWind 4 (device UAT 2026-06-12). */}
+            <ForgeButton
+              label={t("createPlan")}
+              icon="arrowRight"
+              iconPosition="trailing"
+              size="lg"
               onPress={() => router.push("/plans/new" as Href)}
-              accessibilityRole="button"
-              accessibilityLabel={t("createPlan")}
-              style={({ pressed }) => [
-                {
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 8,
-                  height: 56,
-                  paddingHorizontal: 24,
-                  borderRadius: 16,
-                  backgroundColor: tk.accent,
-                },
-                pressed ? { opacity: 0.85 } : null,
-              ]}
-            >
-              <Text
-                style={{
-                  fontSize: 16,
-                  fontWeight: "600",
-                  letterSpacing: -0.2,
-                  color: tk.accentText,
-                }}
-              >
-                {t("createPlan")}
-              </Text>
-              <Icon
-                name="arrowRight"
-                size={18}
-                color={tk.accentText}
-                strokeWidth={2.2}
-              />
-            </Pressable>
+            />
           </View>
         }
         renderItem={({ item: plan, index }) => {
@@ -381,20 +358,12 @@ export default function PlansTab() {
               onPress={() => router.push(`/plans/${plan.id}` as Href)}
               accessibilityRole="button"
               accessibilityLabel={`${t("myPlans")}: ${plan.name}`}
-              style={({ pressed }) => [
-                {
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 14,
-                  paddingVertical: 16,
-                  paddingHorizontal: 18,
-                  borderRadius: 18,
-                  backgroundColor: tk.surface,
-                  borderWidth: 1,
-                  borderColor: tk.border,
-                },
-                pressed ? { opacity: 0.85 } : null,
-              ]}
+              // Box decoration via className (NativeWind renders it); the style()
+              // callback carries ONLY the pressed-opacity overlay. Putting the
+              // surface/border/radius in the inline style() callback renders the
+              // card naked under NativeWind 4 (device UAT 2026-06-12).
+              className="flex-row items-center gap-3.5 py-4 px-[18px] rounded-[18px] border bg-forge-surface-light dark:bg-forge-surface border-forge-border-light dark:border-forge-border"
+              style={({ pressed }) => (pressed ? { opacity: 0.85 } : null)}
             >
               {/* Icon tile — featured (i===0) = brand-gradient barbell; others
                   = surface2 content tile. Barbell is a content icon (UI-SPEC).
@@ -466,17 +435,12 @@ export default function PlansTab() {
           onPress={() => router.push("/plans/new" as Href)}
           accessibilityRole="button"
           accessibilityLabel={t("newPlan")}
+          // Box decoration (position/size/radius/accent fill) via className so it
+          // renders; the style() callback keeps only the accent shadow + pressed
+          // overlay (the ForgeButton FIT-66 pattern).
+          className="absolute bottom-6 right-6 w-14 h-14 rounded-full items-center justify-center bg-forge-accent-light dark:bg-forge-accent"
           style={({ pressed }) => [
             {
-              position: "absolute",
-              bottom: 24,
-              right: 24,
-              width: 56,
-              height: 56,
-              borderRadius: 28,
-              backgroundColor: tk.accent,
-              alignItems: "center",
-              justifyContent: "center",
               shadowColor: "#FF5A1F",
               shadowOffset: { width: 0, height: 8 },
               shadowOpacity: 0.45,
