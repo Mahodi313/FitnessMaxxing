@@ -238,7 +238,10 @@ async function main() {
 
   const { data: exB, error: exBErr } = await clientB
     .from("exercises")
-    .insert({ user_id: userB.id, name: "rls-test-b-bench-press" })
+    // Phase 10 D-06: seed B's exercise WITH a seed_key so the cross-user
+    // assertions below prove the column is covered by the column-agnostic
+    // own-row RLS (A can neither read nor write B's seed_key).
+    .insert({ user_id: userB.id, name: "rls-test-b-bench-press", seed_key: "bench_press" })
     .select()
     .single();
   if (exBErr || !exB) throw new Error(`Seed B exercises failed: ${exBErr?.message}`);
@@ -352,6 +355,21 @@ async function main() {
   assertWriteBlocked(
     "A cannot DELETE B's exercise",
     await clientA.from("exercises").delete().eq("id", exB.id).select(),
+  );
+  // Phase 10 D-06 (T-10-01): the column-agnostic own-row RLS must cover the new
+  // seed_key column. A's SELECT of B's seed_key row returns empty, and A's
+  // UPDATE of seed_key on B's row is blocked.
+  assertEmpty(
+    "A cannot SELECT B's exercise seed_key (Phase 10 D-06)",
+    await clientA.from("exercises").select("seed_key").eq("id", exB.id),
+  );
+  assertWriteBlocked(
+    "A cannot UPDATE seed_key on B's exercise (Phase 10 D-06)",
+    await clientA
+      .from("exercises")
+      .update({ seed_key: "hacked_key" })
+      .eq("id", exB.id)
+      .select(),
   );
 
   // ---- workout_plans -----------------------------------------------------

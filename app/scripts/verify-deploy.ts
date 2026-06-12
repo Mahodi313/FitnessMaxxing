@@ -118,6 +118,62 @@ async function main() {
     process.exit(1);
   }
 
+  // -------------------------------------------------------------------------
+  // Phase 10 (Migration 0010) — assert the two additive columns landed AND the
+  // workout_sessions → workout_plans FK is still ON DELETE SET NULL
+  // (confdeltype = 'n'). D-06 + D-11. These are the regression locks for the
+  // hard-delete history-readability contract.
+  // -------------------------------------------------------------------------
+  console.log("\n=== Phase 10 schema verification (Migration 0010) ===");
+  let phase10Failures = 0;
+
+  const columnChecks: { table: string; column: string }[] = [
+    { table: "exercises", column: "seed_key" },
+    { table: "workout_sessions", column: "plan_name_snapshot" },
+  ];
+  for (const { table, column } of columnChecks) {
+    const rows = await sql`
+      select column_name
+      from information_schema.columns
+      where table_schema = 'public'
+        and table_name = ${table}
+        and column_name = ${column}
+    `;
+    if (rows.length === 1) {
+      console.log(`  PASS: public.${table}.${column} exists`);
+    } else {
+      console.log(`  FAIL: public.${table}.${column} — column not deployed`);
+      phase10Failures += 1;
+    }
+  }
+
+  // FK ON DELETE SET NULL — confdeltype 'n' = SET NULL (vs 'c' CASCADE, 'a' NO ACTION).
+  const fkRows = await sql`
+    select conname, confdeltype
+    from pg_constraint
+    where conrelid = 'public.workout_sessions'::regclass
+      and contype = 'f'
+      and conname = 'workout_sessions_plan_id_fkey'
+  `;
+  if (fkRows.length === 1 && fkRows[0].confdeltype === "n") {
+    console.log(
+      "  PASS: workout_sessions_plan_id_fkey is ON DELETE SET NULL (confdeltype='n')",
+    );
+  } else {
+    console.log(
+      `  FAIL: workout_sessions_plan_id_fkey confdeltype=${fkRows[0]?.confdeltype ?? "MISSING"} (expected 'n')`,
+    );
+    phase10Failures += 1;
+  }
+
+  if (phase10Failures > 0) {
+    console.error(
+      `\nPhase 10 verify-deploy FAILED — ${phase10Failures} schema assertion(s) failed`,
+    );
+    await sql.end();
+    process.exit(1);
+  }
+
   console.log("\n=== ENUMs in public ===");
   const enums = await sql`
     select t.typname, array_agg(e.enumlabel order by e.enumsortorder) as labels
