@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Forge Redesign
 status: ready_to_plan
-stopped_at: Phase 09 complete (3/3) — ready to discuss Phase 10
-last_updated: 2026-06-11T20:36:48.742Z
-last_activity: 2026-06-11
+stopped_at: Phase 10 complete (6/6) — ready to discuss Phase 11
+last_updated: 2026-06-12T21:42:09.258Z
+last_activity: 2026-06-12
 progress:
   total_phases: 8
-  completed_phases: 1
-  total_plans: 8
-  completed_plans: 8
-  percent: 13
+  completed_phases: 3
+  total_plans: 14
+  completed_plans: 14
+  percent: 38
 ---
 
 # Project State
@@ -21,20 +21,20 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-09)
 
 **Core value:** Logga ett set och omedelbart se vad jag tog senast på samma övning — utan att tappa data, någonsin.
-**Current focus:** Phase 10 — plans & exercises re skin
+**Current focus:** Phase 11 — active workout re skin (high risk — f13)
 
 ## Current Position
 
-Phase: 10
+Phase: 11
 Plan: Not started
 Status: Ready to plan
-Last activity: 2026-06-11
+Last activity: 2026-06-12
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 41 (3 in Phase 1, 6 in Phase 2, 4 in Phase 3, 4 in Phase 4, 7 in Phase 5)
+- Total plans completed: 47 (3 in Phase 1, 6 in Phase 2, 4 in Phase 3, 4 in Phase 4, 7 in Phase 5)
 - Phases complete: 5 of 7
 - Total execution time: ~7 active days (2026-05-07 → 2026-05-14)
 
@@ -65,6 +65,12 @@ Last activity: 2026-06-11
 | Phase 08 P04 | ~18min | 3 tasks | 7 files |
 | Phase 08 P05 | ~20min | 2 tasks | 2 files |
 | Phase 09 P01 | ~18min | 3 tasks | 12 files |
+| Phase 10 P10-01 | 5 | 3 tasks | 10 files |
+| Phase 10 P10-02 | ~4min | 3 tasks | 8 files |
+| Phase 10 P10-04 | ~4min | 2 tasks | 3 files |
+| Phase 10 P10-03 | ~4min | 3 tasks | 3 files |
+| Phase 10 P10-05 | ~4min | 3 tasks | 5 files |
+| Phase 10 P10-06 | ~6min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -106,6 +112,14 @@ Recent decisions affecting current work:
 - [Phase ?]: Phase 8 Plan 05: dev-only Forge gallery at (app)/_forge-gallery.tsx — __DEV__-guarded, outside (tabs), reachable via router.push('/_forge-gallery'); added components/ui barrel; live <Tabs> untouched (OQ-5)
 - **2026-06-11 [Phase 09 Plan 01]**: resolveLanguage pure core extracted to lib/resolve-language.ts — importing lib/i18n.ts under Node tsx breaks (expo-localization → untranspiled react-native; esbuild "Unexpected typeof" in react-native/index.js). lib/i18n.ts keeps a `resolveLanguage(pref, deviceLang?)` wrapper delegating to the core (supplies live Localization locale by default); pure unit tests import resolveLanguageCore from the pure module. Pattern: any Phase 9+ Node test of i18n-adjacent logic must target a pure module, not i18n.ts. Same boundary will apply if units/prefs ever gain Expo imports.
 - **2026-06-11 [Phase 09 Plan 01]**: profiles.weekly_goal landed live (0007) — int NOT NULL DEFAULT 3 CHECK (1..7); no new RLS policy (own-row profiles policies from 0001 cover the column). Checkpoint:human-action push resolved non-interactively (`supabase db push` with empty stdin → Y). fm:* prefs centralized in lib/prefs.ts with catch-parse on every read + booleans as "true"/"false" strings (no JSON.parse throw surface). Plans 09-02/03 consume these.
+- [Phase ?]: D-06: exercises.seed_key nullable additive column; reuses column-agnostic own-row RLS (no new policy)
+- [Phase ?]: D-11: hard-delete preserves history via FK ON DELETE SET NULL + plan_name_snapshot backfill + get_session_summaries coalesce + useDeletePlan
+- [Phase ?]: Phase 10 Plan 02: resolveMuscleGroupKey pure Node-importable taxonomy resolver (5 D-01 keys + other); 18-row hardcoded-UUID bilingual seed via auth-gated ExerciseSeedBootstrap, idempotent via upsert, no new dep.
+- [Phase ?]: Phase 10 Plan 04: edit modal re-skinned to FExerciseEdit — FStepperInput nullable steppers (D-14), live preview chip, raw notes (D-16), danger-ghost remove (no confirm), Stäng/Spara mål header; save via useUpdatePlanExercise.mutate (SP-2). Dropped RHF/zod for local useState. 10 edit locale keys at parity (119).
+- [Phase ?]: Phase 10 Plan 03: exercise picker re-skinned to FExercisePicker/New — single-select muscle-group filter pills (D-04) AND-combined with translated-name search (D-05), bilingual rows, mg dropdown (D-01) emitting the 5 keys, free-text equipment (D-02), add-now-set-later (D-14); preserved chained create-then-add scope.id=plan:<planId> (SP-2 .mutate). Widened Tk token-bag type so tk-prop subcomponents accept both themes. 13 picker locale keys at parity (132).
+- [Phase ?]: Plan 10-05: tab bar re-skinned via custom ForgeTabBar tabBar renderer over live <Tabs> (keeps expo-router navigation; Phase-8 TabBar shell stays gallery-only)
+- [Phase ?]: Plan 10-05: plan-card meta renders existing description (not an exercise count) — avoids per-plan N+1 / new aggregate (activity-ring hero is the Phase 12 boundary)
+- [Phase ?]: Plan 10-06 plan-detail FPlanDetail re-skin + hard-delete D-10/D-11 + plan_name_snapshot on start
 
 ### Pending Todos
 
@@ -136,8 +150,8 @@ Items acknowledged for later:
 
 ## Session Continuity
 
-Last session: 2026-06-11T17:28:02.931Z
-Stopped at: Phase 9 UI-SPEC approved
+Last session: 2026-06-12T19:26:31.565Z
+Stopped at: Completed 10-06-PLAN.md
 Resume file: None
 Next: Orchestrator runs phase-level closeout — `/gsd-secure-phase 4` (close threat register T-04-01 … T-04-12 against implementation; produce 04-SECURITY.md with threats_open: 0) → `/gsd-verify-work 4` (write 04-VERIFICATION.md with all 5 success criteria MET) → `/gsd-code-review` (post-phase audit) → phase.complete (advance ROADMAP Phase 4 → ✓ Complete). Then plan Phase 5 (Active Workout Hot Path — F13 lives or dies).
 

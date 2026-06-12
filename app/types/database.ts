@@ -101,6 +101,7 @@ export type Database = {
           muscle_group: string | null
           name: string
           notes: string | null
+          seed_key: string | null
           user_id: string | null
         }
         Insert: {
@@ -110,6 +111,7 @@ export type Database = {
           muscle_group?: string | null
           name: string
           notes?: string | null
+          seed_key?: string | null
           user_id?: string | null
         }
         Update: {
@@ -119,6 +121,7 @@ export type Database = {
           muscle_group?: string | null
           name?: string
           notes?: string | null
+          seed_key?: string | null
           user_id?: string | null
         }
         Relationships: []
@@ -229,6 +232,7 @@ export type Database = {
           id: string
           notes: string | null
           plan_id: string | null
+          plan_name_snapshot: string | null
           started_at: string
           user_id: string
         }
@@ -238,6 +242,7 @@ export type Database = {
           id?: string
           notes?: string | null
           plan_id?: string | null
+          plan_name_snapshot?: string | null
           started_at?: string
           user_id: string
         }
@@ -247,6 +252,7 @@ export type Database = {
           id?: string
           notes?: string | null
           plan_id?: string | null
+          plan_name_snapshot?: string | null
           started_at?: string
           user_id?: string
         }

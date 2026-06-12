@@ -1,81 +1,46 @@
 // app/app/(app)/(tabs)/index.tsx
 //
-// Phase 4 Plan 02 Task 2: Planer tab — three states:
-//   1. Loading (isPending): centered ActivityIndicator (≤500ms typical due
-//      to AsyncStorage cache hydration per UI-SPEC §"Loading / cold-start").
-//   2. Empty (plans.length === 0): centered Ionicons barbell-outline +
-//      "Inga planer än" + "Skapa din första plan." + inline "Skapa plan"
-//      CTA per CONTEXT.md D-14 / UI-SPEC §"Empty states".
-//   3. Populated: "Mina planer" Display heading + FlatList of plan-rows +
-//      floating "Skapa ny plan" FAB per UI-SPEC §Planer tab.
+// Phase 10 Plan 05 (SKIN-02 / I18N-05): Forge re-skin of the Planer tab
+// → FHome's PLAN-LIST PORTION ONLY (forge-screens.jsx FHome, line 88).
 //
-// Empty-state CTA is INLINE (NOT the FAB) per UI-SPEC §"Empty states":
-// when plans.length===0 the centered CTA shows; the FAB only appears once
-// there's at least 1 plan, so it doesn't hover over the empty state's
-// primary CTA.
+// Boundary (10-UI-SPEC reconciliation lines 169-170): this is the plan-list
+// portion of FHome — the activity-ring / week-sessions / streak / volume HERO
+// is Phase 12 (DASH-01..05) and is intentionally NOT built here. The layout
+// reference is FHome's header row (brand-mark tile + profile button), page
+// title (t('myPlans')), section header (MINA PLANER + Ny plan link), and the
+// plan-card list (featured-card gradient barbell tile on i===0 ONLY).
 //
-// usePlansQuery (Plan 04-01) already filters .is('archived_at', null) so
-// archived plans never appear here (CONTEXT.md D-12).
+// ALL prior behavior is preserved, re-skinned to Forge:
+//   - usePlansQuery (archived_at is null) — list + loading + empty states.
+//   - Empty state: t('noPlans') + t('noPlansSub') + a Forge primary CTA. The
+//     FAB is hidden when empty so it doesn't hover over the empty-state CTA
+//     (Phase 4 UI-SPEC §Empty states).
+//   - Populated plan-card list: card tap → plans/[id]; plan name + description
+//     meta (description is the existing per-plan list datum — no per-plan
+//     exercise-count query is issued from the list, avoiding an N+1; UI-SPEC
+//     §reconciliation: "plain derived counts, no new aggregates").
+//   - "Ny plan" section-header inline link + floating "+" FAB → plans/new.
+//   - Active-session banner is rendered by (tabs)/_layout.tsx ABOVE the tabs
+//     (Phase 4 carry-forward) — unchanged here.
+//   - Phase 5 DraftResumeOverlay (cold-start draft-resume) + "Passet sparat"
+//     success toast — preserved verbatim (only the surrounding chrome is
+//     re-skinned; the overlay/toast logic is untouched offline-critical code).
 //
-// router.push('/plans/new') routes to plans/new.tsx (Task 3, this plan).
-// router.push(`/plans/${plan.id}`) routes to plans/[id].tsx (Plan 04-03).
-// Until Plan 04-03 ships, plan-row tap will Expo-Router 404 — acceptable
-// per Plan 04-02's verification scope.
+// Chrome routes through live t() (SP-5) so the language toggle re-renders text
+// instantly. User content (plan name/description) is rendered verbatim (D-16).
 //
-// `as Href` casts on the two route strings: app.json has experiments
-// .typedRoutes=true, so Expo Router validates path literals against the
-// auto-generated .expo/types/router.d.ts. Those types only include routes
-// whose source files currently exist; /plans/new and /plans/[id] are owned
-// by this plan's Task 3 and Plan 04-03 respectively. The `as Href` cast is
-// a localized Rule 3 fix that defers type-validation until the dev server
-// regenerates router.d.ts (which it does on the next `expo start`). Once
-// both routes ship, the casts can be dropped — this comment serves as a
-// breadcrumb for that V1.1 cleanup.
-//
-// Phase 5 D-21 + D-24 EXTENSION:
-//   - Draft-resume overlay: when useActiveSessionQuery returns a non-null row
-//     on cold-start (workout_sessions WHERE finished_at IS NULL exists for
-//     this user — surface "Återuppta passet?" inline-overlay per UI-SPEC
-//     §lines 240–250). The user must EXPLICITLY choose between Återuppta
-//     (route to /workout/<id>) or Avsluta sessionen (mutate finished_at to
-//     now() in place — closes the orphan without losing logged sets — Phase
-//     6 Historik will still show those sets). The backdrop does NOT dismiss
-//     (force-decision UX — UI-SPEC §line 250).
-//   - Dismissal is scoped to the active session_id (NOT a boolean), so once
-//     the user acts on session X (Återuppta or Avsluta), the overlay stays
-//     hidden for the rest of the app launch even as they navigate Tabs <→
-//     /workout/[id] freely. A genuinely new draft (different session.id —
-//     e.g. after finishing X and starting Y) re-triggers the overlay because
-//     dismissedForSessionId !== Y. App restart wipes state (fresh mount), so
-//     cold-start recovery still surfaces the prompt. (UAT 2026-05-13 — the
-//     prior useFocusEffect-reset design slammed the overlay up on every tab
-//     blur/focus cycle, which was annoying mid-pass.)
-//   - "Passet sparat ✓" success toast: renders on transition from
-//     activeSession=non-null → activeSession=null (the only signal that a
-//     Avsluta-flow completed — either from this screen's secondary button or
-//     from /workout/[sessionId]'s Avsluta-overlay routing back here). Uses
-//     Reanimated `Animated.View` with `entering={FadeIn.duration(200)}` +
-//     `exiting={FadeOut.duration(200)}`. The 2-second visible window is
-//     enforced by a `setTimeout(2000)` in `useEffect` (per must_haves line
-//     48: `FadeOut.delay(2000)` would defer the START of the fade, not the
-//     visible duration; setTimeout → setState → React triggers `exiting`).
-//
-// Toast implementation choice (RESEARCH Open Q#3 + must_haves):
-//   PICKED: `useEffect`-watching-`activeSession`-transition pattern.
-//   Why: TanStack-query value transition is the cleanest signal we already
-//   have — the Avsluta optimistic onMutate (Plan 01) clears
-//   sessionsKeys.active(), which propagates through useActiveSessionQuery
-//   instantly. No extra Zustand store, no router-param hand-off (both
-//   anti-patterns explicitly forbidden per CONTEXT.md D-25 and PATTERNS.md
-//   §Toast — no-analog notes).
+// Optical values (10-UI-SPEC §Spacing — NativeWind 4 / Tailwind 3 purges
+// off-scale arbitrary classes, so these are inline style={{}} numbers,
+// Pitfall 3): brand tile 32×32 radius 10; profile button 36×36 radius 18;
+// plan card padding 16×18 radius 18; card icon tile 44×44 radius 12; list
+// bottom padding 100 (clears the floating TabBar — FHome `0 0 100px`).
 //
 // References:
-//   - 04-CONTEXT.md D-12, D-14
-//   - 04-UI-SPEC.md §Planer tab + §Visuals plan-list-row + §Visuals FAB
-//   - 05-CONTEXT.md D-21, D-24, D-25
-//   - 05-UI-SPEC.md §lines 238–250 (draft-resume), §lines 267–276 (toast),
-//     §lines 555–569 (Reanimated structure)
-//   - 05-PATTERNS.md §inline-overlay-confirm
+//   - app/design v2/Sources/design/forge-screens.jsx FHome (line 88)
+//   - .planning/phases/10-plans-exercises-re-skin/10-UI-SPEC.md §Interaction Contract / §Color / reconciliation
+//   - 10-PATTERNS.md SP-2/SP-5/SP-6 + new.tsx/index.tsx assignment
+//   - app/app/(app)/(tabs)/settings.tsx (Phase 9 live-t() list re-skin idiom)
+//   - 04-CONTEXT.md D-12/D-14 + 05-CONTEXT.md D-21/D-24/D-25 (draft-resume/toast)
 import { useState, useEffect, useRef } from "react";
 import { useRouter, type Href } from "expo-router";
 import {
@@ -87,9 +52,11 @@ import {
 } from "react-native";
 import { useColorScheme } from "nativewind";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
-import { Ionicons } from "@expo/vector-icons";
+import { useTranslation } from "react-i18next";
 import { format } from "date-fns";
+import { Icon, Logo, ForgeButton } from "@/components/ui";
 import { usePlansQuery } from "@/lib/queries/plans";
 import {
   useActiveSessionQuery,
@@ -97,12 +64,44 @@ import {
 } from "@/lib/queries/sessions";
 import { useSetsForSessionQuery } from "@/lib/queries/sets";
 
+// ── Forge token hexes (light / dark) ────────────────────────────────────────
+// Mirror the tailwind.config forge.* token pairs verbatim (10-UI-SPEC §Color),
+// for the inline-style optical containers + Icon strokes (the same split the
+// edit/picker modals + ForgeButton use). Class-driven surfaces still use the
+// token classes.
+const TOKENS = {
+  light: {
+    text: "#0A0A0A",
+    text2: "#4D4D4D",
+    text3: "#8B8B8B",
+    surface: "#FFFFFF",
+    surface2: "#F2F1EC",
+    accent: "#E14E10",
+    accentText: "#FFFFFF",
+    border: "rgba(0,0,0,0.07)",
+    gradFrom: "#FF7A2E",
+    gradTo: "#FF3D5E",
+  },
+  dark: {
+    text: "#FFFFFF",
+    text2: "rgba(255,255,255,0.62)",
+    text3: "rgba(255,255,255,0.38)",
+    surface: "#0E0E10",
+    surface2: "#18181B",
+    accent: "#FF5A1F",
+    accentText: "#FFFFFF",
+    border: "rgba(255,255,255,0.08)",
+    gradFrom: "#FF7A2E",
+    gradTo: "#FF2D55",
+  },
+} as const;
+
 export default function PlansTab() {
   const router = useRouter();
+  const { t } = useTranslation();
   const { data: plans, isPending } = usePlansQuery();
   const { colorScheme } = useColorScheme();
-  const accent = colorScheme === "dark" ? "#60A5FA" : "#2563EB";
-  const muted = colorScheme === "dark" ? "#9CA3AF" : "#6B7280";
+  const tk = TOKENS[colorScheme === "dark" ? "dark" : "light"];
 
   // Phase 5 D-21 — draft-resume overlay state.
   const { data: activeSession, isPending: activeSessionPending } =
@@ -114,18 +113,11 @@ export default function PlansTab() {
     string | null
   >(null);
   const [showToast, setShowToast] = useState(false);
-  // UAT 2026-05-13 (3rd iteration): the overlay must ONLY surface a draft
-  // that pre-dates this app launch ("cold-start recovery"). A session the
-  // user just started themselves seconds ago is already represented by the
-  // ActiveSessionBanner at the top — repeating the prompt as a force-decision
-  // modal every time they navigate back to Planer is annoying, not helpful.
-  //
-  // Capture the active session id at the FIRST settled query result and store
-  // in STATE (not useRef — a ref update doesn't trigger a re-render, so the
-  // overlay would never appear even when the ref captures a session). Once
-  // captured the value is sticky for this mount: subsequent activeSession
-  // changes (user finishes X, starts Y) don't re-trigger capture because the
-  // sentinel is no longer `undefined`.
+  // UAT 2026-05-13 (3rd iteration): the overlay must ONLY surface a draft that
+  // pre-dates this app launch ("cold-start recovery"). Capture the active
+  // session id at the FIRST settled query result and store in STATE (a ref
+  // update doesn't re-render, so the overlay would never appear). Once captured
+  // the value is sticky for the mount: a later session change doesn't recapture.
   const [coldStartSessionId, setColdStartSessionId] = useState<
     string | null | undefined
   >(undefined);
@@ -140,52 +132,40 @@ export default function PlansTab() {
     activeSession?.id != null && dismissedForSessionId === activeSession.id;
   const shouldShowDraftOverlay = isColdStartDraft && !draftDismissed;
 
-  // WR-04 (05-REVIEW.md): useFinishSession is now mounted INSIDE the
-  // DraftResumeOverlay subcomponent (defined below), which takes sessionId as
-  // a required prop. This keeps scope.id as a guaranteed-static string for
-  // the lifetime of the overlay mount and eliminates the prior `?? "noop"`
-  // sentinel that violated Pitfall 3's static-scope-at-construction rule.
-
   // Toast trigger: detect transition from active=non-null → active=null
   // (Avsluta-flow completes from EITHER this screen's secondary OR the
-  // /workout/[sessionId] Avsluta-overlay). The previous-value ref captures
-  // the prior render's activeSession so we only fire on the actual edge,
-  // not on every render where activeSession===null.
+  // /workout/[sessionId] Avsluta-overlay). The previous-value ref captures the
+  // prior render's activeSession so we only fire on the actual edge.
   const previousActiveRef = useRef<typeof activeSession | undefined>(undefined);
   useEffect(() => {
-    // CR-02 (05-REVIEW.md): capture prev FIRST, update the ref unconditionally,
-    // then decide whether to fire the toast. The previous design wrote to the
-    // ref inside the firing branch AND outside it, which left a race where the
-    // ref pointed at a stale snapshot if activeSession mutated between the
-    // firing render and the cleanup-firing render. With this reordering, every
-    // render updates the ref once, and the timer/cleanup pair is registered
-    // only when an actual non-null→null transition is detected.
     const prev = previousActiveRef.current;
     previousActiveRef.current = activeSession;
     if (prev != null && activeSession == null) {
       setShowToast(true);
-      const t = setTimeout(() => setShowToast(false), 2000);
-      return () => clearTimeout(t);
+      const timer = setTimeout(() => setShowToast(false), 2000);
+      return () => clearTimeout(timer);
     }
   }, [activeSession]);
 
-  // Draft-resume body copy per UI-SPEC §lines 245–246. 0-set vs N-set variants.
+  // Draft-resume body copy. 0-set vs N-set variants (UI-SPEC §lines 245-246).
   const setsCount = activeSets?.length ?? 0;
   const startedAt = activeSession?.started_at
     ? format(new Date(activeSession.started_at), "HH:mm")
     : "";
   const draftBody =
     setsCount > 0
-      ? `Du har ett pågående pass från ${startedAt} med ${setsCount} set sparade.`
-      : `Du startade ett pass ${startedAt} men har inte loggat något set än.`;
+      ? t("draftBodyWithSets", { time: startedAt, count: setsCount })
+      : t("draftBodyNoSets", { time: startedAt });
 
-  // Loading state (≤500ms typical due to AsyncStorage cache hydration —
-  // UI-SPEC §"Loading / cold-start").
+  // Loading state (≤500ms typical due to AsyncStorage cache hydration).
   if (isPending) {
     return (
-      <SafeAreaView className="flex-1 bg-white dark:bg-gray-900">
+      <SafeAreaView
+        edges={["bottom"]}
+        className="flex-1 bg-forge-bg-light dark:bg-forge-bg"
+      >
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color={accent} />
+          <ActivityIndicator size="large" color={tk.accent} />
         </View>
       </SafeAreaView>
     );
@@ -194,92 +174,294 @@ export default function PlansTab() {
   const isEmpty = !plans || plans.length === 0;
 
   return (
-    <SafeAreaView className="flex-1 bg-white dark:bg-gray-900">
-      {!isEmpty && (
-        <View className="px-4 pt-4 pb-2">
-          <Text className="text-3xl font-semibold text-gray-900 dark:text-gray-50">
-            Mina planer
+    <SafeAreaView
+      edges={["bottom"]}
+      className="flex-1 bg-forge-bg-light dark:bg-forge-bg"
+    >
+      {/* Header row — brand-mark tile (gradient, white Logo) + profile button.
+          The barbell on plan cards is a CONTENT icon; the brand gradient is
+          reserved for this 32×32 mark tile (UI-SPEC §Color brand-gradient). */}
+      <View
+        style={{
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
+          paddingHorizontal: 20,
+          paddingTop: 8,
+          paddingBottom: 4,
+        }}
+      >
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          {/* Brand-mark tile — true 135° gradient (gradFrom → gradTo), matching
+              FHome's `linear-gradient(135deg, …)` brand fill. RN Views can't
+              render CSS gradients, so this uses expo-linear-gradient with a
+              top-left → bottom-right vector (≈135°). */}
+          <LinearGradient
+            colors={[tk.gradFrom, tk.gradTo]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 10,
+              alignItems: "center",
+              justifyContent: "center",
+              overflow: "hidden",
+            }}
+          >
+            <Logo size={20} variant="white" />
+          </LinearGradient>
+          <Text
+            style={{
+              fontSize: 11,
+              fontWeight: "600",
+              letterSpacing: 1.5,
+              color: tk.text2,
+              textTransform: "uppercase",
+            }}
+          >
+            FitnessMaxxing
           </Text>
         </View>
-      )}
+        <View
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 18,
+            backgroundColor: tk.surface,
+            borderWidth: 1,
+            borderColor: tk.border,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Icon name="user" size={16} color={tk.text2} />
+        </View>
+      </View>
+
+      {/* Page title */}
+      <Text
+        style={{
+          fontSize: 36,
+          fontWeight: "700",
+          letterSpacing: -1.2,
+          marginHorizontal: 20,
+          marginTop: 12,
+          marginBottom: 8,
+          color: tk.text,
+        }}
+      >
+        {t("myPlans")}
+      </Text>
+
+      {/* Section header — MINA PLANER + Ny plan inline accent link */}
+      {!isEmpty ? (
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            paddingHorizontal: 24,
+            paddingBottom: 12,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 13,
+              fontWeight: "600",
+              letterSpacing: 1,
+              color: tk.text3,
+              textTransform: "uppercase",
+            }}
+          >
+            {t("myPlans")}
+          </Text>
+          <Pressable
+            onPress={() => router.push("/plans/new" as Href)}
+            accessibilityRole="button"
+            accessibilityLabel={t("newPlan")}
+            hitSlop={8}
+            style={({ pressed }) => (pressed ? { opacity: 0.6 } : null)}
+          >
+            <Text
+              style={{ fontSize: 13, fontWeight: "600", color: tk.accent }}
+            >
+              {t("newPlan")}
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
 
       <FlatList
         data={plans ?? []}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{
           paddingHorizontal: 16,
-          paddingBottom: 96,
+          paddingBottom: 100,
           flexGrow: 1,
         }}
-        ItemSeparatorComponent={() => <View className="h-2" />}
+        ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
         ListEmptyComponent={
           <View className="flex-1 items-center justify-center gap-6 px-4">
-            <Ionicons name="barbell-outline" size={64} color={accent} />
+            <View
+              style={{
+                width: 64,
+                height: 64,
+                borderRadius: 16,
+                backgroundColor: tk.surface2,
+                borderWidth: 1,
+                borderColor: tk.border,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Icon name="barbell" size={28} color={tk.text2} strokeWidth={2} />
+            </View>
             <View className="gap-2 items-center">
-              <Text className="text-2xl font-semibold text-gray-900 dark:text-gray-50">
-                Inga planer än
+              <Text
+                style={{
+                  fontSize: 22,
+                  fontWeight: "700",
+                  letterSpacing: -0.5,
+                  color: tk.text,
+                }}
+              >
+                {t("noPlans")}
               </Text>
-              <Text className="text-base text-gray-500 dark:text-gray-400">
-                Skapa din första plan.
+              <Text
+                style={{
+                  fontSize: 15,
+                  color: tk.text2,
+                  textAlign: "center",
+                }}
+              >
+                {t("noPlansSub")}
               </Text>
             </View>
-            <Pressable
-              onPress={() => router.push("/plans/new" as Href)}
-              accessibilityRole="button"
-              accessibilityLabel="Skapa plan"
-              className="rounded-lg bg-blue-600 dark:bg-blue-500 px-6 py-4 active:opacity-80"
-            >
-              <Text className="text-base font-semibold text-white">
-                Skapa plan
-              </Text>
-            </Pressable>
+            {/* Use the proven ForgeButton primitive (Phase 8) — box decoration
+                via className, so the accent fill actually renders. A hand-rolled
+                Pressable that carries all box styling in an inline style()
+                callback renders naked under NativeWind 4 (device UAT 2026-06-12). */}
+            {/* Wrapper centers the button — ForgeButton is `self-start` by
+                default (not fullWidth), which would otherwise left-align it
+                inside the centered empty-state column. */}
+            <View className="flex-row">
+              <ForgeButton
+                label={t("createPlan")}
+                icon="arrowRight"
+                iconPosition="trailing"
+                size="lg"
+                onPress={() => router.push("/plans/new" as Href)}
+              />
+            </View>
           </View>
         }
-        renderItem={({ item: plan }) => (
-          <Pressable
-            onPress={() => router.push(`/plans/${plan.id}` as Href)}
-            accessibilityRole="button"
-            accessibilityLabel={`Öppna plan ${plan.name}`}
-            className="flex-row items-center justify-between rounded-lg bg-gray-100 dark:bg-gray-800 px-4 py-4 active:opacity-80"
-          >
-            <View className="flex-1 mr-2">
-              <Text
-                className="text-base font-semibold text-gray-900 dark:text-gray-50"
-                numberOfLines={1}
-              >
-                {plan.name}
-              </Text>
-              {plan.description ? (
-                <Text
-                  className="text-base text-gray-500 dark:text-gray-400"
-                  numberOfLines={1}
+        renderItem={({ item: plan, index }) => {
+          const featured = index === 0;
+          return (
+            <Pressable
+              onPress={() => router.push(`/plans/${plan.id}` as Href)}
+              accessibilityRole="button"
+              accessibilityLabel={`${t("myPlans")}: ${plan.name}`}
+              // Box decoration via className (NativeWind renders it); the style()
+              // callback carries ONLY the pressed-opacity overlay. Putting the
+              // surface/border/radius in the inline style() callback renders the
+              // card naked under NativeWind 4 (device UAT 2026-06-12).
+              className="flex-row items-center gap-3.5 py-4 px-[18px] rounded-[18px] border bg-forge-surface-light dark:bg-forge-surface border-forge-border-light dark:border-forge-border"
+              style={({ pressed }) => (pressed ? { opacity: 0.85 } : null)}
+            >
+              {/* Icon tile — featured (i===0) = brand-gradient barbell; others
+                  = surface2 content tile. Barbell is a content icon (UI-SPEC).
+                  The featured tile uses the same 135° gradient as the brand mark
+                  (FHome line 179), not a flat orange. */}
+              {featured ? (
+                <LinearGradient
+                  colors={[tk.gradFrom, tk.gradTo]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 12,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    overflow: "hidden",
+                  }}
                 >
-                  {plan.description}
+                  <Icon name="barbell" size={20} color="#FFFFFF" strokeWidth={2} />
+                </LinearGradient>
+              ) : (
+                <View
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 12,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    overflow: "hidden",
+                    backgroundColor: tk.surface2,
+                    borderWidth: 1,
+                    borderColor: tk.border,
+                  }}
+                >
+                  <Icon name="barbell" size={20} color={tk.text2} strokeWidth={2} />
+                </View>
+              )}
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text
+                  numberOfLines={1}
+                  style={{
+                    fontSize: 17,
+                    fontWeight: "600",
+                    letterSpacing: -0.3,
+                    color: tk.text,
+                  }}
+                >
+                  {plan.name}
                 </Text>
-              ) : null}
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={muted} />
-          </Pressable>
-        )}
+                {plan.description ? (
+                  <Text
+                    numberOfLines={1}
+                    style={{ fontSize: 13, color: tk.text2, marginTop: 2 }}
+                  >
+                    {plan.description}
+                  </Text>
+                ) : null}
+              </View>
+              <Icon name="chevronRight" size={18} color={tk.text3} />
+            </Pressable>
+          );
+        }}
       />
 
-      {!isEmpty && (
+      {/* Floating "+" FAB — hidden when empty (the empty-state CTA stands in). */}
+      {!isEmpty ? (
         <Pressable
           onPress={() => router.push("/plans/new" as Href)}
           accessibilityRole="button"
-          accessibilityLabel="Skapa ny plan"
-          className="absolute bottom-6 right-6 w-14 h-14 rounded-full bg-blue-600 dark:bg-blue-500 items-center justify-center shadow-lg active:opacity-80"
+          accessibilityLabel={t("newPlan")}
+          // Box decoration (position/size/radius/accent fill) via className so it
+          // renders; the style() callback keeps only the accent shadow + pressed
+          // overlay (the ForgeButton FIT-66 pattern).
+          className="absolute bottom-6 right-6 w-14 h-14 rounded-full items-center justify-center bg-forge-accent-light dark:bg-forge-accent"
+          style={({ pressed }) => [
+            {
+              shadowColor: "#FF5A1F",
+              shadowOffset: { width: 0, height: 8 },
+              shadowOpacity: 0.45,
+              shadowRadius: 16,
+            },
+            pressed ? { opacity: 0.85 } : null,
+          ]}
         >
-          <Ionicons name="add" size={28} color="white" />
+          <Icon name="plus" size={26} color={tk.accentText} strokeWidth={2.4} />
         </Pressable>
-      )}
+      ) : null}
 
-      {/* Phase 5 D-21 — Draft-resume overlay. Inline-overlay pattern per
-          PATTERNS.md §inline-overlay-confirm (NOT Modal portal — Phase 4 D-08
-          anti-pattern). Subcomponent extraction (WR-04 from 05-REVIEW.md):
-          DraftResumeOverlay takes sessionId as a required prop so the
-          useFinishSession scope.id is a stable static string per Pitfall 3. */}
-      {activeSession && shouldShowDraftOverlay && (
+      {/* Phase 5 D-21 — Draft-resume overlay (inline-overlay pattern, NOT a
+          Modal portal). DraftResumeOverlay takes sessionId as a required prop
+          so useFinishSession scope.id is a stable static string (Pitfall 3). */}
+      {activeSession && shouldShowDraftOverlay ? (
         <DraftResumeOverlay
           sessionId={activeSession.id}
           bodyText={draftBody}
@@ -289,27 +471,38 @@ export default function PlansTab() {
           }}
           onDismiss={() => setDismissedForSessionId(activeSession.id)}
         />
-      )}
+      ) : null}
 
-      {/* Phase 5 D-24 — "Passet sparat ✓" success toast. Reanimated 4
-          Animated.View with entering={FadeIn.duration(200)} +
-          exiting={FadeOut.duration(200)}. The 2s visible window is gated by
-          setTimeout(2000) in the useEffect transition watcher above (NOT
-          FadeOut.delay(2000) — `delay` defers the start of the unmount fade,
-          not the visible duration; see must_haves line 48). */}
-      {showToast && (
+      {/* Phase 5 D-24 — "Passet sparat ✓" success toast. */}
+      {showToast ? (
         <Animated.View
           entering={FadeIn.duration(200)}
           exiting={FadeOut.duration(200)}
-          className="absolute bottom-20 self-center bg-green-600 dark:bg-green-500 rounded-full px-6 py-3"
           accessibilityRole="alert"
           accessibilityLiveRegion="polite"
+          style={{
+            position: "absolute",
+            bottom: 92,
+            alignSelf: "center",
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 8,
+            paddingHorizontal: 20,
+            paddingVertical: 12,
+            borderRadius: 24,
+            backgroundColor: tk.surface,
+            borderWidth: 1,
+            borderColor: tk.border,
+          }}
         >
-          <Text className="text-base font-semibold text-white">
-            Passet sparat ✓
+          <Icon name="check" size={16} color={tk.accent} strokeWidth={2.4} />
+          <Text
+            style={{ fontSize: 15, fontWeight: "600", color: tk.text }}
+          >
+            {t("sessionSaved")}
           </Text>
         </Animated.View>
-      )}
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -317,9 +510,8 @@ export default function PlansTab() {
 // ---------------------------------------------------------------------------
 // DraftResumeOverlay — extracted subcomponent (WR-04 from 05-REVIEW.md).
 // Takes sessionId as a REQUIRED prop so useFinishSession's scope.id is a
-// stable static string for the lifetime of the mount, satisfying Pitfall 3
-// (scope.id MUST NOT change across re-renders). Mounts only when the parent
-// has determined that a cold-start draft should be surfaced.
+// stable static string for the lifetime of the mount (Pitfall 3). Re-skinned
+// to Forge tokens; force-decision UX (backdrop does not dismiss) preserved.
 // ---------------------------------------------------------------------------
 function DraftResumeOverlay({
   sessionId,
@@ -332,66 +524,96 @@ function DraftResumeOverlay({
   onResume: () => void;
   onDismiss: () => void;
 }) {
+  const { t } = useTranslation();
+  const { colorScheme } = useColorScheme();
+  const tk = TOKENS[colorScheme === "dark" ? "dark" : "light"];
   const finishSession = useFinishSession(sessionId);
 
   const handleAvslutaSession = () => {
-    // mutate (NOT mutateAsync) per Phase 4 commit 5d953b6 UAT lesson — paused
-    // mutations under networkMode: 'offlineFirst' never resolve mutateAsync.
-    // The optimistic onMutate in setMutationDefaults['session','finish']
-    // (Plan 01) clears sessionsKeys.active() so the banner + overlay unmount
-    // immediately; the toast then fires via the useEffect transition watcher
-    // in the parent.
+    // .mutate (NOT mutateAsync) — paused mutations under offlineFirst never
+    // resolve mutateAsync (Phase 4 commit 5d953b6 UAT). The optimistic onMutate
+    // clears sessionsKeys.active() so the banner + overlay unmount immediately;
+    // the toast then fires via the parent's transition watcher.
     finishSession.mutate(
       { id: sessionId, finished_at: new Date().toISOString() },
-      {
-        onError: () => {
-          // V1: silent — if the server eventually rejects, the active query
-          // will refetch and the row re-appears as active on next focus.
-        },
-      },
+      { onError: () => {} },
     );
     onDismiss();
   };
 
   return (
     <Pressable
-      className="absolute inset-0 bg-black/40"
+      className="absolute inset-0"
+      style={{ backgroundColor: "rgba(0,0,0,0.55)" }}
       accessibilityElementsHidden={false}
-      // Intentionally NO onPress — backdrop is decoratively pressable to
-      // absorb taps but does not dismiss; force-decision UX per UI-SPEC.
+      // Intentionally NO onPress — backdrop absorbs taps but does not dismiss;
+      // force-decision UX per UI-SPEC.
     >
       <View
-        className="absolute inset-x-4 top-[40%] bg-gray-100 dark:bg-gray-800 rounded-2xl p-6"
-        style={{ gap: 24 }}
         onStartShouldSetResponder={() => true}
+        style={{
+          position: "absolute",
+          left: 16,
+          right: 16,
+          top: "40%",
+          backgroundColor: tk.surface,
+          borderWidth: 1,
+          borderColor: tk.border,
+          borderRadius: 20,
+          padding: 24,
+          gap: 24,
+        }}
       >
         <View style={{ gap: 8 }}>
-          <Text className="text-2xl font-semibold text-gray-900 dark:text-gray-50">
-            Återuppta passet?
+          <Text
+            style={{
+              fontSize: 22,
+              fontWeight: "700",
+              letterSpacing: -0.5,
+              color: tk.text,
+            }}
+          >
+            {t("resumeSession")}
           </Text>
-          <Text className="text-base text-gray-900 dark:text-gray-50">
+          <Text style={{ fontSize: 15, color: tk.text2, lineHeight: 21 }}>
             {bodyText}
           </Text>
         </View>
-        <View className="flex-row gap-3">
+        <View style={{ flexDirection: "row", gap: 12 }}>
           <Pressable
             onPress={handleAvslutaSession}
-            className="flex-1 py-4 rounded-lg bg-red-600 dark:bg-red-500 items-center justify-center active:opacity-80"
             accessibilityRole="button"
-            accessibilityLabel="Avsluta sessionen"
+            accessibilityLabel={t("finishSession")}
+            className="flex-1 h-[52px] rounded-forge-md items-center justify-center border bg-forge-surface2-light dark:bg-forge-surface2 border-forge-border-light dark:border-forge-border"
+            style={({ pressed }) => (pressed ? { opacity: 0.85 } : null)}
           >
-            <Text className="text-base font-semibold text-white">
-              Avsluta sessionen
+            <Text
+              style={{
+                fontSize: 15,
+                fontWeight: "600",
+                color: tk.text,
+                letterSpacing: -0.2,
+              }}
+            >
+              {t("finishSession")}
             </Text>
           </Pressable>
           <Pressable
             onPress={onResume}
-            className="flex-1 py-4 rounded-lg bg-blue-600 dark:bg-blue-500 items-center justify-center active:opacity-80"
             accessibilityRole="button"
-            accessibilityLabel="Återuppta passet"
+            accessibilityLabel={t("resume")}
+            className="flex-1 h-[52px] rounded-forge-md items-center justify-center bg-forge-accent-light dark:bg-forge-accent"
+            style={({ pressed }) => (pressed ? { opacity: 0.85 } : null)}
           >
-            <Text className="text-base font-semibold text-white">
-              Återuppta
+            <Text
+              style={{
+                fontSize: 15,
+                fontWeight: "600",
+                color: tk.accentText,
+                letterSpacing: -0.2,
+              }}
+            >
+              {t("resume")}
             </Text>
           </Pressable>
         </View>

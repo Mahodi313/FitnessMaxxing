@@ -24,22 +24,57 @@
 //   - 05-UI-SPEC.md §Color line 133 (info-blue role) + §lines 281-287 (copy + a11y)
 //   - 05-PATTERNS.md §active-session-banner.tsx
 
+import { useEffect, useState } from "react";
 import { View, Text, Pressable } from "react-native";
 import { useColorScheme } from "nativewind";
 import { useRouter, useSegments, type Href } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import { useTranslation } from "react-i18next";
 
+import { Icon } from "@/components/ui";
 import { useActiveSessionQuery } from "@/lib/queries/sessions";
+import { useSetsForSessionQuery } from "@/lib/queries/sets";
+import { usePlanExercisesQuery } from "@/lib/queries/plan-exercises";
+
+// mm:ss (or h:mm:ss past an hour) elapsed since `startedAt`.
+function formatElapsed(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
+}
 
 export function ActiveSessionBanner() {
   const router = useRouter();
   const segments = useSegments();
+  const { t } = useTranslation();
   const { data: activeSession } = useActiveSessionQuery();
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
-  // UI-SPEC line 133: Icon colors track text color of info-blue role.
-  // Light: blue-900 (#1E3A8A). Dark: blue-100 (#DBEAFE).
-  const iconColor = isDark ? "#DBEAFE" : "#1E3A8A";
+  // Forge re-skin (Phase 10 device UAT 2026-06-12 — design spec §04): the banner
+  // carries the single orange accent (accentSoft tint + live dot + accent
+  // chevron), a live elapsed timer, the plan name, and exercise progress,
+  // replacing the old V1 info-blue "Pågående pass / Tryck för att återgå".
+  const accentColor = isDark ? "#FF5A1F" : "#E14E10";
+
+  // Live elapsed timer — tick every second from started_at.
+  const startedAt = activeSession?.started_at;
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!startedAt) return;
+    setNow(Date.now());
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, [startedAt]);
+
+  // Progress: distinct exercises with ≥1 logged set / total plan exercises.
+  // Both queries are gated (enabled: !!id) so they no-op without an active
+  // session/plan; "" disables them on the null-session render.
+  const { data: sets } = useSetsForSessionQuery(activeSession?.id ?? "");
+  const { data: planExercises } = usePlanExercisesQuery(
+    activeSession?.plan_id ?? "",
+  );
 
   // Hide-on-workout-route logic (UI-SPEC §line 509): don't double-stack with
   // workout-screen header. The active workout screen already has its own
@@ -50,28 +85,56 @@ export function ActiveSessionBanner() {
   const onWorkoutRoute = (segments as readonly string[]).some((s) => s === "workout");
   if (!activeSession || onWorkoutRoute) return null;
 
+  const timer = startedAt
+    ? formatElapsed(now - new Date(startedAt).getTime())
+    : null;
+  const title = timer
+    ? `${t("activeSessionTitle")} · ${timer}`
+    : t("activeSessionTitle");
+
+  const total = planExercises?.length ?? 0;
+  const done = sets ? new Set(sets.map((s) => s.exercise_id)).size : 0;
+  const planName = activeSession.plan_name_snapshot ?? null;
+
+  // Subtitle: plan name · done/total exercises · tap-to-return (each segment
+  // null-safe so a plan-less or freshly-started session degrades gracefully).
+  const subtitle = [
+    planName,
+    total > 0 ? `${Math.min(done, total)}/${total} ${t("exercises")}` : null,
+    t("activeSessionTap"),
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
   return (
     <Pressable
       onPress={() => router.push(`/workout/${activeSession.id}` as Href)}
       accessibilityRole="button"
-      accessibilityLabel="Återgå till pågående pass"
-      className="flex-row items-center justify-between gap-2 bg-blue-100 dark:bg-blue-950 border border-blue-300 dark:border-blue-800 px-4 py-3 mx-4 mt-2 rounded-lg active:opacity-80"
+      accessibilityLabel={t("activeSessionReturn")}
+      className="flex-row items-center justify-between gap-2 mx-4 mt-2 px-4 py-3 rounded-forge-md border bg-forge-accentSoft-light dark:bg-forge-accentSoft border-forge-border-light dark:border-forge-border active:opacity-80"
     >
-      <View className="flex-row items-center gap-2 flex-1">
-        <Ionicons name="time" size={20} color={iconColor} />
+      <View className="flex-row items-center gap-3 flex-1">
+        {/* Live dot */}
+        <View className="w-2 h-2 rounded-full bg-forge-accent-light dark:bg-forge-accent" />
         <View className="flex-1">
           <Text
-            className="text-base font-semibold text-blue-900 dark:text-blue-100"
+            className="text-[15px] font-semibold text-forge-accent-light dark:text-forge-accent"
+            style={{ fontVariant: ["tabular-nums"] }}
+            numberOfLines={1}
             accessibilityLiveRegion="polite"
           >
-            Pågående pass
+            {title}
           </Text>
-          <Text className="text-base text-blue-900 dark:text-blue-100 opacity-80">
-            Tryck för att återgå
+          <Text
+            className="text-[13px] text-forge-text2-light dark:text-forge-text2"
+            style={{ fontVariant: ["tabular-nums"] }}
+            numberOfLines={1}
+          >
+            {subtitle}
           </Text>
         </View>
       </View>
-      <Ionicons name="chevron-forward" size={20} color={iconColor} />
+      <Icon name="chevronRight" size={18} color={accentColor} strokeWidth={2.2} />
     </Pressable>
   );
 }

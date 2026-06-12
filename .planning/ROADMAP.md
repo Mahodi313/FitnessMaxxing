@@ -97,6 +97,32 @@ Plans:
 3. The tab bar (Planer / Historik / Inställningar) matches the design in light + dark
 4. User-created names and notes are stored exactly as written, never auto-translated
 
+**Plans:** 6/6 plans complete
+Plans:
+**Wave 1**
+
+- [x] 10-01-PLAN.md — Foundation: migration 0010 (seed_key + plan_name_snapshot + RPC re-deploy) + useDeletePlan/[plan,delete] + snapshot-on-start + schema/verify-deploy/test-rls extensions (Wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [x] 10-02-PLAN.md — Muscle-group util + 18-row bilingual seed module + auth-gated first-run bootstrap + test-muscle-group + seed/taxonomy locale keys (Wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [x] 10-03-PLAN.md — Exercise picker re-skin: filter pills + AND-search + mg dropdown create-new + bilingual rows + picker locale keys (Wave 3)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [x] 10-04-PLAN.md — Plan-exercise edit re-skin (FExerciseEdit steppers, optional targets, remove) + edit locale keys (Wave 4)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
+- [x] 10-05-PLAN.md — Plans list (FHome) + new-plan (FNewPlan) + tab bar light+dark (SKIN-07) + their locale keys (Wave 5)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+
+- [x] 10-06-PLAN.md — Plan detail (FPlanDetail) re-skin + hard-delete confirm dialog + snapshot wiring + phase-gate suite (Wave 6)
+
 #### Phase 11: Active Workout Re-skin (HIGH RISK — F13)
 
 **Goal:** Re-skin the hot-path workout screen and its inline overlays without regressing the ≤3s log-set budget or F13.
@@ -173,7 +199,7 @@ Deferred to a later milestone (needs Apple Developer license + tooling). Mapped 
 | 7. V1 Polish Cut                              | v1.0 | 5/5 | ✓ Complete | 2026-05-16 |
 | 8. Forge Foundation                           | v2.0 | 5/5 | Complete   | 2026-06-10 |
 | 9. Auth, Settings & Preferences               | v2.0 | 3/3 | Complete   | 2026-06-11 |
-| 10. Plans & Exercises Re-skin                 | v2.0 | 0/? | ○ Planned  | — |
+| 10. Plans & Exercises Re-skin                 | v2.0 | 6/6 | Complete    | 2026-06-12 |
 | 11. Active Workout Re-skin (F13 risk)         | v2.0 | 0/? | ○ Planned  | — |
 | 12. History, Detail, Chart & Dashboard        | v2.0 | 0/? | ○ Planned  | — |
 | 13. PR Celebration (F18)                      | v2.0 | 0/? | ○ Planned  | — |

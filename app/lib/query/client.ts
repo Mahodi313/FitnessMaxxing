@@ -108,6 +108,10 @@ type PlanUpdateVars = { id: string } & Partial<
   Pick<PlanRow, "name" | "description" | "archived_at">
 >;
 type PlanArchiveVars = { id: string };
+// Phase 10 D-11: hard-delete a plan. Server cascade handles children
+// (plan_exercises ON DELETE CASCADE; workout_sessions.plan_id ON DELETE SET NULL;
+// exercise_sets untouched). No client-side child cleanup.
+type PlanDeleteVars = { id: string };
 
 type ExerciseInsertVars = Partial<ExerciseRow> & {
   id: string;
@@ -137,6 +141,9 @@ type SessionInsertVars = Partial<SessionRow> & {
   user_id: string;
   plan_id?: string | null;
   started_at?: string;
+  // Phase 10 D-11: snapshot of the plan name at session-start so history stays
+  // readable after the plan is hard-deleted (plan_id → NULL).
+  plan_name_snapshot?: string | null;
 };
 // SessionFinishVars: useFinishSession(...).mutate({ id, finished_at, notes? })
 // — UPDATE finished_at and optional notes. notes is optional (D-N3); existing
@@ -408,6 +415,78 @@ queryClient.setMutationDefaults(["plan", "archive"], {
 });
 
 // ===========================================================================
+// 3b) ['plan','delete'] — hard-delete (DELETE workout_plans row) — Phase 10 D-11.
+//
+// Server cascade handles all children: plan_exercises ON DELETE CASCADE removes
+// the plan's exercise rows; workout_sessions.plan_id ON DELETE SET NULL preserves
+// every session/set (history is never destroyed — get_session_summaries falls
+// back to plan_name_snapshot via migration 0010's coalesce). No client child
+// cleanup is needed.
+//
+// Optimistic onMutate filters the FLAT plansKeys.list() cache (NOT the infinite
+// envelope used by sessionsKeys.listInfinite) — same shape as ['plan','archive'].
+//
+// onSettled invalidates BOTH plansKeys.list() (plan disappears from Planer) AND
+// sessionsKeys.listInfinite() (history re-fetches so each affected session's
+// plan_name now resolves through the coalesce to plan_name_snapshot).
+//
+// scope.id is baked at hook construction (useDeletePlan(planId)) so the delete
+// serializes FIFO with any in-flight plan-scoped mutation under `plan:<id>`.
+// ===========================================================================
+queryClient.setMutationDefaults(["plan", "delete"], {
+  mutationFn: async (vars: PlanDeleteVars) => {
+    const { error } = await supabase
+      .from("workout_plans")
+      .delete()
+      .eq("id", vars.id);
+    if (error) throw error;
+    return undefined as void;
+  },
+  // scope.id is set at call-site via mutate() options — pass `scope: { id: 'plan:<planId>' }`.
+  onMutate: async (vars: PlanDeleteVars) => {
+    await queryClient.cancelQueries({ queryKey: plansKeys.list() });
+    await queryClient.cancelQueries({ queryKey: plansKeys.detail(vars.id) });
+    const previous = queryClient.getQueryData<PlanRow[]>(plansKeys.list());
+    // WR-05: snapshot + clear the deleted plan's detail slot so a re-entry to
+    // its route (frozen screen via freezeOnBlur, or persisted-cache rehydration
+    // after restart) can't render the deleted plan as if alive — the detail
+    // screen's loading gate is `!plan`.
+    const previousDetail = queryClient.getQueryData<PlanRow>(
+      plansKeys.detail(vars.id),
+    );
+    queryClient.setQueryData<PlanRow[]>(plansKeys.list(), (old = []) =>
+      old.filter((r) => r.id !== vars.id),
+    );
+    queryClient.setQueryData(plansKeys.detail(vars.id), undefined);
+    return { previous, previousDetail };
+  },
+  onError: (_err, vars, ctx) => {
+    const c = ctx as
+      | { previous?: PlanRow[]; previousDetail?: PlanRow }
+      | undefined;
+    if (c?.previous) queryClient.setQueryData(plansKeys.list(), c.previous);
+    if (c?.previousDetail)
+      queryClient.setQueryData(plansKeys.detail(vars.id), c.previousDetail);
+  },
+  onSettled: (_data, _err, vars) => {
+    void queryClient.invalidateQueries({ queryKey: plansKeys.list() });
+    // History rows reference this plan by name via plan_name_snapshot coalesce —
+    // re-fetch so the now-deleted plan's sessions render the snapshot name.
+    void queryClient.invalidateQueries({
+      queryKey: sessionsKeys.listInfinite(),
+    });
+    // WR-05: drop the orphaned detail + plan_exercises caches for the deleted
+    // plan (its plan_exercises rows were cascade-deleted server-side), so they
+    // don't linger for gcTime (24h) holding a plan that no longer exists.
+    void queryClient.invalidateQueries({ queryKey: plansKeys.detail(vars.id) });
+    void queryClient.invalidateQueries({
+      queryKey: planExercisesKeys.list(vars.id),
+    });
+  },
+  retry: 1,
+});
+
+// ===========================================================================
 // 4) ['exercise','create'] — exercises INSERT (idempotent upsert)
 // scope.id reads meta._scopeOverride first (so the picker can chain a create
 // + plan_exercise add under shared `plan:<id>` scope) — fallback to a unique
@@ -655,6 +734,10 @@ queryClient.setMutationDefaults(["session", "start"], {
       started_at: vars.started_at ?? new Date().toISOString(),
       finished_at: vars.finished_at ?? null,
       notes: vars.notes ?? null,
+      // Phase 10 D-11: carry the snapshot through the optimistic window so a
+      // session started offline retains the plan name even if the plan is later
+      // hard-deleted before the START mutation flushes.
+      plan_name_snapshot: vars.plan_name_snapshot ?? null,
       created_at: vars.created_at ?? null,
     } satisfies SessionRow;
     queryClient.setQueryData<SessionRow | null>(

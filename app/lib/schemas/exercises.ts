@@ -13,6 +13,22 @@
 
 import { z } from "zod";
 
+// ---- Muscle-group keys (Phase 10 D-01) -------------------------------------
+// The exercise form's muscle-group dropdown only emits one of these 5 stable
+// keys (rendered bilingually in the UI via i18n). The form schema constrains
+// muscle_group to this set so a tampered form payload cannot persist an
+// off-list value. The ROW schema (wire-boundary) stays LOOSE (z.string())
+// because legacy free-text rows from Phase 4 predate the keyed dropdown and
+// must still parse.
+export const MUSCLE_GROUP_KEYS = [
+  "chest",
+  "back",
+  "legs",
+  "shoulders",
+  "arms",
+] as const;
+export type MuscleGroupKey = (typeof MUSCLE_GROUP_KEYS)[number];
+
 // ---- Form-input shape ------------------------------------------------------
 export const exerciseFormSchema = z.object({
   name: z
@@ -20,8 +36,7 @@ export const exerciseFormSchema = z.object({
     .min(1, { error: "Namn krävs" })
     .max(80, { error: "Max 80 tecken" }),
   muscle_group: z
-    .string()
-    .max(40, { error: "Max 40 tecken" })
+    .enum(MUSCLE_GROUP_KEYS, { error: "Ogiltig muskelgrupp" })
     .nullable()
     .optional(),
   equipment: z
@@ -48,6 +63,10 @@ export const exerciseRowSchema = z.object({
   muscle_group: z.string().nullable(),
   equipment: z.string().nullable(),
   notes: z.string().nullable(),
+  // Phase 10 D-06: nullable bilingual seed identifier (migration 0010). Stays
+  // loose (string|null) on the wire — legacy/user rows are NULL; V2 global seed
+  // rows carry a stable key. The form dropdown never writes this column.
+  seed_key: z.string().nullable(),
   created_at: z.string().nullable(),
 });
 export type ExerciseRow = z.infer<typeof exerciseRowSchema>;

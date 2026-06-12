@@ -1,40 +1,136 @@
 // app/app/(app)/(tabs)/_layout.tsx
 //
-// Phase 4 Plan 02: (tabs) skeleton — Default Expo Router <Tabs> with Swedish
-// labels and Ionicons (CONTEXT.md D-15/D-17/D-18; UI-SPEC §Tab-bar).
+// Phase 10 Plan 05 (SKIN-07 / I18N-05): Forge re-skin of the bottom tab bar
+// → the Forge TabBar (lib.jsx line 580 / forge-screens.jsx). APPEARANCE-ONLY
+// change — routes, OfflineBanner placement, and tab behavior are preserved.
 //
-// OfflineBanner mounts ABOVE <Tabs>, INSIDE SafeAreaView edges={['top']} so
-// the banner sits below the status bar but above the tab content (UI-SPEC
-// §Visuals OfflineBanner + RESEARCH §6).
+// Planner's-call (10-PATTERNS.md tab-bar assignment): we style the LIVE
+// expo-router <Tabs> by supplying a custom `tabBar` renderer (ForgeTabBar) that
+// draws the Forge floating bar from the design tokens. This keeps the real
+// expo-router navigation state machine (the standalone Phase-8 TabBar shell is
+// gallery-only per OQ-5 and is NOT wired in — wiring it would mean re-deriving
+// navigation state, a behavior change outside this phase's boundary).
 //
-// NO <Redirect> guard here — the parent (app)/_layout.tsx already protects
-// the route group (Phase 3 D-08). The tabs layout is rendered INSIDE the
-// protected tree.
+// Forge spec (10-UI-SPEC line 162):
+//   - active   = text-forge-accent + icon strokeWidth 2 + label weight 600
+//   - inactive = text-forge-text3 + icon strokeWidth 1.6 + label weight 500
+//   - floating bg-forge-tabBg, paddingTop 10 / paddingBottom 28
+//   - icons: Planer=barbell (content icon, never gradient), Historik=clock,
+//     Inställningar=settings (Forge Icon set, NOT Ionicons)
+//   - labels t('plans') / t('history') / t('settings') (exist)
+//   - LIGHT + DARK parity REQUIRED (SKIN-07) — useColorScheme() for raw colors.
 //
-// Tab tints bound via useColorScheme() — Forge re-skin (Plan 09-02 UAT, color-
-// only, no nav/structure/icon change): active accent (#E14E10 light / #FF5A1F
-// dark), inactive forge-text2 (#4D4D4D light / rgba(255,255,255,0.62) dark),
-// surface + hairline border match the Forge dark chrome elsewhere on screen.
+// OfflineBanner mounts ABOVE <Tabs>, INSIDE SafeAreaView edges={['top']} so the
+// banner sits below the status bar but above the tab content (Phase 4 — UI-SPEC
+// §Visuals OfflineBanner). The ActiveSessionBanner sits below it (Phase 5
+// carry-forward). Neither placement changes — appearance-only re-skin.
 //
-// headerShown: false at the (tabs) layer because each tab screen renders
-// its own SafeAreaView + heading. Plan-detail (Plan 03) will opt headers in
-// per-screen via <Stack.Screen options={{ headerShown: true, ... }} />.
+// NO <Redirect> guard here — the parent (app)/_layout.tsx already protects the
+// route group (Phase 3 D-08). headerShown:false because each tab screen renders
+// its own SafeAreaView + heading.
 //
 // References:
-//   - 04-CONTEXT.md D-15, D-16, D-17, D-18
-//   - 04-UI-SPEC.md §Tab-bar + §Color
+//   - app/design v2/Sources/design/lib.jsx TabBar (line 580)
+//   - .planning/phases/10-plans-exercises-re-skin/10-UI-SPEC.md §Interaction Contract (tab bar) / §Color
+//   - 10-PATTERNS.md tab-bar assignment + SP-5/SP-6
+//   - app/components/ui/TabBar.tsx (Phase 8 shell — token reference)
 
 import { Tabs } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
-import { SafeAreaView } from "react-native-safe-area-context";
+import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
+import { Pressable, Text, View } from "react-native";
 import { useColorScheme } from "nativewind";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
+
+import { Icon, type IconName } from "@/components/ui";
 import { OfflineBanner } from "@/components/offline-banner";
 import { ActiveSessionBanner } from "@/components/active-session-banner";
 
-export default function TabsLayout() {
+// route name → Forge content icon (barbell is a CONTENT icon, never gradient).
+const ROUTE_ICON: Record<string, IconName> = {
+  index: "barbell",
+  history: "clock",
+  settings: "settings",
+};
+
+// route name → locale key (labels exist from prior phases).
+const ROUTE_LABEL_KEY: Record<string, string> = {
+  index: "plans",
+  history: "history",
+  settings: "settings",
+};
+
+// ── ForgeTabBar — custom tabBar renderer styled to the Forge spec ────────────
+// Drives the live expo-router navigation state (state.index, navigation.navigate)
+// but paints the Forge floating bar. Light + dark parity via useColorScheme()
+// for the raw Icon stroke color (the bar surface + labels use token classes).
+function ForgeTabBar({ state, navigation }: BottomTabBarProps) {
+  const { t } = useTranslation();
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
+  const accent = isDark ? "#FF5A1F" : "#E14E10";
+  const text3 = isDark ? "rgba(255,255,255,0.38)" : "#8B8B8B";
 
+  return (
+    <View
+      className="flex-row border-t border-forge-border-light bg-forge-tabBg-light dark:border-forge-border dark:bg-forge-tabBg"
+      style={{ paddingTop: 10, paddingBottom: 28 }}
+    >
+      {state.routes.map((route, index) => {
+        const isActive = state.index === index;
+        const iconName = ROUTE_ICON[route.name] ?? "barbell";
+        const labelKey = ROUTE_LABEL_KEY[route.name] ?? route.name;
+        const color = isActive ? accent : text3;
+
+        const onPress = () => {
+          const event = navigation.emit({
+            type: "tabPress",
+            target: route.key,
+            canPreventDefault: true,
+          });
+          if (!isActive && !event.defaultPrevented) {
+            navigation.navigate(route.name);
+          }
+        };
+
+        return (
+          <Pressable
+            key={route.key}
+            onPress={onPress}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: isActive }}
+            accessibilityLabel={t(labelKey)}
+            className="flex-1 items-center gap-1"
+            // FIT-66 — pressed feedback via style callback, never active:opacity-*.
+            style={({ pressed }) => (pressed ? { opacity: 0.7 } : null)}
+          >
+            <Icon
+              name={iconName}
+              size={24}
+              color={color}
+              strokeWidth={isActive ? 2 : 1.6}
+            />
+            <Text
+              className={`text-[10.5px] ${
+                isActive
+                  ? "text-forge-accent-light dark:text-forge-accent"
+                  : "text-forge-text3-light dark:text-forge-text3"
+              }`}
+              style={{
+                fontWeight: isActive ? "600" : "500",
+                letterSpacing: -0.1,
+              }}
+            >
+              {t(labelKey)}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+export default function TabsLayout() {
   return (
     <SafeAreaView
       edges={["top"]}
@@ -43,59 +139,12 @@ export default function TabsLayout() {
       <OfflineBanner />
       <ActiveSessionBanner />
       <Tabs
-        screenOptions={{
-          headerShown: false,
-          tabBarStyle: {
-            backgroundColor: isDark ? "#0E0E10" : "#FFFFFF",
-            borderTopColor: isDark
-              ? "rgba(255,255,255,0.08)"
-              : "rgba(0,0,0,0.07)",
-          },
-          tabBarActiveTintColor: isDark ? "#FF5A1F" : "#E14E10",
-          tabBarInactiveTintColor: isDark
-            ? "rgba(255,255,255,0.62)"
-            : "#4D4D4D",
-        }}
+        screenOptions={{ headerShown: false }}
+        tabBar={(props) => <ForgeTabBar {...props} />}
       >
-        <Tabs.Screen
-          name="index"
-          options={{
-            title: "Planer",
-            tabBarIcon: ({ focused, color }) => (
-              <Ionicons
-                name={focused ? "barbell" : "barbell-outline"}
-                size={24}
-                color={color}
-              />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="history"
-          options={{
-            title: "Historik",
-            tabBarIcon: ({ focused, color }) => (
-              <Ionicons
-                name={focused ? "time" : "time-outline"}
-                size={24}
-                color={color}
-              />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="settings"
-          options={{
-            title: "Inställningar",
-            tabBarIcon: ({ focused, color }) => (
-              <Ionicons
-                name={focused ? "settings" : "settings-outline"}
-                size={24}
-                color={color}
-              />
-            ),
-          }}
-        />
+        <Tabs.Screen name="index" />
+        <Tabs.Screen name="history" />
+        <Tabs.Screen name="settings" />
       </Tabs>
     </SafeAreaView>
   );

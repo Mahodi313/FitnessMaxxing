@@ -53,6 +53,11 @@ export const sessionRowSchema = z.object({
   started_at: z.string(), // ISO timestamp, not-null in schema
   finished_at: z.string().nullable(),
   notes: z.string().nullable(),
+  // Phase 10 D-11: snapshot of the plan name captured at session-start, so a
+  // hard-deleted plan (plan_id → NULL via 0001 ON DELETE SET NULL) still renders
+  // the plan name in history. Nullable: pre-0010 sessions are backfilled, but
+  // plan-less sessions stay NULL.
+  plan_name_snapshot: z.string().nullable(),
   created_at: z.string().nullable(),
 });
 export type SessionRow = z.infer<typeof sessionRowSchema>;

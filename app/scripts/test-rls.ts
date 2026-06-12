@@ -238,7 +238,10 @@ async function main() {
 
   const { data: exB, error: exBErr } = await clientB
     .from("exercises")
-    .insert({ user_id: userB.id, name: "rls-test-b-bench-press" })
+    // Phase 10 D-06: seed B's exercise WITH a seed_key so the cross-user
+    // assertions below prove the column is covered by the column-agnostic
+    // own-row RLS (A can neither read nor write B's seed_key).
+    .insert({ user_id: userB.id, name: "rls-test-b-bench-press", seed_key: "bench_press" })
     .select()
     .single();
   if (exBErr || !exB) throw new Error(`Seed B exercises failed: ${exBErr?.message}`);
@@ -290,6 +293,39 @@ async function main() {
     .select()
     .single();
   if (exAErr || !exA) throw new Error(`Seed A exercise failed: ${exAErr?.message}`);
+
+  // ---- Phase 10 CR-01 regression — per-user starter-seed ids -----------------
+  // The original first-run seed hardcoded ONE global UUID per seed_key, so the
+  // first user to seed claimed the id and every later user's upsert hit
+  // `ON CONFLICT (id) DO NOTHING` → zero starter exercises, silently. The fix
+  // derives the id PER USER (deterministicUUID(`…:${userId}:${seed_key}`)). exB
+  // already holds seed_key='bench_press' for user B; user A seeding the SAME
+  // seed_key (its own row) MUST succeed with a DISTINCT id.
+  {
+    const aBench = await clientA
+      .from("exercises")
+      .insert({
+        user_id: userA.id,
+        name: "rls-test-a-bench-press",
+        seed_key: "bench_press",
+      })
+      .select()
+      .single();
+    if (aBench.error || !aBench.data) {
+      fail(
+        "CR-01: A CAN seed its own bench_press while B already holds one",
+        { error: aBench.error },
+      );
+    } else if (aBench.data.id === exB.id) {
+      fail("CR-01: A's bench_press reused B's id (global-id regression)", {
+        id: aBench.data.id,
+      });
+    } else {
+      pass(
+        "CR-01: two users hold seed_key='bench_press' with distinct ids (no PK collision)",
+      );
+    }
+  }
 
   // =========================================================================
   // ASSERTION BATTERY — clientA against User B's namespace
@@ -352,6 +388,21 @@ async function main() {
   assertWriteBlocked(
     "A cannot DELETE B's exercise",
     await clientA.from("exercises").delete().eq("id", exB.id).select(),
+  );
+  // Phase 10 D-06 (T-10-01): the column-agnostic own-row RLS must cover the new
+  // seed_key column. A's SELECT of B's seed_key row returns empty, and A's
+  // UPDATE of seed_key on B's row is blocked.
+  assertEmpty(
+    "A cannot SELECT B's exercise seed_key (Phase 10 D-06)",
+    await clientA.from("exercises").select("seed_key").eq("id", exB.id),
+  );
+  assertWriteBlocked(
+    "A cannot UPDATE seed_key on B's exercise (Phase 10 D-06)",
+    await clientA
+      .from("exercises")
+      .update({ seed_key: "hacked_key" })
+      .eq("id", exB.id)
+      .select(),
   );
 
   // ---- workout_plans -----------------------------------------------------

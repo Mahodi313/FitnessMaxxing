@@ -1,0 +1,32 @@
+{
+  "phase": "10",
+  "plans": {
+    "01": {
+      "issue_id": "FIT-88",
+      "linear_id": "383c77cd-d7f9-4b81-85c9-8a81a7697a2e"
+    },
+    "02": {
+      "issue_id": "FIT-89",
+      "linear_id": "3b894f4b-a537-4c76-9d2c-ab0b26592f1a"
+    },
+    "03": {
+      "issue_id": "FIT-90",
+      "linear_id": "08d01480-6002-48d9-8241-de9a78da7e44"
+    },
+    "04": {
+      "issue_id": "FIT-91",
+      "linear_id": "ca03617f-a0f9-4307-aeb8-0c57fad5c4da"
+    },
+    "05": {
+      "issue_id": "FIT-92",
+      "linear_id": "86b9c318-f271-4251-8166-1b67c76f0299"
+    },
+    "06": {
+      "issue_id": "FIT-93",
+      "linear_id": "f7d8022f-9bd7-4449-b033-dcfb681fde66"
+    }
+  },
+  "epic_issue_id": "FIT-87",
+  "epic_linear_id": "bcdbb11c-8478-4341-bac1-29142eaa6db6",
+  "last_synced": "2026-06-12T18:27:26.689Z"
+}
