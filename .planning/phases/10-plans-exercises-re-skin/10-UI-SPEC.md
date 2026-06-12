@@ -1,10 +1,11 @@
 ---
 phase: 10
 slug: plans-exercises-re-skin
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-06-12
+reviewed_at: 2026-06-12
 ---
 
 # Phase 10 — UI Design Contract (Plans & Exercises Re-skin)
