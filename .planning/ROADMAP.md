@@ -97,6 +97,15 @@ Plans:
 3. The tab bar (Planer / Historik / Inställningar) matches the design in light + dark
 4. User-created names and notes are stored exactly as written, never auto-translated
 
+**Plans:** 6 plans
+Plans:
+- [ ] 10-01-PLAN.md — Foundation: migration 0010 (seed_key + plan_name_snapshot + RPC re-deploy) + useDeletePlan/[plan,delete] + snapshot-on-start + schema/verify-deploy/test-rls extensions (Wave 1)
+- [ ] 10-02-PLAN.md — Muscle-group util + 18-row bilingual seed module + auth-gated first-run bootstrap + test-muscle-group + seed/taxonomy locale keys (Wave 2)
+- [ ] 10-03-PLAN.md — Exercise picker re-skin: filter pills + AND-search + mg dropdown create-new + bilingual rows + picker locale keys (Wave 3)
+- [ ] 10-04-PLAN.md — Plan-exercise edit re-skin (FExerciseEdit steppers, optional targets, remove) + edit locale keys (Wave 4)
+- [ ] 10-05-PLAN.md — Plans list (FHome) + new-plan (FNewPlan) + tab bar light+dark (SKIN-07) + their locale keys (Wave 5)
+- [ ] 10-06-PLAN.md — Plan detail (FPlanDetail) re-skin + hard-delete confirm dialog + snapshot wiring + phase-gate suite (Wave 6)
+
 #### Phase 11: Active Workout Re-skin (HIGH RISK — F13)
 
 **Goal:** Re-skin the hot-path workout screen and its inline overlays without regressing the ≤3s log-set budget or F13.
