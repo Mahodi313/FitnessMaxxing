@@ -584,19 +584,8 @@ function DraftResumeOverlay({
             onPress={handleAvslutaSession}
             accessibilityRole="button"
             accessibilityLabel={t("finishSession")}
-            style={({ pressed }) => [
-              {
-                flex: 1,
-                height: 52,
-                borderRadius: 14,
-                alignItems: "center",
-                justifyContent: "center",
-                backgroundColor: tk.surface2,
-                borderWidth: 1,
-                borderColor: tk.border,
-              },
-              pressed ? { opacity: 0.85 } : null,
-            ]}
+            className="flex-1 h-[52px] rounded-forge-md items-center justify-center border bg-forge-surface2-light dark:bg-forge-surface2 border-forge-border-light dark:border-forge-border"
+            style={({ pressed }) => (pressed ? { opacity: 0.85 } : null)}
           >
             <Text
               style={{
@@ -613,17 +602,8 @@ function DraftResumeOverlay({
             onPress={onResume}
             accessibilityRole="button"
             accessibilityLabel={t("resume")}
-            style={({ pressed }) => [
-              {
-                flex: 1,
-                height: 52,
-                borderRadius: 14,
-                alignItems: "center",
-                justifyContent: "center",
-                backgroundColor: tk.accent,
-              },
-              pressed ? { opacity: 0.85 } : null,
-            ]}
+            className="flex-1 h-[52px] rounded-forge-md items-center justify-center bg-forge-accent-light dark:bg-forge-accent"
+            style={({ pressed }) => (pressed ? { opacity: 0.85 } : null)}
           >
             <Text
               style={{

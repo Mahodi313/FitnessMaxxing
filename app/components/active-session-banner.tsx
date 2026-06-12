@@ -27,19 +27,23 @@
 import { View, Text, Pressable } from "react-native";
 import { useColorScheme } from "nativewind";
 import { useRouter, useSegments, type Href } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import { useTranslation } from "react-i18next";
 
+import { Icon } from "@/components/ui";
 import { useActiveSessionQuery } from "@/lib/queries/sessions";
 
 export function ActiveSessionBanner() {
   const router = useRouter();
   const segments = useSegments();
+  const { t } = useTranslation();
   const { data: activeSession } = useActiveSessionQuery();
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
-  // UI-SPEC line 133: Icon colors track text color of info-blue role.
-  // Light: blue-900 (#1E3A8A). Dark: blue-100 (#DBEAFE).
-  const iconColor = isDark ? "#DBEAFE" : "#1E3A8A";
+  // Forge re-skin (Phase 10 device UAT 2026-06-12): the banner is a return-to-
+  // session affordance, so it carries the single orange accent (accentSoft tint
+  // + accent clock/chevron) instead of the old V1 info-blue. Icon color is the
+  // accent hex per scheme (Icon takes a raw color prop, not a class).
+  const accentColor = isDark ? "#FF5A1F" : "#E14E10";
 
   // Hide-on-workout-route logic (UI-SPEC §line 509): don't double-stack with
   // workout-screen header. The active workout screen already has its own
@@ -54,24 +58,24 @@ export function ActiveSessionBanner() {
     <Pressable
       onPress={() => router.push(`/workout/${activeSession.id}` as Href)}
       accessibilityRole="button"
-      accessibilityLabel="Återgå till pågående pass"
-      className="flex-row items-center justify-between gap-2 bg-blue-100 dark:bg-blue-950 border border-blue-300 dark:border-blue-800 px-4 py-3 mx-4 mt-2 rounded-lg active:opacity-80"
+      accessibilityLabel={t("activeSessionReturn")}
+      className="flex-row items-center justify-between gap-2 mx-4 mt-2 px-4 py-3 rounded-forge-md border bg-forge-accentSoft-light dark:bg-forge-accentSoft border-forge-border-light dark:border-forge-border active:opacity-80"
     >
-      <View className="flex-row items-center gap-2 flex-1">
-        <Ionicons name="time" size={20} color={iconColor} />
+      <View className="flex-row items-center gap-3 flex-1">
+        <Icon name="clock" size={20} color={accentColor} strokeWidth={2} />
         <View className="flex-1">
           <Text
-            className="text-base font-semibold text-blue-900 dark:text-blue-100"
+            className="text-[15px] font-semibold text-forge-text-light dark:text-forge-text"
             accessibilityLiveRegion="polite"
           >
-            Pågående pass
+            {t("activeSessionTitle")}
           </Text>
-          <Text className="text-base text-blue-900 dark:text-blue-100 opacity-80">
-            Tryck för att återgå
+          <Text className="text-[13px] text-forge-text2-light dark:text-forge-text2">
+            {t("activeSessionTap")}
           </Text>
         </View>
       </View>
-      <Ionicons name="chevron-forward" size={20} color={iconColor} />
+      <Icon name="chevronRight" size={18} color={accentColor} strokeWidth={2.2} />
     </Pressable>
   );
 }
