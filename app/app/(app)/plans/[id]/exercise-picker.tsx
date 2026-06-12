@@ -569,14 +569,20 @@ export default function ExercisePicker() {
                 </View>
               </View>
 
-              {/* Filter-pill row (D-04 — single-select: Alla + 5 D-01 keys) */}
+              {/* Filter-pill row (D-04 — single-select: Alla + 5 D-01 keys).
+                  `flexGrow:0` + `alignSelf:flex-start` pin the horizontal
+                  ScrollView to its content height — without them RN stretches a
+                  horizontal ScrollView vertically inside a flex-column parent and
+                  clips the pills (device UAT 2026-06-12, IMG_1049). */}
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
+                style={{ flexGrow: 0, flexShrink: 0, alignSelf: "stretch" }}
                 contentContainerStyle={{
                   paddingHorizontal: 16,
                   paddingVertical: 12,
                   gap: 6,
+                  alignItems: "center",
                 }}
               >
                 <FilterPill
@@ -658,10 +664,13 @@ export default function ExercisePicker() {
                 </Pressable>
               </View>
 
-              {/* Exercise list (bilingual rows) */}
+              {/* Exercise list (bilingual rows). `flex:1` lets the list own the
+                  remaining vertical space and scroll, instead of sizing to
+                  content and getting squeezed by the pills row above. */}
               <FlatList
                 data={filtered}
                 keyExtractor={(item) => item.id}
+                style={{ flex: 1 }}
                 contentContainerStyle={{
                   paddingHorizontal: 16,
                   paddingBottom: 32,
