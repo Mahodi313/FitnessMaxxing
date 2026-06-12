@@ -97,7 +97,7 @@ Plans:
 3. The tab bar (Planer / Historik / Inställningar) matches the design in light + dark
 4. User-created names and notes are stored exactly as written, never auto-translated
 
-**Plans:** 5/6 plans executed
+**Plans:** 6/6 plans complete
 Plans:
 **Wave 1**
 
@@ -121,7 +121,7 @@ Plans:
 
 **Wave 6** *(blocked on Wave 5 completion)*
 
-- [ ] 10-06-PLAN.md — Plan detail (FPlanDetail) re-skin + hard-delete confirm dialog + snapshot wiring + phase-gate suite (Wave 6)
+- [x] 10-06-PLAN.md — Plan detail (FPlanDetail) re-skin + hard-delete confirm dialog + snapshot wiring + phase-gate suite (Wave 6)
 
 #### Phase 11: Active Workout Re-skin (HIGH RISK — F13)
 
@@ -199,7 +199,7 @@ Deferred to a later milestone (needs Apple Developer license + tooling). Mapped 
 | 7. V1 Polish Cut                              | v1.0 | 5/5 | ✓ Complete | 2026-05-16 |
 | 8. Forge Foundation                           | v2.0 | 5/5 | Complete   | 2026-06-10 |
 | 9. Auth, Settings & Preferences               | v2.0 | 3/3 | Complete   | 2026-06-11 |
-| 10. Plans & Exercises Re-skin                 | v2.0 | 5/6 | In Progress|  |
+| 10. Plans & Exercises Re-skin                 | v2.0 | 6/6 | Complete   | 2026-06-12 |
 | 11. Active Workout Re-skin (F13 risk)         | v2.0 | 0/? | ○ Planned  | — |
 | 12. History, Detail, Chart & Dashboard        | v2.0 | 0/? | ○ Planned  | — |
 | 13. PR Celebration (F18)                      | v2.0 | 0/? | ○ Planned  | — |
