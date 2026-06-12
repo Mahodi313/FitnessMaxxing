@@ -52,6 +52,7 @@ import {
 } from "react-native";
 import { useColorScheme } from "nativewind";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
 import { format } from "date-fns";
@@ -191,7 +192,14 @@ export default function PlansTab() {
         }}
       >
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <View
+          {/* Brand-mark tile — true 135° gradient (gradFrom → gradTo), matching
+              FHome's `linear-gradient(135deg, …)` brand fill. RN Views can't
+              render CSS gradients, so this uses expo-linear-gradient with a
+              top-left → bottom-right vector (≈135°). */}
+          <LinearGradient
+            colors={[tk.gradFrom, tk.gradTo]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
             style={{
               width: 32,
               height: 32,
@@ -199,13 +207,10 @@ export default function PlansTab() {
               alignItems: "center",
               justifyContent: "center",
               overflow: "hidden",
-              backgroundColor: tk.gradFrom,
             }}
           >
-            {/* Linear-gradient brand fill approximated by the from-hex bg above
-                + the white Ascend mark (the design's gradient tile). */}
             <Logo size={20} variant="white" />
-          </View>
+          </LinearGradient>
           <Text
             style={{
               fontSize: 11,
@@ -392,27 +397,42 @@ export default function PlansTab() {
               ]}
             >
               {/* Icon tile — featured (i===0) = brand-gradient barbell; others
-                  = surface2 content tile. Barbell is a content icon (UI-SPEC). */}
-              <View
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 12,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  overflow: "hidden",
-                  backgroundColor: featured ? tk.gradFrom : tk.surface2,
-                  borderWidth: featured ? 0 : 1,
-                  borderColor: tk.border,
-                }}
-              >
-                <Icon
-                  name="barbell"
-                  size={20}
-                  color={featured ? "#FFFFFF" : tk.text2}
-                  strokeWidth={2}
-                />
-              </View>
+                  = surface2 content tile. Barbell is a content icon (UI-SPEC).
+                  The featured tile uses the same 135° gradient as the brand mark
+                  (FHome line 179), not a flat orange. */}
+              {featured ? (
+                <LinearGradient
+                  colors={[tk.gradFrom, tk.gradTo]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 12,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    overflow: "hidden",
+                  }}
+                >
+                  <Icon name="barbell" size={20} color="#FFFFFF" strokeWidth={2} />
+                </LinearGradient>
+              ) : (
+                <View
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 12,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    overflow: "hidden",
+                    backgroundColor: tk.surface2,
+                    borderWidth: 1,
+                    borderColor: tk.border,
+                  }}
+                >
+                  <Icon name="barbell" size={20} color={tk.text2} strokeWidth={2} />
+                </View>
+              )}
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text
                   numberOfLines={1}
