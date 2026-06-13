@@ -70,10 +70,12 @@ import { z } from "zod";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import Animated, {
+  Easing,
   SlideInDown,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
+  withTiming,
 } from "react-native-reanimated";
 
 import { ForgeButton, Icon } from "@/components/ui";
@@ -853,7 +855,12 @@ function LoggedSetRow({
   // off the UI thread; never blocks the write (T-11-06).
   const checkScale = useSharedValue(0.8);
   useEffect(() => {
-    checkScale.value = withSpring(1, { damping: 18, stiffness: 220 });
+    // Device UAT: the §07 spring (damping 18) read as a bouncy "pop". Switched
+    // to a short timing grow — no overshoot, just a calm scale-in.
+    checkScale.value = withTiming(1, {
+      duration: 180,
+      easing: Easing.out(Easing.quad),
+    });
   }, [checkScale]);
   const checkStyle = useAnimatedStyle(() => ({
     transform: [{ scale: checkScale.value }],
@@ -898,7 +905,7 @@ function LoggedSetRow({
 
   return (
     <Animated.View
-      entering={SlideInDown.springify().damping(30).stiffness(220)}
+      entering={SlideInDown.duration(180).easing(Easing.out(Easing.cubic))}
       className="flex-row items-center px-4 border-b border-forge-border-light dark:border-forge-border"
       style={{ gap: 12, paddingVertical: 14 }}
     >
@@ -910,10 +917,12 @@ function LoggedSetRow({
         className="flex-row items-center flex-1"
         style={({ pressed }) => [{ gap: 12 }, pressed ? { opacity: 0.7 } : null]}
       >
-        {/* Set-number badge — accent circle, accentText numeral */}
+        {/* Set-number badge — accent circle, accentText numeral. marginRight
+            adds breathing room so the weight value doesn't hug the badge
+            (device UAT: "30kg too close to the number to the left"). */}
         <View
           className="items-center justify-center rounded-full bg-forge-accent-light dark:bg-forge-accent"
-          style={{ width: 22, height: 22 }}
+          style={{ width: 22, height: 22, marginRight: 8 }}
         >
           <Text
             className="text-[11px] font-bold text-forge-accentText-light dark:text-forge-accentText"
