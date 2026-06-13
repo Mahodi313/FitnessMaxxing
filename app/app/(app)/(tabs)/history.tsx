@@ -534,7 +534,7 @@ function HistoryListRow({
       // renders it); the inline style() callback carries ONLY pressed opacity.
       className="flex-row items-center rounded-2xl border bg-forge-surface-light dark:bg-forge-surface border-forge-border-light dark:border-forge-border"
       style={({ pressed }) => [
-        { paddingHorizontal: 16, paddingVertical: 14, gap: 16 },
+        { paddingHorizontal: 16, paddingVertical: 14, gap: 22 },
         pressed ? { opacity: 0.85 } : null,
       ]}
     >
