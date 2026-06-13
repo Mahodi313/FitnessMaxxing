@@ -537,14 +537,14 @@ function HistoryListRow({
       // rendered (the date tile sat flush against the row text; UAT 2026-06-13).
       // See feedback_nativewind_box_deco_via_classname. px/py stay inline (they
       // are not flex-container props and do render).
-      className="flex-row items-center gap-4 rounded-2xl border bg-forge-surface-light dark:bg-forge-surface border-forge-border-light dark:border-forge-border"
-      style={({ pressed }) => [
-        // paddingRight slightly > left so the trailing chevron sits inset from
-        // the card edge, not flush to it (UAT 2026-06-13). px/py are not
-        // flex-container props so they render from the inline callback.
-        { paddingLeft: 16, paddingRight: 20, paddingVertical: 14 },
-        pressed ? { opacity: 0.85 } : null,
-      ]}
+      // NativeWind 4: layout/box props (gap, padding) must live in className —
+      // in the inline style() callback they render naked (the chevron stayed
+      // flush to the edge when paddingRight was set inline; UAT 2026-06-13).
+      // pr-5 (20px) > pl-4 (16px) insets the trailing chevron from the card edge.
+      // See feedback_nativewind_box_deco_via_classname. style() keeps ONLY the
+      // pressed opacity.
+      className="flex-row items-center gap-4 pl-4 pr-5 py-3.5 rounded-2xl border bg-forge-surface-light dark:bg-forge-surface border-forge-border-light dark:border-forge-border"
+      style={({ pressed }) => (pressed ? { opacity: 0.85 } : null)}
     >
       {/* 44px date-badge — DD over MON (surface2 tile). */}
       <View
