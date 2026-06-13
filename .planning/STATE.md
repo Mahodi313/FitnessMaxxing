@@ -10,8 +10,8 @@ progress:
   total_phases: 8
   completed_phases: 4
   total_plans: 25
-  completed_plans: 18
-  percent: 50
+  completed_plans: 19
+  percent: 52
 ---
 
 # Project State
@@ -26,8 +26,8 @@ See: .planning/PROJECT.md (updated 2026-06-09)
 ## Current Position
 
 Phase: 12 (history-detail-chart-home-dashboard) — EXECUTING
-Plan: 3 of 8
-Status: Plan 12-02 complete (volume helpers + i18n key set); ready for 12-03
+Plan: 4 of 8
+Status: Plan 12-03 complete (ProgressRing + Sparkline mount animations); ready for 12-04
 Last activity: 2026-06-13
 
 ## Performance Metrics
@@ -73,6 +73,7 @@ Last activity: 2026-06-13
 | Phase 10 P10-06 | ~6min | 3 tasks | 4 files |
 | Phase 11 P01 | 7min | 2 tasks | 3 files |
 | Phase 12 P01 | ~35min | 3 tasks | 6 files |
+| Phase 12 P03 | ~12min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -131,6 +132,8 @@ Recent decisions affecting current work:
 - [Phase 11]: 11-02: AvslutaOverlay re-skinned to FFinishOverlay — client-derived 3-cell stats row, §07 overlay spring, accent-not-red Avsluta, inline (no Modal); frozen write path untouched (D-08/D-15/D-16/D-17)
 - **2026-06-13 [12-02]**: D-20 — toDisplayVolume/formatVolume added to units.ts; imperial divides by KG_PER_LB with NO roundHalf (0.5-lb granularity meaningless on tonnage sums); formatVolume rounds to whole unit then sv-SE NBSP-groups + kg/lb suffix. Weights helpers untouched.
 - **2026-06-13 [12-02]**: D-21/D-07 — full phase-12 sv+en locale key set at parity (180 keys). Added weeks/week streak relabel (days/day preserved); back relabeled to no-arrow "Tillbaka"/"Back" per UI-SPEC FLAG-1 a11y (cosmetic arrow-drop on 2 out-of-scope visible buttons); new keys (thisWeekVolume, rangeAll) over mutating overloaded existing keys to avoid cross-screen drift. Wave-3 screens (12-05..08) import with zero invention.
+- **2026-06-13 [12-03]**: MOTN-02/D-19 — ProgressRing animates 0→value via withSpring(§07 damping 18/stiffness 220), arc Path rebuilt in useDerivedValue on UI thread; overflow = second-lap arc + wide low-opacity glow stroke (no Skia <Blur>), upper clamp removed (first lap capped at 360° in worklet), center label shows real count; useReducedMotion snaps to final
+- **2026-06-13 [12-03]**: D-18 — Sparkline draws in left→right via animated-width <Group clip>; last-point dot fades/scales in at end of draw via delayed (withDelay 260ms) second shared value; Reanimated hooks hoisted above the data-guard early-return (rules-of-hooks); path math unchanged, F13 untouched (D-24). Phase-8 static-only headers lifted on both primitives. Plan verify referenced non-existent `npm run typecheck` → used `tsc --noEmit` (project canonical)
 - [Phase ?]: 2026-06-13 [12-01]: Migration 0011 deployed live — get_dashboard_summary (combined 8-col single-row aggregate) + get_exercise_summary (chart hero/3-stat). Both security invoker + stable + search_path='' + set_type='working', finished-only. Streak <=2 in-progress-week island boundary LOCKED (D-07); local Mon-Sun bucketing via date_trunc('week', started_at at time zone p_tz) (D-06). Proven by test:dashboard.
 
 ### Pending Todos
