@@ -779,6 +779,7 @@ function DraftResumeOverlay({
 // same idiom the header/empty-state tiles in this file already use.
 // ---------------------------------------------------------------------------
 function HomeHero() {
+  const router = useRouter();
   const { t } = useTranslation();
   const { colorScheme } = useColorScheme();
   const tk = TOKENS[colorScheme === "dark" ? "dark" : "light"];
@@ -911,7 +912,12 @@ function HomeHero() {
               icon="arrowRight"
               iconPosition="trailing"
               size="sm"
-              onPress={() => {}}
+              // WR-03: route to plan creation — the same destination as the
+              // plan-list empty-state CTA + "Ny plan" link + FAB in this file.
+              // A brand-new user has no plan to start a workout from yet, so the
+              // first step is creating one (matches the empty-state "Skapa plan"
+              // flow). Was a no-op `() => {}`.
+              onPress={() => router.push("/plans/new" as Href)}
             />
           </View>
         ) : (
