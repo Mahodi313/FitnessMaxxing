@@ -1445,7 +1445,7 @@ function AvslutaOverlay({
           <View className="flex-row mb-5" style={{ gap: 8 }}>
             <FinishStat value={String(loggedSetCount)} label={t("sets")} />
             <FinishStat value={volumeLabel} label={t("kg")} />
-            <FinishStat value={elapsedLabel} label={t("min")} />
+            <FinishStat value={elapsedLabel} label={t("time")} />
           </View>
 
           {/* Buttons — neutral "Fortsätt" (surface3) + accent "Avsluta"
