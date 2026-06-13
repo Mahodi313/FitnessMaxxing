@@ -92,6 +92,7 @@ const TOKENS = {
     surface: "#FFFFFF",
     surface2: "#F2F1EC",
     surface3: "#E8E7E1",
+    borderStrong: "rgba(0,0,0,0.14)",
     accent: "#E14E10",
     success: "#1E9E45",
     successSoft: "rgba(30,158,69,0.12)",
@@ -104,6 +105,7 @@ const TOKENS = {
     surface: "#0E0E10",
     surface2: "#18181B",
     surface3: "#222226",
+    borderStrong: "rgba(255,255,255,0.16)",
     accent: "#FF5A1F",
     success: "#30D158",
     successSoft: "rgba(48,209,88,0.15)",
@@ -548,7 +550,7 @@ function HistoryListRow({
           // visible step so it reads as a distinct box, not run-on text.
           backgroundColor: tk.surface3,
           borderWidth: 1,
-          borderColor: tk.border,
+          borderColor: tk.borderStrong,
           alignItems: "center",
           justifyContent: "center",
         }}
