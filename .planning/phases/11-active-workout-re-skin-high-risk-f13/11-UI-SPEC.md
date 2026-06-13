@@ -46,15 +46,21 @@ Declared values (multiples of 4; transcribed from `forge-screens.jsx` FWorkout /
 | xl | 24px | Overlay card padding (`padding: 24`) |
 | 2xl | 32px | Screen bottom padding (`0 0 32px`) |
 
-**Exceptions (declared, intentional, ≤4 total):**
-- **6px** — progress-dot height and inter-dot gap (FWorkout lines 373–387). Sub-grid micro-spacing for the dot strip; not a layout token.
-- **14px** — logged-set row vertical padding (`14px 16px`) and finish-overlay timer/meta strips. Forge row rhythm from the mock.
-- **44px** — minimum touch target for the trailing ✕-delete icon and the circular back button (rendered 40px visually per mock, hit-slop expanded to 44px for a11y). iOS HIG minimum.
-- **50–56px** — control heights: input fields 56px (D-10 "tall"), full-width "Klart/Done" button 50px, overlay primary buttons 52px, draft-resume "Resume" 56px. These are component heights, not spacing tokens.
+**Exceptions (declared, intentional — each justified, all transcribed verbatim from the Phase-8-approved Forge mock, not ad-hoc):**
+- **6px** — progress-dot height and inter-dot gap (FWorkout lines 373–387). Sub-grid micro-spacing for the dot strip; not a layout token. Justified: dot-strip micro-rhythm has no 4-multiple equivalent that reads correctly at this scale.
+- **14px** — logged-set row vertical padding (`14px 16px`) and finish-overlay timer/meta strips. Forge row rhythm from the mock. Justified: row density was tuned in the approved Forge mock to fit the set-table grid; bumping to 16px overflows the ≤3s-scan hot-path table.
+- **44px** — minimum touch target for the trailing ✕-delete icon and the circular back button (rendered 40px visually per mock, hit-slop expanded to 44px for a11y). Justified: iOS HIG minimum tap target — an accessibility requirement, not a spacing choice.
+- **50px** — full-width "Klart / Done" CTA button height (FWorkout input row, lines 468–495). Justified: this is a **component height**, not a layout spacing token; transcribed from the approved Forge mock. (Also referenced in the component-heights note below; listed here explicitly so the spacing contract is unambiguous.)
+- **52px / 56px** — additional control heights (overlay primary buttons 52px; input fields 56px per D-10 "tall"; draft-resume "Resume" 56px). Component heights, not spacing tokens; transcribed from the approved Forge mock.
 
 ---
 
 ## Typography
+
+> **Carry-forward declaration (project-level override — NOT a new type-scale declaration):**
+> This phase is a **re-skin**. The type scale below is **inherited from the already-approved Phase 8 Forge design system** (`THEMES.forge` + `forge-screens.jsx`, signed off in Phase 8 DSGN-02). Phase 11 **applies** the existing scale to the active-workout surfaces — it **declares no new font sizes and introduces no new type roles**. The full in-use scale is captured here verbatim so the executor has a single source of truth, not because Phase 11 is defining a fresh scale.
+>
+> **Why more than 4 sizes:** the Forge system is an approved, established multi-size design system (display titles, overlay headings, stat numerals, input values, body, CTA labels, meta labels, and uppercase micro-labels are all distinct, pre-existing roles in the Phase 8 mock). The default 4-size cap targets *new ad-hoc declarations*; it does not apply to a re-skin that consumes a previously approved system. This is an explicit, justified override: the table below is a **transcription of the approved Forge scale in use on these screens**, not an 8-size invention. No checker action is needed beyond recognizing the inherited-system status.
 
 Forge type scale for the surfaces in this phase. Weights: **600 (semibold)** and **700 (bold)** via the dedicated Inter Display families (`font-display-semibold`, `font-display-bold`); body/labels use System at 500/600. RN does not synthesize weights — each weight is its own family (DSGN-02, OQ-4).
 
@@ -69,7 +75,7 @@ Forge type scale for the surfaces in this phase. Weights: **600 (semibold)** and
 | Label / meta | 13px | 500–600 | 1.3 | System + tabular-nums where numeric. Timer pill (13px), "Förra: 105 × 6" prev-value, meta strip. |
 | Micro-label (uppercase) | 10–11px | 600–700 | 1.0 | System, letter-spacing +0.8 to +1.5, uppercase. Column headers (`# WEIGHT REPS RPE`, 10px), "SET 4" input label (11px accent), FFOStat unit label (9–10px). |
 
-Body line-height 1.4–1.5; heading line-height 1.1–1.2. Numerals (weights, reps, RPE, timer, stat values, counts) MUST render tabular-nums so figures align (DSGN-03).
+All eight roles above are **pre-existing Phase 8 Forge roles** — none are introduced by this phase. Body line-height 1.4–1.5; heading line-height 1.1–1.2. Numerals (weights, reps, RPE, timer, stat values, counts) MUST render tabular-nums so figures align (DSGN-03).
 
 ---
 
@@ -104,6 +110,8 @@ Forge tokens only (light DEFAULT pair + `dark:` sibling). 60/30/10 maps to the F
 ## Copywriting Contract
 
 All strings routed through `t()` with sv + en keys (D-14, flat-key convention per Phase 8 D-10). User-created content (exercise names, notes) is stored as written, never translated (I18N-05). Numbers format per active locale; Swedish decimal handling preserved.
+
+> **CTA brevity note (intentional — these are not generic system labels):** The single-word CTAs in this phase — **"Klart" / "Done"**, **"Avsluta" / "Finish"**, **"Fortsätt" / "Continue"**, **"Återuppta" / "Resume"** — are deliberately verb-only for the **hot-path tap loop** (≤3s log budget, F13). Each is **paired with an icon and/or unambiguous overlay context** that supplies the noun: "Klart" + check icon on the full-width log-set CTA; "Avsluta" + check inside a "Finish workout?" overlay; "Återuppta" + play icon under a "Resume workout?" heading. The accompanying overlay heading or button icon is the object — a verb+noun label here would add scan-cost to the most-repeated action in the app without adding clarity. These are scoped CTAs, not reusable system-wide labels.
 
 | Element | Copy (sv → en) |
 |---------|----------------|
@@ -158,7 +166,7 @@ Reanimated 4 (already in stack — no new dep). Default spring curve: **damping 
 - **Custom header (D-09):** `headerShown:false`; in-content Forge header = circular back (40px, `surface` + `border`) · centered timer pill (D-07) · accent "Avsluta" button. Owns its safe-area inset + back-nav.
 - **Per-card progress dots (D-02):** flex-strip of `6px` bars (done=accent / current=accentSoft+accent border / remaining=surface2) + trailing "N / M" counter, replacing the v1 "3/4 set klart" chip.
 - **Logged-set table (D-03):** grid `32px 1fr 1fr 56px 36px` → `# · weight · reps · RPE · action`; set-number badge (accent circle), display-font numerals with `kg` unit suffix, RPE always-shown (`–` when null, D-05), trailing ✕-delete (D-04). Tap row = inline edit (`EditableSetRow` preserved).
-- **Input row (D-10):** accent-tinted card footer; grid `1fr 1fr 60px` (weight / reps / rpe-small) of 56px ForgeInput fields (large display value + small uppercase unit label underneath) + full-width 50px accent "Klart" button with check icon.
+- **Input row (D-10):** accent-tinted card footer; grid `1fr 1fr 60px` (weight / reps / rpe-small) of 56px ForgeInput fields (large display value + small uppercase unit label underneath) + full-width 50px accent "Klart" button with check icon. (The 50px CTA height is listed under Spacing → Exceptions as a component height.)
 - **Finish overlay (D-08):** trophy-block hero (gradient — note: this is the overlay's own icon block, NOT the omitted PR banner) + heading + body + notes textarea w/ counter + 3-cell client-derived stats row + neutral "Fortsätt" / accent "Avsluta" buttons.
 - **Overlays live inline (D-15):** Avsluta inside `workout/[sessionId].tsx`; draft-resume + saved-toast inside `(tabs)/index.tsx` (re-skin chrome only — overlay/toast LOGIC is offline-critical, restyle only).
 
