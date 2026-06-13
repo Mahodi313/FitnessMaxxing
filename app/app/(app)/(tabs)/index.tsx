@@ -62,13 +62,17 @@ import Animated, {
 } from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
 import { format } from "date-fns";
-import { Icon, Logo, ForgeButton } from "@/components/ui";
+import { Icon, Logo, ForgeButton, ProgressRing, ForgeChip } from "@/components/ui";
+import { ActiveSessionBanner } from "@/components/active-session-banner";
 import { usePlansQuery } from "@/lib/queries/plans";
 import {
   useActiveSessionQuery,
   useFinishSession,
 } from "@/lib/queries/sessions";
 import { useSetsForSessionQuery } from "@/lib/queries/sets";
+import { useDashboardSummaryQuery } from "@/lib/queries/dashboard";
+import { getPref, type UnitPref } from "@/lib/prefs";
+import { formatVolume } from "@/lib/units";
 
 // MOTN-04 — animated Pressable so the draft-resume backdrop opacity can ride
 // the §07 spring (Reanimated drives a `style` array containing a shared-value
@@ -267,6 +271,12 @@ export default function PlansTab() {
       >
         {t("myPlans")}
       </Text>
+
+      {/* Phase 12 DASH-01/02/05 + D-02 — activity-ring hero ABOVE the plan list.
+          D-02: while a session is live the hero slot swaps to the (already-Forge)
+          ActiveSessionBanner; the ring + volume framing hide until the session
+          ends. The plan list below is unchanged Phase-10 code. */}
+      {activeSession ? <ActiveSessionBanner /> : <HomeHero />}
 
       {/* Section header — MINA PLANER + Ny plan inline accent link */}
       {!isEmpty ? (
@@ -740,5 +750,255 @@ function DraftResumeOverlay({
         </View>
       </Animated.View>
     </Animated.View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// HomeHero — Phase 12 DASH-01/02/05, MOTN-02, D-01/D-03/D-04/D-07/D-18/D-20.
+//
+// The Forge activity-ring hero (forge-screens.jsx FHome 125-158): an animated
+// 104px ProgressRing (sessions-this-week / weekly_goal, accent + brand-gradient
+// fill — D-01) on the left, and a label column on the right (uppercase eyebrow
+// + big "N / goal" numeral + a chip row: weeks-streak ForgeChip with a flame
+// icon + this-week-volume ForgeChip).
+//
+// Offline-first (D-03): useDashboardSummaryQuery inherits offlineFirst, so the
+// persister hydrates this slot at cold-start for free. The skeleton shows ONLY
+// on a truly-empty cache (isPending && data === undefined); a cached value
+// renders instantly offline. An all-zero row is the new-user state (D-04), NOT
+// "loading" — it renders the zeroed hero + an accent "Logga ditt första pass"
+// nudge.
+//
+// Streak relabel (D-07): the chip says "{N} veckor streak" — t('weeks')/t('week')
+// (singular at N=1), NEVER t('days'). Volume routes through formatVolume with the
+// fm:units pref (D-20) — no raw kg literal. Numerals render tabular-nums.
+//
+// Box decoration (surface bg + border) lives in className per the NativeWind 4
+// naked-render rule; off-scale optical numbers (radius 24, padding 20, 16px
+// side margin — FHome 127-129) ride the static-View inline style object, the
+// same idiom the header/empty-state tiles in this file already use.
+// ---------------------------------------------------------------------------
+function HomeHero() {
+  const { t } = useTranslation();
+  const { colorScheme } = useColorScheme();
+  const tk = TOKENS[colorScheme === "dark" ? "dark" : "light"];
+  const { data, isPending } = useDashboardSummaryQuery();
+
+  // D-20 — fm:units pref read via the settings.tsx useState+getPref idiom (no
+  // raw kg literal; metric default until the async read settles).
+  const [unit, setUnit] = useState<UnitPref>("metric");
+  useEffect(() => {
+    let mounted = true;
+    void getPref("fm:units").then((u) => {
+      if (mounted) setUnit(u);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // D-03 skeleton gate: ONLY on a truly-empty cache (first load, nothing
+  // hydrated). A cached value — even an all-zero new-user row — renders.
+  if (isPending && data === undefined) {
+    return <HeroSkeleton tk={tk} />;
+  }
+
+  const sessions = data?.sessions_this_week ?? 0;
+  const goal = data?.weekly_goal ?? 0;
+  const streakWeeks = data?.streak_weeks ?? 0;
+  const volumeKg = data?.volume_this_week_kg ?? 0;
+
+  // D-04 — a brand-new account (0 finished sessions ever) is the zeroed-hero
+  // state. lifetime_sessions distinguishes "never logged" from "0 this week but
+  // active before"; either way the ring zeroes, but the nudge only shows for a
+  // genuinely new user so a returning user mid-week isn't told to "log their
+  // first workout".
+  const isNewUser = (data?.lifetime_sessions ?? 0) === 0;
+
+  // Ring fill fraction (D-18 overflow handled inside ProgressRing when > 1).
+  const fill = goal > 0 ? sessions / goal : 0;
+
+  // D-07 streak relabel — weeks, singular at N=1; NEVER days.
+  const streakUnit = streakWeeks === 1 ? t("week") : t("weeks");
+
+  return (
+    <View
+      // Box decoration (surface bg + border) via className (NativeWind 4 renders
+      // it); optical radius/padding/margin via the static-View inline style.
+      className="bg-forge-surface-light dark:bg-forge-surface border border-forge-border-light dark:border-forge-border"
+      style={{
+        marginHorizontal: 16,
+        marginTop: 4,
+        marginBottom: 20,
+        borderRadius: 24,
+        padding: 20,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 18,
+      }}
+    >
+      {/* Left — animated 104px ring (stroke 11), accent sweep + brand gradient
+          (D-01). Center overlay ALWAYS shows the real count (D-19 inside the
+          ring); we mirror "N" over "/ goal" per FHome 137-140. */}
+      <ProgressRing
+        size={104}
+        stroke={11}
+        value={fill}
+        color={tk.accent}
+        gradient={[tk.gradFrom, tk.gradTo]}
+      >
+        <View style={{ alignItems: "center" }}>
+          <Text
+            style={{
+              fontSize: 22,
+              fontWeight: "700",
+              letterSpacing: -0.5,
+              color: tk.text,
+              fontVariant: ["tabular-nums"],
+            }}
+          >
+            {sessions}
+          </Text>
+          <Text
+            style={{
+              fontSize: 10,
+              fontWeight: "600",
+              letterSpacing: 0.4,
+              textTransform: "uppercase",
+              color: tk.text3,
+              fontVariant: ["tabular-nums"],
+            }}
+          >
+            / {goal}
+          </Text>
+        </View>
+      </ProgressRing>
+
+      {/* Right — eyebrow + big "N / goal" numeral + chip row. */}
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text
+          style={{
+            fontSize: 11,
+            fontWeight: "600",
+            letterSpacing: 1,
+            color: tk.text3,
+            textTransform: "uppercase",
+          }}
+        >
+          {t("weekSessions")}
+        </Text>
+        <Text
+          style={{
+            fontSize: 30,
+            fontWeight: "700",
+            letterSpacing: -1,
+            color: tk.text,
+            marginTop: 4,
+            fontVariant: ["tabular-nums"],
+          }}
+        >
+          {sessions}{" "}
+          <Text style={{ color: tk.text3, fontSize: 18, fontWeight: "500" }}>
+            / {goal}
+          </Text>
+        </Text>
+
+        {isNewUser ? (
+          // D-04 — zeroed-hero new-user nudge (accent CTA, UI-SPEC Color item 6).
+          <View style={{ flexDirection: "row", marginTop: 12 }}>
+            <ForgeButton
+              label={t("logFirstWorkout")}
+              icon="arrowRight"
+              iconPosition="trailing"
+              size="sm"
+              onPress={() => {}}
+            />
+          </View>
+        ) : (
+          <View
+            style={{
+              flexDirection: "row",
+              gap: 6,
+              marginTop: 10,
+              flexWrap: "wrap",
+            }}
+          >
+            {/* Weeks-streak chip (D-07 — flame icon + weeks/week, NOT days). */}
+            <ForgeChip icon="flame">
+              <Text style={{ fontVariant: ["tabular-nums"] }}>{streakWeeks}</Text>
+              {` ${streakUnit} ${t("streak")}`}
+            </ForgeChip>
+            {/* This-week-volume chip (D-20 — formatVolume w/ the fm:units pref). */}
+            <ForgeChip>
+              <Text style={{ fontVariant: ["tabular-nums"] }}>
+                {formatVolume(volumeKg, unit)}
+              </Text>
+            </ForgeChip>
+          </View>
+        )}
+      </View>
+    </View>
+  );
+}
+
+// HeroSkeleton — D-03 empty-cache placeholder. A neutral surface card matching
+// the hero's footprint (radius 24 / padding 20 / 16px margin) with a muted ring
+// stand-in + label bars, so the first cold load doesn't flash empty. Box bg/
+// border via className; optical numbers inline (static View, NativeWind-safe).
+function HeroSkeleton({
+  tk,
+}: {
+  tk: (typeof TOKENS)["light"] | (typeof TOKENS)["dark"];
+}) {
+  return (
+    <View
+      className="bg-forge-surface-light dark:bg-forge-surface border border-forge-border-light dark:border-forge-border"
+      style={{
+        marginHorizontal: 16,
+        marginTop: 4,
+        marginBottom: 20,
+        borderRadius: 24,
+        padding: 20,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 18,
+      }}
+    >
+      <View
+        style={{
+          width: 104,
+          height: 104,
+          borderRadius: 52,
+          borderWidth: 11,
+          borderColor: tk.surface2,
+        }}
+      />
+      <View style={{ flex: 1, gap: 10 }}>
+        <View
+          style={{
+            height: 12,
+            width: "55%",
+            borderRadius: 6,
+            backgroundColor: tk.surface2,
+          }}
+        />
+        <View
+          style={{
+            height: 28,
+            width: "40%",
+            borderRadius: 8,
+            backgroundColor: tk.surface2,
+          }}
+        />
+        <View
+          style={{
+            height: 22,
+            width: "70%",
+            borderRadius: 8,
+            backgroundColor: tk.surface2,
+          }}
+        />
+      </View>
+    </View>
   );
 }
