@@ -193,6 +193,8 @@ async function setWeeklyGoal(goal: number): Promise<void> {
 async function dashboard(): Promise<{
   streak_weeks: number;
   sessions_this_week: number;
+  volume_this_week_kg: number;
+  volume_prior_week_kg: number;
   weekly_volume_series: { week: string; volume_kg: number }[];
 }> {
   const { data, error } = await client.rpc("get_dashboard_summary", { p_tz: TZ });
@@ -202,6 +204,8 @@ async function dashboard(): Promise<{
   return {
     streak_weeks: Number(row.streak_weeks),
     sessions_this_week: Number(row.sessions_this_week),
+    volume_this_week_kg: Number(row.volume_this_week_kg),
+    volume_prior_week_kg: Number(row.volume_prior_week_kg),
     weekly_volume_series: (row.weekly_volume_series ?? []) as {
       week: string;
       volume_kg: number;
@@ -273,6 +277,17 @@ async function main() {
     else fail("(a) 3 consecutive goal-weeks → streak 3", { got: d.streak_weeks });
     if (d.sessions_this_week === 2) pass("(a) sessions_this_week counts current-week sessions (2)");
     else fail("(a) sessions_this_week === 2", { got: d.sessions_this_week });
+
+    // DASH-03 / D-05 — the two scalar week-volume fields that feed the History
+    // delta chip. Each seeded session = 100 kg × 5 reps = 500 kg; 2 sessions in
+    // both this week and last week → 1000 kg each. Locks the volume_this_week_kg
+    // vs volume_prior_week_kg pair the +N% delta is computed from.
+    if (d.volume_this_week_kg === 1000)
+      pass("(a) volume_this_week_kg === 1000 (2 sessions × 500 kg)");
+    else fail("(a) volume_this_week_kg === 1000", { got: d.volume_this_week_kg });
+    if (d.volume_prior_week_kg === 1000)
+      pass("(a) volume_prior_week_kg === 1000 (prior week, delta baseline)");
+    else fail("(a) volume_prior_week_kg === 1000", { got: d.volume_prior_week_kg });
   }
 
   // -------------------------------------------------------------------------
