@@ -468,10 +468,10 @@ function ExerciseCard({
     ? t("previous", { w: prevValue.weight_kg, r: prevValue.reps })
     : null;
 
-  // D-10 pre-fill: after first set in this session, pre-fill from the
-  // most-recent set in the same exercise in the same session. For set 1
-  // (no prior in this session), pre-fill from F7 (last finished session,
-  // set-position-aligned to currentSetNumber).
+  // D-10 (device-UAT revision): the "prefill" value no longer fills the field —
+  // it drives the FAINT PLACEHOLDER + the submitKlart() auto-submit fallback.
+  // Source order: most-recent set of this exercise in this session, else F7
+  // (last finished session, set-position-aligned to currentSetNumber).
   const sessionPrefill =
     setsForThisExercise[setsForThisExercise.length - 1] ?? null;
   const f7PrefillEntry = lastValueMap?.[currentSetNumber];
@@ -486,24 +486,30 @@ function ExerciseCard({
     control,
     handleSubmit,
     reset,
+    getValues,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<SetFormInput, undefined, SetFormOutput>({
     resolver: zodResolver(setFormSchema),
     mode: "onSubmit",
+    // D-10 (device-UAT revision): fields START EMPTY. The last value is surfaced
+    // as a FAINT PLACEHOLDER + the "Förra" header hint — never a committed
+    // value. submitKlart() below auto-injects the placeholder value when a field
+    // is left blank, so tapping Klart on an untouched row still logs the last set.
     defaultValues: {
-      weight_kg: prefillWeight ?? undefined,
-      reps: prefillReps ?? undefined,
+      weight_kg: undefined,
+      reps: undefined,
       set_type: "working",
     },
   });
 
-  // Re-hydrate defaults when prefill changes (e.g., after a set lands and
-  // setsForThisExercise.length increments). Pin set_type to 'working' so
-  // the schema default is preserved on every reset.
+  // Clear the row to empty when the prefill source changes (after a set lands and
+  // setsForThisExercise.length increments). The new prefill value drives the
+  // placeholder + auto-submit fallback, NOT the field value.
   useEffect(() => {
     reset({
-      weight_kg: prefillWeight ?? undefined,
-      reps: prefillReps ?? undefined,
+      weight_kg: undefined,
+      reps: undefined,
       set_type: "working",
     });
   }, [prefillWeight, prefillReps, reset]);
@@ -527,14 +533,13 @@ function ExerciseCard({
       },
       {
         onSuccess: () => {
-          // D-10: pre-fill the next blank row with the just-logged values.
-          // Optimistic onMutate already appended to setsKeys.list — the
-          // useEffect-driven hydrate above will pick up the new prefill
-          // shortly. We also call reset() to short-circuit form-state if
-          // RHF retained the prior values.
+          // D-10 (device-UAT revision): clear the next row to EMPTY. The
+          // just-logged values become the new faint placeholder via the
+          // prefill chain; the field itself stays blank so it never reads as
+          // "förvald". submitKlart() re-injects the placeholder on a blank tap.
           reset({
-            weight_kg: input.weight_kg,
-            reps: input.reps,
+            weight_kg: undefined,
+            reps: undefined,
             set_type: "working",
           });
         },
@@ -553,6 +558,25 @@ function ExerciseCard({
     void getPref("fm:haptics").then((on) => {
       if (on) void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     });
+  };
+
+  // D-10 (device-UAT revision) auto-submit: a blank field falls back to its
+  // faint-placeholder (last) value so tapping Klart on an untouched row still
+  // logs the previous set — without ever pre-filling a committed value. Inject
+  // BEFORE handleSubmit so the value is present at validation time (an empty
+  // weight_kg would otherwise coerce to 0 and silently log a 0kg set). If no
+  // prefill exists (set 1, no history), the blank field fails validation
+  // normally and surfaces "Vikt krävs" / "Reps krävs".
+  const submitKlart = () => {
+    const { weight_kg, reps } = getValues();
+    const isBlank = (v: unknown) => v == null || v === "";
+    if (isBlank(weight_kg) && prefillWeight != null) {
+      setValue("weight_kg", prefillWeight);
+    }
+    if (isBlank(reps) && prefillReps != null) {
+      setValue("reps", prefillReps);
+    }
+    return handleSubmit(onKlart)();
   };
 
   // Plan-target chip (header)
@@ -677,7 +701,7 @@ function ExerciseCard({
                 value={value == null ? "" : String(value)}
                 onChangeText={onChange}
                 unit={t("kg")}
-                placeholder="0"
+                placeholder={prefillWeight != null ? String(prefillWeight) : "0"}
                 keyboardType="decimal-pad"
                 inputMode="decimal"
                 accessibilityLabel={t("weight")}
@@ -695,7 +719,7 @@ function ExerciseCard({
                 value={value == null ? "" : String(value)}
                 onChangeText={onChange}
                 unit={t("reps")}
-                placeholder="0"
+                placeholder={prefillReps != null ? String(prefillReps) : "0"}
                 keyboardType="number-pad"
                 inputMode="numeric"
                 accessibilityLabel={t("reps")}
@@ -728,7 +752,7 @@ function ExerciseCard({
 
         {/* Full-width 50px accent "Klart" CTA with leading check (D-10) */}
         <Pressable
-          onPress={handleSubmit(onKlart)}
+          onPress={submitKlart}
           disabled={isSubmitting}
           accessibilityRole="button"
           accessibilityLabel={t("done")}
