@@ -190,15 +190,44 @@ export function rangeToSince(range: ChartRange): string | null {
 // get_exercise_summary 6-field shape (migration 0011). avg_rpe is nullable —
 // RPE is optional per set, so a range with no RPE-tagged sets yields NULL.
 // Every numeric field is z.coerce.number() (PostgREST numeric/bigint → string).
+//
+// WR-02 fix: get_exercise_summary is a single BARE `select` (no `from`), so
+// Postgres ALWAYS returns exactly one row — even for an exercise with zero
+// matching sets, in which case every aggregate column is NULL. The previous
+// schema typed the figures as non-nullable `z.coerce.number()`, which silently
+// coerced those NULLs to 0 (`Number(null) === 0`), so a no-data summary parsed
+// into an all-zeros object instead of the intended empty state — the hero
+// rendered "0", the 3-stat row showed "0 kg × 0", and the `summary != null`
+// empty-state branch was unreachable. Marking the data-bearing figures
+// `.nullable()` lets the consumer (useExerciseSummaryQuery below) detect the
+// all-NULL no-data row and return `null`, so chart.tsx renders the "–"
+// placeholder + hides the stat row (D-12 / D-14). `top_set_reps` also gets
+// `.int()` here to match the TopSetRowSchema contract (reps is int NOT NULL on
+// the wire when present). This is a client-only fix — no migration needed,
+// because treating an all-null row as "no data" is purely a parse-boundary
+// concern and the SQL already returns the correct (all-NULL) shape.
 const ExerciseSummarySchema = z.object({
-  current_best: z.coerce.number(),
-  range_first_value: z.coerce.number(),
-  top_set_weight_kg: z.coerce.number(),
-  top_set_reps: z.coerce.number(),
-  vol_per_session_kg: z.coerce.number(),
+  current_best: z.coerce.number().nullable(),
+  range_first_value: z.coerce.number().nullable(),
+  top_set_weight_kg: z.coerce.number().nullable(),
+  top_set_reps: z.coerce.number().int().nullable(),
+  vol_per_session_kg: z.coerce.number().nullable(),
   avg_rpe: z.coerce.number().nullable(),
 });
-export type ExerciseSummary = z.infer<typeof ExerciseSummarySchema>;
+type ExerciseSummaryRow = z.infer<typeof ExerciseSummarySchema>;
+
+// The consumer-facing summary type: when present, every data-bearing figure is
+// non-null (the no-data row is mapped to `null` by the hook below, never to a
+// partially-null object). avg_rpe stays nullable — a range can legitimately
+// have sets but no RPE-tagged ones (D-14 → "–").
+export type ExerciseSummary = {
+  current_best: number;
+  range_first_value: number;
+  top_set_weight_kg: number;
+  top_set_reps: number;
+  vol_per_session_kg: number;
+  avg_rpe: number | null;
+};
 
 export function useExerciseSummaryQuery(
   exerciseId: string,
@@ -218,10 +247,33 @@ export function useExerciseSummaryQuery(
         p_since: since as unknown as string,
       });
       if (error) throw error;
-      // The RPC returns a single summary row; an exercise with no sets in range
-      // may return no rows → null (the screen renders the empty state).
-      const row = (data ?? [])[0];
-      return row ? ExerciseSummarySchema.parse(row) : null;
+      // WR-02: get_exercise_summary is a bare `select`, so it ALWAYS returns one
+      // row — for an exercise with no sets in range that row is all-NULL. Detect
+      // the no-data case via `current_best == null` (the metric's headline value;
+      // it is NULL iff the `sets` CTE matched nothing) and return `null` so the
+      // screen shows the "–" hero + hides the 3-stat row. A genuine summary has a
+      // non-null current_best, so all data-bearing figures are present → narrow
+      // to the non-null ExerciseSummary shape.
+      const raw = (data ?? [])[0];
+      if (!raw) return null;
+      const parsed: ExerciseSummaryRow = ExerciseSummarySchema.parse(raw);
+      if (
+        parsed.current_best == null ||
+        parsed.range_first_value == null ||
+        parsed.top_set_weight_kg == null ||
+        parsed.top_set_reps == null ||
+        parsed.vol_per_session_kg == null
+      ) {
+        return null;
+      }
+      return {
+        current_best: parsed.current_best,
+        range_first_value: parsed.range_first_value,
+        top_set_weight_kg: parsed.top_set_weight_kg,
+        top_set_reps: parsed.top_set_reps,
+        vol_per_session_kg: parsed.vol_per_session_kg,
+        avg_rpe: parsed.avg_rpe,
+      };
     },
     enabled: !!exerciseId,
   });
