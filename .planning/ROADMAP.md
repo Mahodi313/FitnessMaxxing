@@ -150,7 +150,7 @@ Plans:
 3. Dashboard aggregates come from RLS-scoped read-side RPCs with a clean empty state for new users
 4. The chart line draws on mount
 
-**Plans:** 8/8 plans complete
+**Plans:** 8/8 base plans complete + 3 gap-closure plans (device-UAT fixes: FIT-109/110/111)
 Plans:
 **Wave 1**
 
@@ -168,6 +168,12 @@ Plans:
 - [x] 12-06-PLAN.md — History re-skin: lifetime eyebrow + volume card (DASH-03/04 split) + Forge rows + F13 gate
 - [x] 12-07-PLAN.md — Session detail re-skin: custom header + hybrid breakdown + preserved overlays + F13 gate
 - [x] 12-08-PLAN.md — Exercise chart re-skin: custom header + 3-state range + real current-best hero + 3-stat row + draw-on-mount (MOTN-03) + F13 gate
+
+**Wave 4 - Gap closure** *(device-UAT fixes from 12-UAT.md)*
+
+- [ ] 12-09-PLAN.md - FIT-109: invalidate dashboardKeys on session finish so the Home ring/count refreshes immediately (D-03/D-24)
+- [ ] 12-10-PLAN.md - FIT-110 (regression): restore the session-detail ExerciseCard chart cross-link dropped in the 12-07 re-skin (D-15/D-17 preserved)
+- [ ] 12-11-PLAN.md - FIT-111: reactive units store so a kg-lbs toggle re-renders all figures live, no restart (D-20/D-08/D-24)
 
 #### Phase 13: PR Celebration (F18)
 
