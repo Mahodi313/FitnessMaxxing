@@ -539,7 +539,10 @@ function HistoryListRow({
       // are not flex-container props and do render).
       className="flex-row items-center gap-4 rounded-2xl border bg-forge-surface-light dark:bg-forge-surface border-forge-border-light dark:border-forge-border"
       style={({ pressed }) => [
-        { paddingHorizontal: 16, paddingVertical: 14 },
+        // paddingRight slightly > left so the trailing chevron sits inset from
+        // the card edge, not flush to it (UAT 2026-06-13). px/py are not
+        // flex-container props so they render from the inline callback.
+        { paddingLeft: 16, paddingRight: 20, paddingVertical: 14 },
         pressed ? { opacity: 0.85 } : null,
       ]}
     >
