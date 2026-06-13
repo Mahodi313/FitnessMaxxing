@@ -150,7 +150,7 @@ Plans:
 3. Dashboard aggregates come from RLS-scoped read-side RPCs with a clean empty state for new users
 4. The chart line draws on mount
 
-**Plans:** 5/8 plans executed
+**Plans:** 6/8 plans executed
 Plans:
 **Wave 1**
 
@@ -164,7 +164,7 @@ Plans:
 
 **Wave 3** *(blocked on Waves 1+2)*
 
-- [ ] 12-05-PLAN.md — Home ring hero (DASH-01/02) + active-session swap + zeroed empty state + F13 gate
+- [x] 12-05-PLAN.md — Home ring hero (DASH-01/02) + active-session swap + zeroed empty state + F13 gate
 - [ ] 12-06-PLAN.md — History re-skin: lifetime eyebrow + volume card (DASH-03/04 split) + Forge rows + F13 gate
 - [x] 12-07-PLAN.md — Session detail re-skin: custom header + hybrid breakdown + preserved overlays + F13 gate
 - [ ] 12-08-PLAN.md — Exercise chart re-skin: custom header + 3-state range + real current-best hero + 3-stat row + draw-on-mount (MOTN-03) + F13 gate
