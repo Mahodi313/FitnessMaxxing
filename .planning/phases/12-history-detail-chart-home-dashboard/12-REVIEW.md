@@ -25,6 +25,16 @@ findings:
   info: 7
   total: 13
 status: issues_found
+fixed:
+  - WR-01  # chart point array recomputes on units/metric change (9521d07)
+  - WR-02  # all-NULL exercise summary detected as empty state (f2cc7dd)
+  - WR-03  # new-user 'Logga ditt första pass' CTA wired to /plans/new (1f91622)
+  - WR-06  # lifetime_hours clamped to >= 0 at the parse boundary (62eb1ab)
+not_fixed:
+  - WR-04  # locked design/semantics (D-06/D-07/D-14) — not a bug
+  - WR-05  # locked success-only chip design — not a bug
+  - IN-*   # info-tier, out of fix scope
+fixed_at: 2026-06-13
 ---
 
 # Phase 12: Code Review Report
@@ -44,6 +54,8 @@ No BLOCKER/Critical issues found. The notable findings are correctness/quality W
 
 ### WR-01: Chart line + y-axis render in stale units after the async unit-pref read settles
 
+> **RESOLVED 2026-06-13 (commit 9521d07):** Added `metric` + `units` to the `chartData` memo dep array so the plotted line + y-axis recompute when the async `units` pref resolves. Verified the line, y-axis, tooltip, hero and 3-stat row all route through `units` (D-20 consistency).
+
 **File:** `app/app/(app)/exercise/[exerciseId]/chart.tsx:217-230`
 **Issue:** `chartData` is memoized with a dep array of **exactly `[chartQuery.data]`**, but its body reads both `metric` and `units`. `units` starts at `"metric"` and is updated asynchronously by `getPref("fm:units").then(setUnits)` (lines 164-167). For an imperial user, the sequence is: mount → `units="metric"` → `chartQuery.data` arrives → `chartData` computed in **kg**; then `getPref` resolves → `units="imperial"` → re-render, but `chartQuery.data` identity is unchanged so the memo does **not** recompute. The plotted line and the `formatYAxisLabel` axis (which assumes `chartData` is already display-converted, comment line 313-314) stay in kg, while the tooltip (`tooltipValueTexts`, dep `[chartQuery.data, metric, units]`, line 245) correctly switches to lb. Result: the line/axis and the tooltip disagree for imperial users until the data identity changes (range/metric toggle). Verified `z`-independent — pure memo-dep bug. The "memo contract" comment justifies excluding `metric`/`range` (they live in the queryKey and trigger a refetch → new data identity) but `units` does **not** live in any queryKey, so its exclusion is unjustified and incorrect.
 **Fix:** Add `units` (and `metric`, defensively) to the dep array — they do not break the Victory re-mount contract because a unit change is a legitimate reason to rebuild the point array:
@@ -61,6 +73,8 @@ const chartData = useMemo(
 If the Victory remount-on-identity behavior is genuinely fragile, gate the draw-on-mount effect on `chartQuery.data` only while still recomputing `chartData` on unit change.
 
 ### WR-02: `get_exercise_summary` always returns one row, so the client empty-state path is dead and zeros render as real data
+
+> **RESOLVED 2026-06-13 (commit f2cc7dd):** Client-only fix (no migration). Made the data-bearing summary figures `.nullable()` in `ExerciseSummarySchema` and had `useExerciseSummaryQuery` return `null` when the all-NULL no-data row arrives (detected via `current_best == null`). `chart.tsx` already guards on `summary != null`, so the "–" hero placeholder + hidden 3-stat row now render for genuinely empty data. Also enforced `.int()` on `top_set_reps`.
 
 **File:** `app/lib/queries/exercise-chart.ts:222-224` (consuming `0011_phase12_dashboard_rpcs.sql:251-275`)
 **Issue:** `get_exercise_summary` is a single bare `select` with no `from` clause, so Postgres always returns **exactly one row** even when the exercise has zero matching sets — every column comes back `NULL`. The hook does `const row = (data ?? [])[0]; return row ? ExerciseSummarySchema.parse(row) : null;` expecting a possible row-absence, but `row` is always present. Worse, `ExerciseSummarySchema` types `current_best`, `range_first_value`, `top_set_weight_kg`, `top_set_reps`, `vol_per_session_kg` as `z.coerce.number()` (non-nullable), and `z.coerce.number()` coerces `null` → `0` (`Number(null) === 0`, verified). So a no-data summary parses successfully into all-zeros instead of `null`. Consequence in `chart.tsx`: `summary != null` is always true, so the D-14 3-stat row (line 546) renders even when there is no data — showing "0 kg × 0" for top set, "0 kg" for vol/session — and `heroNumeral` shows "0" rather than the intended "–" placeholder (line 333-338, the `summary != null ? ... : "–"` branch is unreachable). The chart-card empty states (`showAllTimeEmpty`/`showRangeEmpty`) still display correctly, but the hero and stat row below them contradict the "no workouts" message.
@@ -82,6 +96,8 @@ Note `top_set_reps` also uses `z.coerce.number()` (not `.int()`) in the summary 
 
 ### WR-03: New-user "Logga ditt första pass" CTA has an empty onPress — the primary new-user action is a no-op
 
+> **RESOLVED 2026-06-13 (commit 1f91622):** Added `useRouter()` to `HomeHero` and wired the CTA to `router.push("/plans/new")` — the same destination as the plan-list empty-state CTA, the "Ny plan" link and the FAB in this file. The CTA now navigates instead of no-op'ing.
+
 **File:** `app/app/(app)/(tabs)/index.tsx:906-916`
 **Issue:** The D-04 zeroed-hero new-user nudge renders a `ForgeButton` whose `onPress={() => {}}` does nothing. For a brand-new account this is the single most prominent call-to-action on the Home screen, and tapping it silently fails. The comment block (lines 757-770) describes this as "an accent 'Logga ditt första pass' nudge" but the action is unimplemented.
 **Fix:** Route to the plan-creation or workout-start flow, matching the empty-state CTA elsewhere in the same file (`router.push("/plans/new")`):
@@ -92,6 +108,8 @@ onPress={() => router.push("/plans/new" as Href)}
 
 ### WR-04: `vol_per_session_kg` denominator counts sessions that contain the exercise but possibly zero working sets edge — and `range_first_value` (weight) mixes earliest-session with heaviest-set semantics
 
+> **NOT FIXED — locked design (not a bug):** Both points are documented as intended hero-delta / vol-per-session semantics (D-06/D-07/D-14). The review itself states "No code change required if both behaviors are intended". Left alone per scope.
+
 **File:** `app/supabase/migrations/0011_phase12_dashboard_rpcs.sql:246-267`
 **Issue:** Two subtle aggregate-semantics issues in `get_exercise_summary`:
 1. `range_first_value` for the weight metric (lines 261-263) is `select weight_kg from sets order by finished_at asc, weight_kg desc limit 1` — i.e. the **heaviest** set of the **earliest** session. `current_best` (line 254) is `max(weight_kg)` across **all** sessions. The hero delta = `current_best - range_first_value`, comparing "all-time max" against "earliest session's top set". That is a defensible product choice, but it is asymmetric with the volume metric, where both `current_best` and `range_first_value` are per-session totals. A user whose earliest session happened to contain their all-time PR will see a non-positive delta (chip hidden) even if later sessions trend up. Worth confirming this matches the intended hero-delta semantics in the UI spec.
@@ -100,11 +118,15 @@ onPress={() => router.push("/plans/new" as Href)}
 
 ### WR-05: History volume-delta chip suppressed in two distinct cases that read identically to the user
 
+> **NOT FIXED — locked design (not a bug):** The success-only up-chip is the documented design; the review marks this "Minor UX inconsistency, not a data bug" / "Low priority". Left alone per scope (D-14).
+
 **File:** `app/app/(app)/(tabs)/history.tsx:305-308, 402`
 **Issue:** `hasDelta = volumePriorWeek > 0` and the chip renders only when `hasDelta && deltaPct >= 0`. A week where volume *dropped* (deltaPct < 0) shows no chip, which is the documented "success-only" design. But a week where prior volume was 0 (new user's second week) *also* shows no chip, and a flat week (deltaPct === 0) shows "+0%". These three cases (no baseline / decline / flat) are visually conflated — and `+0%` is arguably noise. Minor UX inconsistency, not a data bug.
 **Fix:** Consider suppressing the chip for `deltaPct === 0` as well, or showing a neutral indicator for declines so the absence of a chip is not ambiguous. Low priority.
 
 ### WR-06: `lifetime_hours` and per-session duration can be negative / inflated if `finished_at < started_at` or clock skew exists
+
+> **RESOLVED 2026-06-13 (commit 62eb1ab):** Applied the smallest safe guard — a `Math.max(0, v)` clamp on `lifetime_hours` at the `DashboardSummarySchema` parse boundary in `dashboard.ts` (client-only, no migration since WR-02 also took the client path). Mirrors the `Math.max(0, ...)` the history-row `durationMin` already applies.
 
 **File:** `app/supabase/migrations/0011_phase12_dashboard_rpcs.sql:193-196`; `app/app/(app)/(tabs)/history.tsx:508-515`
 **Issue:** `lifetime_hours = sum(extract(epoch from (finished_at - started_at)) / 3600.0)` has no `greatest(0, ...)` guard. Since sessions are client-created with client-supplied `started_at`/`finished_at` (offline-first, device clock), a session finished on a device whose clock rolled back, or a malformed offline replay, can yield a negative interval that silently reduces the lifetime total (or, with a far-future `started_at`, inflates it). The history-row `durationMin` (history.tsx:508) *does* clamp with `Math.max(0, ...)`, but the session-detail screen (`[sessionId].tsx:229-235`) and the SQL aggregate do not. Inconsistent defensive handling across the three duration computations.
