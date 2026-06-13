@@ -69,10 +69,12 @@ blocked: 0
   reason: "User reported: when I ended a pass it didn't count up, but when I started a new pass again it counted for both — so it only updates when I start a second pass"
   severity: major
   test: 1
-  root_cause: ""     # Filled by diagnosis — likely missing queryClient.invalidateQueries(dashboardKeys) on session finish
+  root_cause: "Likely missing queryClient.invalidateQueries(dashboardKeys) on session finish — dashboard query keeps stale cache until another refetch trigger (starting a new session) fires"
   artifacts: []
-  missing: []
+  missing:
+    - "Invalidate dashboardKeys (and history volume) in the session-finish mutation so the Home ring/count refreshes immediately"
   debug_session: ""
+  linear: FIT-109
 
 - truth: "The user can open an exercise's progress chart from the UI"
   status: failed
@@ -86,6 +88,7 @@ blocked: 0
   missing:
     - "Restore a navigation entry point to /exercise/[exerciseId]/chart — e.g. re-add the tappable ExerciseCard header in session-detail, or add a chart link from an appropriate Phase-12 IA surface"
   debug_session: ""
+  linear: FIT-110
 
 - truth: "Changing the weight unit (kg↔lbs) in Settings immediately re-renders all displayed figures"
   status: failed
@@ -97,3 +100,4 @@ blocked: 0
   missing:
     - "Make the unit preference reactive — expose it via a store/query the screens subscribe to (or invalidate/refetch the consuming queries on pref change) so a toggle re-renders figures immediately"
   debug_session: ""
+  linear: FIT-111
