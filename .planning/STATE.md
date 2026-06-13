@@ -4,13 +4,13 @@ milestone: v2.0
 milestone_name: Forge Redesign
 status: executing
 stopped_at: Completed 11-01-PLAN.md
-last_updated: "2026-06-13T10:12:58.559Z"
+last_updated: "2026-06-13T10:20:14.073Z"
 last_activity: 2026-06-13
 progress:
   total_phases: 8
   completed_phases: 3
   total_plans: 17
-  completed_plans: 15
+  completed_plans: 16
   percent: 38
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-06-09)
 ## Current Position
 
 Phase: 11 (active-workout-re-skin-high-risk-f13) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-06-13
 
@@ -80,6 +80,8 @@ Last activity: 2026-06-13
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- **2026-06-13 (11-03)**: D-16 — draft-resume End-session button är en danger ghost (ForgeButton destructive); data-loss-adjacent är enda stället rött är rätt
+- **2026-06-13 (11-03)**: D-11/MOTN-04 — §07 overlay-spring (damping 18 / stiffness 220) på draft-resume; saved-toast behöll FadeIn/FadeOut; båda inline (D-15, ingen Modal-portal)
 - **2026-05-07**: F13 offline-stöd bumpat från Bör → Måste (driver offline-first från Phase 4)
 - **2026-05-07**: F17 set-typ är schema-only i V1; UI deferred till V1.1
 - **2026-05-07**: F15 dark mode = konvention från Phase 1; toggle-UI i Phase 7
@@ -154,8 +156,8 @@ Items acknowledged for later:
 
 ## Session Continuity
 
-Last session: 2026-06-13T10:12:58.548Z
-Stopped at: Completed 11-01-PLAN.md
+Last session: 2026-06-13T10:30:00.000Z
+Stopped at: Completed 11-03-PLAN.md
 Resume file: None
 Next: Orchestrator runs phase-level closeout — `/gsd-secure-phase 4` (close threat register T-04-01 … T-04-12 against implementation; produce 04-SECURITY.md with threats_open: 0) → `/gsd-verify-work 4` (write 04-VERIFICATION.md with all 5 success criteria MET) → `/gsd-code-review` (post-phase audit) → phase.complete (advance ROADMAP Phase 4 → ✓ Complete). Then plan Phase 5 (Active Workout Hot Path — F13 lives or dies).
 
