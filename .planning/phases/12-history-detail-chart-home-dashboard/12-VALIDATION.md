@@ -2,8 +2,8 @@
 phase: 12
 slug: history-detail-chart-home-dashboard
 status: draft
-nyquist_compliant: false
-wave_0_complete: false
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-06-13
 ---
 
@@ -51,9 +51,10 @@ created: 2026-06-13
 
 ## Wave 0 Requirements
 
-- [ ] `app/scripts/test-rls.ts` — extend with cross-user assertions for each new RPC (`get_dashboard_summary`, `get_exercise_summary`)
-- [ ] `app/scripts/verify-deploy.ts` — add new RPC function names to the pg_proc check
-- [ ] `npm run gen:types` — regenerate `app/types/database.ts` after migration `0011_*`
+- [x] `app/scripts/test-rls.ts` — extend with cross-user assertions for each new RPC (`get_dashboard_summary`, `get_exercise_summary`)
+- [x] `app/scripts/verify-deploy.ts` — add new RPC function names to the pg_proc check
+- [x] `npm run gen:types` — regenerate `app/types/database.ts` after migration `0011_*`
+- [x] `app/scripts/test-dashboard-aggregates.ts` — streak + week-boundary fixtures now created AND executed in Plan 01 Task 3 `<verify>` (BLOCKER 2 fix)
 
 *Existing tsc/eslint/test:f13-brutal infrastructure covers the re-skin + hot-path constraints.*
 
@@ -74,11 +75,11 @@ created: 2026-06-13
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references (test-rls, verify-deploy, gen:types)
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 120s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references (test-rls, verify-deploy, gen:types, streak/week-boundary fixture)
+- [x] No watch-mode flags
+- [x] Feedback latency < 120s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** ready — Wave 0 complete (test-rls + verify-deploy + gen:types extended; streak/week-boundary fixture created and executed in Plan 01 Task 3).

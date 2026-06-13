@@ -731,17 +731,16 @@ app/scripts/test-rls.ts                                     # ADD cross-user ass
 
 **Note:** A1, A3, A4 are LOW-risk verification-at-planning items. A2 is the one genuine product decision the planner/discuss-phase should confirm.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Streak "in-progress current week" semantics (A2).**
+1. **Streak "in-progress current week" semantics (A2). — RESOLVED / LOCKED.**
    - What we know: streak = consecutive goal-weeks (D-07); the current week may be mid-progress.
-   - What's unclear: does an as-yet-unmet current week display the prior streak (e.g. show "4 weeks" until this week fails or completes), or reset to 0 on Monday?
-   - Recommendation: keep the prior streak visible until the current week is *provably* missed (week ends below goal) — the `<= 2` boundary in the SQL sketch encodes this. Lock with a test fixture; surface to the user in discuss if ambiguous.
+   - **LOCKED boundary:** Show the prior streak count until the current calendar week is *provably* missed (i.e. the current Mon–Sun has ended without meeting `weekly_goal`). An in-progress current week that has *already* met the goal counts toward the streak; an in-progress week that has *not yet* met it does NOT break the streak. This is exactly what the `<= 2` island guard in the Mandate 1 SQL sketch encodes (the island is "live" only if it touches rn=1 (this week) or rn=2 (last week)). **Locked and proven by the Plan 01 `test-dashboard-aggregates.ts` fixture.**
 
-2. **`vol_per_session_kg` denominator (D-14).**
+2. **`vol_per_session_kg` denominator (D-14). — RESOLVED.**
    - What we know: "vol-per-session over the selected range."
-   - What's unclear: average over sessions that *contain this exercise* in range, vs all finished sessions in range.
-   - Recommendation: average over sessions that include the exercise (matches "this exercise's" framing). Confirm in the RPC comment.
+   - **RESOLVED:** average over **sessions in range that CONTAIN this exercise** (not all finished sessions in range). This matches the "this exercise's vol-per-session" framing. Document this denominator in the `get_exercise_summary` RPC comment.
+
 
 ## Environment Availability
 
