@@ -425,6 +425,7 @@ function ExerciseCard({
   allSets: SetRow[];
 }) {
   const { t } = useTranslation();
+  const accentTextInk = "#FFFFFF"; // forge-accentText (light & dark are both white)
   // Pre-fetch F7 data on card mount per CONTEXT.md D-20. staleTime 15min
   // keeps the result in cache offline.
   const { data: lastValueMap } = useLastValueQuery(
@@ -443,6 +444,14 @@ function ExerciseCard({
 
   const loggedCount = setsForThisExercise.length;
   const currentSetNumber = loggedCount + 1;
+
+  // D-10: F7 prev-value, folded INTO the input-row header (replaces the separate
+  // LastValueChip below the row). Set-position-aligned to the row about to be
+  // logged. Not rendered when no data (D-19).
+  const prevValue = lastValueMap?.[currentSetNumber];
+  const prevLabel = prevValue
+    ? t("previous", { w: prevValue.weight_kg, r: prevValue.reps })
+    : null;
 
   // D-10 pre-fill: after first set in this session, pre-fill from the
   // most-recent set in the same exercise in the same session. For set 1
@@ -601,136 +610,115 @@ function ExerciseCard({
         </View>
       )}
 
-      {/* Always-visible inline set-input row.
-          NOTE (11-01 scope): chrome retoken only — the full D-10 input-row
-          redesign (56px display-value-with-unit-label fields + 50px accent
-          "Klart" CTA) is plan 11-02's domain. Here the raw TextInput keyboard
-          wiring is preserved byte-for-byte (D-17); only the Forge tokens are
-          applied to the existing layout. */}
-      <View className="flex-row items-center gap-2 mt-3">
-        <Controller
-          control={control}
-          name="weight_kg"
-          render={({ field: { onChange, value }, fieldState: { error } }) => (
-            <View className="flex-1">
-              <TextInput
+      {/* D-10 Forge input row: accent-tinted card footer. "SET N" accent
+          uppercase label + folded-in F7 prev-value on one header line; three
+          56px accent-bordered fields (large display value + small uppercase
+          unit label underneath); full-width 50px accent "Klart" CTA with a
+          leading check icon. The raw TextInputs are restyled IN PLACE so every
+          keyboard/RHF wiring prop survives byte-for-byte (D-17) — they are NOT
+          swapped to ForgeField (which cannot carry inputMode/selectTextOnFocus/
+          returnKeyType). Per FORGE InputField (forge-screens.jsx ForgeInput),
+          the value renders as the TextInput's own large display text with the
+          KG/REPS/RPE micro-label beneath it. */}
+      <View
+        className="rounded-forge-md mt-3 px-4 pt-4 pb-[18px] bg-forge-accentSoft-light dark:bg-forge-accentSoft"
+        style={{ gap: 10 }}
+      >
+        {/* Header: "SET N" accent uppercase + folded-in prev-value (D-10, F7) */}
+        <View className="flex-row items-center justify-between">
+          <Text
+            className="text-[11px] font-semibold uppercase text-forge-accent-light dark:text-forge-accent"
+            style={{ letterSpacing: 1 }}
+          >
+            {`${t("set")} ${currentSetNumber}`}
+          </Text>
+          {prevLabel && (
+            <Text
+              className="text-[11px] text-forge-text2-light dark:text-forge-text2"
+              style={{ fontVariant: ["tabular-nums"] }}
+            >
+              {prevLabel}
+            </Text>
+          )}
+        </View>
+
+        {/* Three fields grid: weight (1fr) · reps (1fr) · rpe (60px) */}
+        <View className="flex-row items-start" style={{ gap: 8 }}>
+          <Controller
+            control={control}
+            name="weight_kg"
+            render={({ field: { onChange, value }, fieldState: { error } }) => (
+              <ForgeNumField
                 value={value == null ? "" : String(value)}
                 onChangeText={onChange}
-                placeholder={t("weight")}
-                placeholderTextColor="#8B8B8B"
+                unit={t("kg")}
+                placeholder="0"
                 keyboardType="decimal-pad"
                 inputMode="decimal"
-                returnKeyType="done"
-                autoCorrect={false}
-                autoCapitalize="none"
-                selectTextOnFocus={true}
                 accessibilityLabel={t("weight")}
-                className={`rounded-forge-md bg-forge-bg-light dark:bg-forge-bg border px-3 py-3 text-base font-semibold text-forge-text-light dark:text-forge-text min-h-[56px] ${
-                  error
-                    ? "border-forge-danger-light dark:border-forge-danger"
-                    : "border-forge-border-light dark:border-forge-border"
-                }`}
+                error={!!error}
+                errorMessage={error?.message}
+                className="flex-1"
               />
-              {error && (
-                <Text
-                  className="text-base text-forge-danger-light dark:text-forge-danger mt-1 px-1"
-                  accessibilityLiveRegion="polite"
-                >
-                  {error.message}
-                </Text>
-              )}
-            </View>
-          )}
-        />
-        <Controller
-          control={control}
-          name="reps"
-          render={({ field: { onChange, value }, fieldState: { error } }) => (
-            <View className="flex-1">
-              <TextInput
+            )}
+          />
+          <Controller
+            control={control}
+            name="reps"
+            render={({ field: { onChange, value }, fieldState: { error } }) => (
+              <ForgeNumField
                 value={value == null ? "" : String(value)}
                 onChangeText={onChange}
-                placeholder={t("reps")}
-                placeholderTextColor="#8B8B8B"
+                unit={t("reps")}
+                placeholder="0"
                 keyboardType="number-pad"
                 inputMode="numeric"
-                returnKeyType="done"
-                autoCorrect={false}
-                autoCapitalize="none"
-                selectTextOnFocus={true}
                 accessibilityLabel={t("reps")}
-                className={`rounded-forge-md bg-forge-bg-light dark:bg-forge-bg border px-3 py-3 text-base font-semibold text-forge-text-light dark:text-forge-text min-h-[56px] ${
-                  error
-                    ? "border-forge-danger-light dark:border-forge-danger"
-                    : "border-forge-border-light dark:border-forge-border"
-                }`}
+                error={!!error}
+                errorMessage={error?.message}
+                className="flex-1"
               />
-              {error && (
-                <Text
-                  className="text-base text-forge-danger-light dark:text-forge-danger mt-1 px-1"
-                  accessibilityLiveRegion="polite"
-                >
-                  {error.message}
-                </Text>
-              )}
-            </View>
-          )}
-        />
-        <Controller
-          control={control}
-          name="rpe"
-          render={({ field: { onChange, value }, fieldState: { error } }) => (
-            <View className="w-16">
-              <TextInput
+            )}
+          />
+          <Controller
+            control={control}
+            name="rpe"
+            render={({ field: { onChange, value }, fieldState: { error } }) => (
+              <ForgeNumField
                 value={value == null ? "" : String(value)}
                 onChangeText={onChange}
-                placeholder={t("rpe")}
-                placeholderTextColor="#8B8B8B"
+                unit={t("rpe")}
+                placeholder="–"
                 keyboardType="decimal-pad"
                 inputMode="decimal"
-                returnKeyType="done"
-                autoCorrect={false}
-                autoCapitalize="none"
-                selectTextOnFocus={true}
                 accessibilityLabel={t("rpe")}
+                error={!!error}
+                errorMessage={error?.message}
                 maxLength={4}
-                className={`rounded-forge-md bg-forge-bg-light dark:bg-forge-bg border px-2 py-3 text-base font-semibold text-forge-text-light dark:text-forge-text min-h-[56px] text-center ${
-                  error
-                    ? "border-forge-danger-light dark:border-forge-danger"
-                    : "border-forge-border-light dark:border-forge-border"
-                }`}
+                small
               />
-              {error && (
-                <Text
-                  className="text-base text-forge-danger-light dark:text-forge-danger mt-1 px-1"
-                  accessibilityLiveRegion="polite"
-                >
-                  {error.message}
-                </Text>
-              )}
-            </View>
-          )}
-        />
+            )}
+          />
+        </View>
+
+        {/* Full-width 50px accent "Klart" CTA with leading check (D-10) */}
         <Pressable
           onPress={handleSubmit(onKlart)}
           disabled={isSubmitting}
           accessibilityRole="button"
           accessibilityLabel={t("done")}
-          className="w-16 min-h-[56px] rounded-forge-md bg-forge-accent-light dark:bg-forge-accent items-center justify-center disabled:opacity-60"
+          className="h-[50px] w-full rounded-forge-md bg-forge-accent-light dark:bg-forge-accent flex-row items-center justify-center gap-2 disabled:opacity-60"
           style={({ pressed }) => (pressed ? { opacity: 0.85 } : null)}
         >
-          <Text className="text-base font-semibold text-forge-accentText-light dark:text-forge-accentText">
+          <Icon name="check" size={18} color={accentTextInk} strokeWidth={2.4} />
+          <Text
+            className="text-base font-semibold text-forge-accentText-light dark:text-forge-accentText"
+            style={{ letterSpacing: -0.2 }}
+          >
             {t("done")}
           </Text>
         </Pressable>
       </View>
-
-      {/* F7 chip — set-position-aligned. D-19: not rendered when no data. */}
-      <LastValueChip
-        exerciseId={planExercise.exercise_id}
-        sessionId={sessionId}
-        setNumber={currentSetNumber}
-      />
 
       {/* Generic form-level error fallback (rare — Controller already
           renders per-field errors above) */}
@@ -1036,30 +1024,98 @@ function EditableSetRow({
 }
 
 // ---------------------------------------------------------------------------
-// LastValueChip — F7 set-position-aligned "Förra: 82.5 × 8" chip
+// ForgeNumField — D-10 set-input field: a 56px accent-bordered cell where the
+// raw TextInput IS the large display value (font-display-semibold, tabular,
+// centered) with a small uppercase unit micro-label underneath (KG/REPS/RPE).
+// The TextInput keeps ALL hot-path keyboard wiring (keyboardType/inputMode/
+// returnKeyType/selectTextOnFocus/autoCorrect/autoCapitalize) — it is restyled
+// in place, NOT swapped to ForgeField (D-17). Box styling (h/radius/border/bg)
+// lives in className per the NativeWind-4 box-decoration rule; only nothing
+// extra is needed in style().
 // ---------------------------------------------------------------------------
 
-function LastValueChip({
-  exerciseId,
-  sessionId,
-  setNumber,
+function ForgeNumField({
+  value,
+  onChangeText,
+  unit,
+  placeholder,
+  keyboardType,
+  inputMode,
+  accessibilityLabel,
+  error,
+  errorMessage,
+  maxLength,
+  small,
+  className,
 }: {
-  exerciseId: string;
-  sessionId: string;
-  setNumber: number;
+  value: string;
+  onChangeText: (text: string) => void;
+  unit: string;
+  placeholder: string;
+  keyboardType: "decimal-pad" | "number-pad";
+  inputMode: "decimal" | "numeric";
+  accessibilityLabel: string;
+  error: boolean;
+  errorMessage?: string;
+  maxLength?: number;
+  small?: boolean;
+  className?: string;
 }) {
-  const { t } = useTranslation();
-  const { data: lastValueMap } = useLastValueQuery(exerciseId, sessionId);
-  const prev = lastValueMap?.[setNumber];
-  if (!prev) return null; // D-19 — not rendered when no data
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
+  // Field fill: white in light, near-black translucent in dark (ForgeInput
+  // L530-532). Inline because rgba(0,0,0,0.4) is off the Tailwind scale.
+  const fieldBg = isDark ? "rgba(0,0,0,0.4)" : "#FFFFFF";
+  const placeholderInk = isDark ? "rgba(255,255,255,0.38)" : "#8B8B8B";
+
   return (
-    <View className="flex-row items-center px-3 py-1 mt-1">
-      <Text
-        className="text-base font-semibold text-forge-text2-light dark:text-forge-text2"
-        style={{ fontVariant: ["tabular-nums"] }}
+    <View className={className} style={small ? { width: 60 } : undefined}>
+      <View
+        className={`h-14 rounded-forge-sm border items-center justify-center ${
+          error
+            ? "border-forge-danger-light dark:border-forge-danger"
+            : "border-forge-accent-light/30 dark:border-forge-accent/30"
+        }`}
+        style={{ backgroundColor: fieldBg }}
       >
-        {t("previous", { w: prev.weight_kg, r: prev.reps })}
-      </Text>
+        <TextInput
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          placeholderTextColor={placeholderInk}
+          keyboardType={keyboardType}
+          inputMode={inputMode}
+          returnKeyType="done"
+          autoCorrect={false}
+          autoCapitalize="none"
+          selectTextOnFocus={true}
+          accessibilityLabel={accessibilityLabel}
+          maxLength={maxLength}
+          textAlign="center"
+          className="w-full text-center font-display-semibold text-forge-text-light dark:text-forge-text p-0"
+          style={{
+            fontSize: small ? 20 : 22,
+            lineHeight: small ? 22 : 24,
+            letterSpacing: -0.6,
+            fontVariant: ["tabular-nums"],
+          }}
+        />
+        <Text
+          className="text-[9.5px] font-semibold uppercase text-forge-text3-light dark:text-forge-text3 mt-0.5"
+          style={{ letterSpacing: 1 }}
+        >
+          {unit}
+        </Text>
+      </View>
+      {error && errorMessage && (
+        <Text
+          className="text-[11px] text-forge-danger-light dark:text-forge-danger mt-1 text-center"
+          accessibilityLiveRegion="polite"
+          numberOfLines={1}
+        >
+          {errorMessage}
+        </Text>
+      )}
     </View>
   );
 }
