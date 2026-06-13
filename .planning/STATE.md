@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: — Forge Redesign
-status: completed
-stopped_at: Phase 12 context gathered
-last_updated: "2026-06-13T15:51:21.345Z"
-last_activity: 2026-06-13 -- Phase 11 marked complete
+status: executing
+stopped_at: Phase 12 UI-SPEC approved
+last_updated: "2026-06-13T16:42:33.612Z"
+last_activity: 2026-06-13 -- Phase 12 planning complete
 progress:
   total_phases: 8
   completed_phases: 4
-  total_plans: 17
+  total_plans: 25
   completed_plans: 17
   percent: 50
 ---
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-06-09)
 
 Phase: 11 — COMPLETE
 Plan: 3 of 3
-Status: Phase 11 complete
-Last activity: 2026-06-13 -- Phase 11 marked complete
+Status: Ready to execute
+Last activity: 2026-06-13 -- Phase 12 planning complete
 
 ## Performance Metrics
 
@@ -158,9 +158,9 @@ Items acknowledged for later:
 
 ## Session Continuity
 
-Last session: 2026-06-13T15:51:21.335Z
-Stopped at: Phase 12 context gathered
-Resume file: .planning/phases/12-history-detail-chart-home-dashboard/12-CONTEXT.md
+Last session: 2026-06-13T16:01:43.610Z
+Stopped at: Phase 12 UI-SPEC approved
+Resume file: .planning/phases/12-history-detail-chart-home-dashboard/12-UI-SPEC.md
 Next: Orchestrator runs phase-level closeout — `/gsd-secure-phase 4` (close threat register T-04-01 … T-04-12 against implementation; produce 04-SECURITY.md with threats_open: 0) → `/gsd-verify-work 4` (write 04-VERIFICATION.md with all 5 success criteria MET) → `/gsd-code-review` (post-phase audit) → phase.complete (advance ROADMAP Phase 4 → ✓ Complete). Then plan Phase 5 (Active Workout Hot Path — F13 lives or dies).
 
 ## Operator Next Steps
