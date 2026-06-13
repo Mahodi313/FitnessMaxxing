@@ -874,7 +874,7 @@ function LoggedSetRow({
 
   return (
     <Animated.View
-      entering={SlideInDown.springify().damping(18).stiffness(220)}
+      entering={SlideInDown.springify().damping(30).stiffness(220)}
       className="flex-row items-center px-4 border-b border-forge-border-light dark:border-forge-border"
       style={{ gap: 12, paddingVertical: 14 }}
     >
