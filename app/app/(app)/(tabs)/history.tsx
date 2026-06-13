@@ -91,6 +91,7 @@ const TOKENS = {
     text3: "#8B8B8B",
     surface: "#FFFFFF",
     surface2: "#F2F1EC",
+    surface3: "#E8E7E1",
     accent: "#E14E10",
     success: "#1E9E45",
     successSoft: "rgba(30,158,69,0.12)",
@@ -102,6 +103,7 @@ const TOKENS = {
     text3: "rgba(255,255,255,0.38)",
     surface: "#0E0E10",
     surface2: "#18181B",
+    surface3: "#222226",
     accent: "#FF5A1F",
     success: "#30D158",
     successSoft: "rgba(48,209,88,0.15)",
@@ -530,7 +532,7 @@ function HistoryListRow({
       // renders it); the inline style() callback carries ONLY pressed opacity.
       className="flex-row items-center rounded-2xl border bg-forge-surface-light dark:bg-forge-surface border-forge-border-light dark:border-forge-border"
       style={({ pressed }) => [
-        { paddingHorizontal: 16, paddingVertical: 14, gap: 14 },
+        { paddingHorizontal: 16, paddingVertical: 14, gap: 16 },
         pressed ? { opacity: 0.85 } : null,
       ]}
     >
@@ -541,7 +543,10 @@ function HistoryListRow({
           height: 44,
           borderRadius: 12,
           flexShrink: 0,
-          backgroundColor: tk.surface2,
+          // UAT 2026-06-13: surface2 (#18181B) on the surface (#0E0E10) row reads
+          // as merged on-device OLED. surface3 (#222226) gives the date tile a
+          // visible step so it reads as a distinct box, not run-on text.
+          backgroundColor: tk.surface3,
           borderWidth: 1,
           borderColor: tk.border,
           alignItems: "center",

@@ -321,7 +321,10 @@ export default function PlansTab() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={{
           paddingHorizontal: 16,
-          paddingBottom: 100,
+          // FAB is bottom-6 (24) + h-14 (56) = 80px tall; pad the list so the
+          // last plan row always clears the floating "+" instead of sitting
+          // under it (UAT 2026-06-13: "+ knappen stor över raden").
+          paddingBottom: 140,
           flexGrow: 1,
         }}
         ItemSeparatorComponent={() => <View style={{ height: 10 }} />}

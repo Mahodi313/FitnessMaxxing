@@ -77,8 +77,18 @@ export function ProgressRing({
   children,
 }: ProgressRingProps) {
   const r = (size - stroke) / 2;
-  const cx = size / 2;
-  const cy = size / 2;
+  // D-19 fix: the overflow glow stroke (stroke * 2.4) is drawn at radius r and
+  // extends ~stroke*0.7 beyond the base ring. On a canvas sized exactly `size`
+  // that bleed is clipped to the square canvas corners — the "orange square
+  // around the ring" UAT report (2026-06-13). Enlarge the canvas by PAD on every
+  // side and draw the ring centred in it; the ring geometry (r) is unchanged so
+  // the visible ring looks identical, the glow just has room to render round.
+  // The outer wrapper stays size×size (layout unaffected; RN Views don't clip
+  // overflow by default, and the hero card's 20px padding absorbs the bleed).
+  const PAD = Math.ceil(stroke);
+  const canvas = size + PAD * 2;
+  const cx = canvas / 2;
+  const cy = canvas / 2;
 
   // WR-04: the dark-only white-overlay default is invisible on the light bg
   // (#FAFAF7). Resolve the default from the scheme so the track stays visible
@@ -132,7 +142,7 @@ export function ProgressRing({
         justifyContent: "center",
       }}
     >
-      <Canvas style={{ width: size, height: size, position: "absolute", top: 0, left: 0 }}>
+      <Canvas style={{ width: canvas, height: canvas, position: "absolute", top: -PAD, left: -PAD }}>
         <Path path={bg} style="stroke" strokeWidth={stroke} color={resolvedTrack} />
         {/* First lap (0→100%). */}
         <Path path={fgPath} style="stroke" strokeWidth={stroke} strokeCap="round" color={color}>
