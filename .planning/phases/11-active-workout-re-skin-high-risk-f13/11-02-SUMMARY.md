@@ -100,3 +100,25 @@ None. No new network endpoint, auth path, query/mutation, or schema surface. The
 - FOUND: app/app/(app)/workout/[sessionId].tsx
 - FOUND commit: 2365af4 (Task 1 — Forge set-input row)
 - FOUND commit: d1458ad (Task 2 — motion + haptic + finish overlay)
+
+## Checkpoint Resolution — APPROVED (2026-06-13)
+
+Task 3 (BLOCKING F13 human-verify, SKIN-08) **approved by user** after on-device
+testing + a screen-recording review. `test:f13-brutal` confirmed green post-logging;
+≤3s budget, haptic toggle, and keyboard wiring verified on device. Plan complete; all
+phase requirements marked complete (SKIN-04, SKIN-05, SKIN-08, MOTN-01, MOTN-04, MOTN-05).
+
+### Device-UAT gap-closure fixes (post-checkpoint, all gates green)
+| Commit | Fix |
+| ------ | --- |
+| `219e7b0` | Draft-resume overlay lifted (`top` 40%→30%) + CTA stack enlarged to `lg` (11-03 file) |
+| `4772c85` | Set-row slide-in damped 18→30 (superseded by `9ef4f09`) |
+| `10856b0` | Set-input row blank-by-default + faint last-value placeholder + auto-submit fallback (D-10 device revision) |
+| `db542bc` | **Finish-overlay "Finish" button clipped** — flex sizing moved from inline `style()` to `className` (NativeWind-4 naked-style landmine; found via video UAT) |
+| `9ef4f09` | Set-log bounce eliminated (spring→**timing**: row `SlideInDown.duration(180)` + check `withTiming`); set-number badge spaced from weight (`marginRight: 8`) |
+| `dbd4989` | Finish-overlay duration stat relabeled MIN→**Tid/Time** (new `time` locale key; parity 161) |
+
+**Carried design revision:** D-10 prefill — the last value is now surfaced as a faint
+placeholder + "Förra" hint (never a committed field value); `submitKlart()` injects the
+placeholder into a blank field before validation so a blank Klart still logs the last set
+(an empty `weight_kg` would otherwise `z.coerce` to 0). Locale parity now 161 keys.
