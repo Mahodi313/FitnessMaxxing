@@ -165,7 +165,7 @@ Plans:
 **Wave 3** *(blocked on Waves 1+2)*
 
 - [x] 12-05-PLAN.md — Home ring hero (DASH-01/02) + active-session swap + zeroed empty state + F13 gate
-- [ ] 12-06-PLAN.md — History re-skin: lifetime eyebrow + volume card (DASH-03/04 split) + Forge rows + F13 gate
+- [x] 12-06-PLAN.md — History re-skin: lifetime eyebrow + volume card (DASH-03/04 split) + Forge rows + F13 gate
 - [x] 12-07-PLAN.md — Session detail re-skin: custom header + hybrid breakdown + preserved overlays + F13 gate
 - [ ] 12-08-PLAN.md — Exercise chart re-skin: custom header + 3-state range + real current-best hero + 3-stat row + draw-on-mount (MOTN-03) + F13 gate
 
@@ -225,7 +225,7 @@ Deferred to a later milestone (needs Apple Developer license + tooling). Mapped 
 | 9. Auth, Settings & Preferences               | v2.0 | 3/3 | Complete   | 2026-06-11 |
 | 10. Plans & Exercises Re-skin                 | v2.0 | 6/6 | Complete    | 2026-06-12 |
 | 11. Active Workout Re-skin (F13 risk)         | v2.0 | 3/3 | Complete   | 2026-06-13 |
-| 12. History, Detail, Chart & Dashboard        | v2.0 | 5/8 | In Progress|  |
+| 12. History, Detail, Chart & Dashboard        | v2.0 | 6/8 | In Progress|  |
 | 13. PR Celebration (F18)                      | v2.0 | 0/? | ○ Planned  | — |
 | 14. Rest Timer (F19)                          | v2.0 | 0/? | ○ Planned  | — |
 | 15. Bilingual & Release Hardening             | v2.0 | 0/? | ○ Planned  | — |
