@@ -271,11 +271,35 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_dashboard_summary: {
+        Args: { p_tz?: string }
+        Returns: {
+          lifetime_hours: number
+          lifetime_sessions: number
+          sessions_this_week: number
+          streak_weeks: number
+          volume_prior_week_kg: number
+          volume_this_week_kg: number
+          weekly_goal: number
+          weekly_volume_series: Json
+        }[]
+      }
       get_exercise_chart: {
         Args: { p_exercise_id: string; p_metric: string; p_since: string }
         Returns: {
           day: string
           value: number
+        }[]
+      }
+      get_exercise_summary: {
+        Args: { p_exercise_id: string; p_metric: string; p_since: string }
+        Returns: {
+          avg_rpe: number
+          current_best: number
+          range_first_value: number
+          top_set_reps: number
+          top_set_weight_kg: number
+          vol_per_session_kg: number
         }[]
       }
       get_exercise_top_sets: {
