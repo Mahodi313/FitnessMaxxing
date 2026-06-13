@@ -113,3 +113,43 @@ export const exerciseTopSetsKeys = {
       window,
     ] as const,
 };
+
+// ---------------------------------------------------------------------------
+// Phase 12 — Home dashboard + chart-detail summary cache slots (12-04, D-24).
+//
+// These factories are ADDITIVE. The Phase 6 exerciseChartKeys /
+// exerciseTopSetsKeys 5-state `window` unions above remain BYTE-UNCHANGED —
+// the v1 chart still types against them until the screens migrate. D-24
+// forbids widening/mutating any existing factory; new read-side surfaces get
+// brand-new cache slots instead.
+//
+// `dashboardKeys.summary()` is the single offline-first slot for
+// get_dashboard_summary (Home hero + History card + lifetime eyebrow — D-03).
+// The single PersistQueryClientProvider hydrates it for free.
+//
+// `exerciseSummaryKeys.byExercise(exerciseId, metric, range)` is keyed against
+// the NEW 3-state ChartRange ("30d" | "90d" | "All", default 90d — D-11) so
+// the chart-summary slot is distinct from the v1 5-state exerciseChartKeys
+// slot and toggling range produces a fresh cache entry.
+// ---------------------------------------------------------------------------
+
+export const dashboardKeys = {
+  all: ["dashboard"] as const,
+  summary: () => [...dashboardKeys.all, "summary"] as const,
+};
+
+export const exerciseSummaryKeys = {
+  all: ["exercise-summary"] as const,
+  byExercise: (
+    exerciseId: string,
+    metric: "weight" | "volume",
+    range: "30d" | "90d" | "All",
+  ) =>
+    [
+      ...exerciseSummaryKeys.all,
+      "by-exercise",
+      exerciseId,
+      metric,
+      range,
+    ] as const,
+};
