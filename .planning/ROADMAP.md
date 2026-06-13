@@ -134,6 +134,11 @@ Plans:
 3. Logging a set plays the set-logged animation + haptic and `npm run test:f13-brutal` stays green with the ≤3s budget intact
 4. Haptics respect the Settings haptics toggle
 
+**Plans:** 3 plans
+- [ ] 11-01-PLAN.md — Workout screen structural re-skin (custom header + live timer, progress dots, Forge logged-set table + ✕-delete, empty/loading, full i18n sweep + all phase locale keys)
+- [ ] 11-02-PLAN.md — Set-input row re-skin (preserve keyboard wiring) + set-logged motion + gated haptic + Forge finish overlay with stats row + spring + BLOCKING F13 verification
+- [ ] 11-03-PLAN.md — Draft-resume overlay (danger ghost End-session) + saved-toast re-skin (chrome only, §07 spring, inline-rendered)
+
 #### Phase 12: History, Detail, Chart & Home Dashboard
 
 **Goal:** Re-skin the read-side screens and add the activity-ring dashboard backed by new RLS-scoped RPCs.
