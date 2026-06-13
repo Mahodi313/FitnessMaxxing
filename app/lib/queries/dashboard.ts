@@ -67,7 +67,15 @@ export const DashboardSummarySchema = z.object({
   volume_prior_week_kg: z.coerce.number(),
   weekly_volume_series: z.array(WeeklyVolumePointSchema),
   lifetime_sessions: z.coerce.number(),
-  lifetime_hours: z.coerce.number(),
+  // WR-06: lifetime_hours is Σ extract(epoch from finished_at - started_at)
+  // with no greatest(0, ...) guard in the SQL. Sessions are client-created with
+  // device-supplied timestamps (offline-first), so a rolled-back device clock or
+  // a malformed offline replay can yield finished_at < started_at → a negative
+  // interval that silently shrinks the lifetime total. Clamp defensively at the
+  // parse boundary (client-only — no migration needed) so the eyebrow can never
+  // show a corrupted/negative figure. This mirrors the Math.max(0, ...) guard the
+  // history-row durationMin already applies.
+  lifetime_hours: z.coerce.number().transform((v) => Math.max(0, v)),
 });
 
 export type DashboardSummary = z.infer<typeof DashboardSummarySchema>;
