@@ -150,12 +150,12 @@ Plans:
 3. Dashboard aggregates come from RLS-scoped read-side RPCs with a clean empty state for new users
 4. The chart line draws on mount
 
-**Plans:** 1/8 plans executed
+**Plans:** 2/8 plans executed
 Plans:
 **Wave 1**
 
 - [x] 12-01-PLAN.md — Migration 0011 (get_dashboard_summary + get_exercise_summary RPCs) + [BLOCKING] push + gen:types + verify-deploy + cross-user test:rls + streak/week Wave-0 fixtures
-- [ ] 12-02-PLAN.md — Shared deps: units toDisplayVolume/formatVolume + full sv/en i18n key set incl. weeks/week streak relabel
+- [x] 12-02-PLAN.md — Shared deps: units toDisplayVolume/formatVolume + full sv/en i18n key set incl. weeks/week streak relabel
 - [ ] 12-03-PLAN.md — Animate Skia primitives: ProgressRing fill + overflow glow (MOTN-02/D-19) + Sparkline draw-in (D-18), reduce-motion aware
 
 **Wave 2** *(blocked on Wave 1)*

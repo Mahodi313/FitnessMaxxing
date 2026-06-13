@@ -26,8 +26,8 @@ See: .planning/PROJECT.md (updated 2026-06-09)
 ## Current Position
 
 Phase: 12 (history-detail-chart-home-dashboard) — EXECUTING
-Plan: 2 of 8
-Status: Ready to execute
+Plan: 3 of 8
+Status: Plan 12-02 complete (volume helpers + i18n key set); ready for 12-03
 Last activity: 2026-06-13
 
 ## Performance Metrics
@@ -129,6 +129,8 @@ Recent decisions affecting current work:
 - [Phase ?]: 11-01: this plan owns all phase locale keys at sv/en parity for 11-02/11-03 to consume (D-14)
 - [Phase 11]: 11-02: Forge set-input row (56px accent ForgeNumField + 50px Klart CTA); set-logged SlideInDown+check-scale motion (ungated) + fm:haptics-gated Medium haptic, fire-and-forget after addSet.mutate (D-10/D-11/D-12)
 - [Phase 11]: 11-02: AvslutaOverlay re-skinned to FFinishOverlay — client-derived 3-cell stats row, §07 overlay spring, accent-not-red Avsluta, inline (no Modal); frozen write path untouched (D-08/D-15/D-16/D-17)
+- **2026-06-13 [12-02]**: D-20 — toDisplayVolume/formatVolume added to units.ts; imperial divides by KG_PER_LB with NO roundHalf (0.5-lb granularity meaningless on tonnage sums); formatVolume rounds to whole unit then sv-SE NBSP-groups + kg/lb suffix. Weights helpers untouched.
+- **2026-06-13 [12-02]**: D-21/D-07 — full phase-12 sv+en locale key set at parity (180 keys). Added weeks/week streak relabel (days/day preserved); back relabeled to no-arrow "Tillbaka"/"Back" per UI-SPEC FLAG-1 a11y (cosmetic arrow-drop on 2 out-of-scope visible buttons); new keys (thisWeekVolume, rangeAll) over mutating overloaded existing keys to avoid cross-screen drift. Wave-3 screens (12-05..08) import with zero invention.
 - [Phase ?]: 2026-06-13 [12-01]: Migration 0011 deployed live — get_dashboard_summary (combined 8-col single-row aggregate) + get_exercise_summary (chart hero/3-stat). Both security invoker + stable + search_path='' + set_type='working', finished-only. Streak <=2 in-progress-week island boundary LOCKED (D-07); local Mon-Sun bucketing via date_trunc('week', started_at at time zone p_tz) (D-06). Proven by test:dashboard.
 
 ### Pending Todos
