@@ -67,8 +67,17 @@ import { useTranslation } from "react-i18next";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import * as Haptics from "expo-haptics";
+import { LinearGradient } from "expo-linear-gradient";
+import Animated, {
+  SlideInDown,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from "react-native-reanimated";
 
 import { ForgeButton, Icon } from "@/components/ui";
+import { getPref } from "@/lib/prefs";
 import { randomUUID } from "@/lib/utils/uuid";
 
 import { useFinishSession, useSessionQuery } from "@/lib/queries/sessions";
@@ -99,6 +108,10 @@ import type { PlanExerciseRow } from "@/lib/schemas/plan-exercises";
 // the parsed shape. Two-arg form triggers TS2322 due to
 // @hookform/resolvers Resolver invariance.
 type SetFormInput = z.input<typeof setFormSchema>;
+
+// Animated wrapper over Pressable so the Avsluta backdrop can both (a) animate
+// its scrim opacity (MOTN-04 §07 spring) and (b) keep backdrop-tap dismiss.
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 // mm:ss (or h:mm:ss past an hour) elapsed since `startedAt`. Copied from
 // active-session-banner.tsx (module-private there) for the in-content header
@@ -229,6 +242,8 @@ export default function WorkoutScreen() {
         <AvslutaOverlay
           sessionId={session.id}
           loggedSetCount={loggedSetCount}
+          sets={setsData ?? []}
+          startedAt={session.started_at}
           onCancel={() => setShowAvslutaOverlay(false)}
           onFinish={() => {
             setShowAvslutaOverlay(false);
@@ -528,6 +543,16 @@ function ExerciseCard({
         // line 303.
       },
     );
+
+    // MOTN-01 / MOTN-05 set-logged feedback — fire-and-forget, AFTER the
+    // optimistic mutate above, NEVER awaited and NEVER preceding it (F13,
+    // T-11-06). The VISUAL animation (row slide-in + check scale) is owned by
+    // LoggedSetRow's Reanimated `entering` / scale — it plays automatically
+    // when the just-appended row mounts and is NOT gated. The HAPTIC is gated
+    // behind the fm:haptics pref (default on, D-12) and voided.
+    void getPref("fm:haptics").then((on) => {
+      if (on) void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    });
   };
 
   // Plan-target chip (header)
@@ -797,6 +822,19 @@ function LoggedSetRow({
   const isDark = colorScheme === "dark";
   const [isEditing, setIsEditing] = useState(false);
 
+  // MOTN-01 set-logged visual: the success check scales 0.8→1 on mount with
+  // the §07 default spring (damping 18, stiffness 220). This plays whenever a
+  // row first mounts (i.e. right after the optimistic addSet appends it) — it
+  // is NOT gated by fm:haptics (only the haptic in onKlart is). Fire-and-forget
+  // off the UI thread; never blocks the write (T-11-06).
+  const checkScale = useSharedValue(0.8);
+  useEffect(() => {
+    checkScale.value = withSpring(1, { damping: 18, stiffness: 220 });
+  }, [checkScale]);
+  const checkStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: checkScale.value }],
+  }));
+
   // Reset edit mode on screen blur (Pitfall 5 — freezeOnBlur).
   useFocusEffect(
     useCallback(() => {
@@ -835,7 +873,8 @@ function LoggedSetRow({
   const deleteInk = isDark ? "rgba(255,255,255,0.38)" : "#8B8B8B";
 
   return (
-    <View
+    <Animated.View
+      entering={SlideInDown.springify().damping(18).stiffness(220)}
       className="flex-row items-center px-4 border-b border-forge-border-light dark:border-forge-border"
       style={{ gap: 12, paddingVertical: 14 }}
     >
@@ -889,9 +928,12 @@ function LoggedSetRow({
             <Text className="text-forge-text3-light dark:text-forge-text3">–</Text>
           )}
         </Text>
-        {/* Success check (plain checkCircle — no trophy, D-06) */}
+        {/* Success check (plain checkCircle — no trophy, D-06). MOTN-01: the
+            icon scales 0.8→1 on mount (ungated visual). */}
         <View style={{ width: 36 }} className="items-center">
-          <Icon name="checkCircle" size={20} color={successInk} />
+          <Animated.View style={checkStyle}>
+            <Icon name="checkCircle" size={20} color={successInk} />
+          </Animated.View>
         </View>
       </Pressable>
       {/* Trailing ✕-delete (D-04) — replaces swipe; muted, no confirm */}
@@ -905,7 +947,7 @@ function LoggedSetRow({
       >
         <Icon name="close" size={18} color={deleteInk} strokeWidth={2} />
       </Pressable>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -1131,23 +1173,39 @@ function ForgeNumField({
 //   layout primitives; NativeWind retained for the inner card content
 //   where it works reliably.
 //
-// D-23 + PITFALLS §6.6 — the primary "Avsluta" button is accent-blue
+// D-23 + PITFALLS §6.6 / D-16 — the primary "Avsluta" button is ACCENT
 // (NOT red). Finishing a pass is the intended terminal state, not a
 // data-loss action. Red is reserved for the "Avsluta sessionen" button
 // in the draft-resume overlay (Plan 03), where finishing an orphaned
 // draft IS data-loss-adjacent.
+//
+// Plan 11-02 (D-08/D-15/MOTN-04): re-skinned to FFinishOverlay — trophy hero
+// (the overlay's OWN gradient icon, NOT the omitted PR banner), 3-cell
+// client-derived stats row (sets / Σ kg / MM:SS), §07 spring open
+// (backdrop 0→0.5 + card translateY 24→0), inline-rendered (no Modal portal).
 
 function AvslutaOverlay({
   sessionId,
   loggedSetCount,
+  sets,
+  startedAt,
   onCancel,
   onFinish,
 }: {
   sessionId: string;
   loggedSetCount: number;
+  sets: SetRow[];
+  startedAt: string | null;
   onCancel: () => void;
   onFinish: () => void;
 }) {
+  const { t } = useTranslation();
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
+  const accentTextInk = "#FFFFFF";
+  const trophyGrad: [string, string] = isDark
+    ? ["#FF7A2E", "#FF2D55"]
+    : ["#FF7A2E", "#FF3D5E"];
   const finishSession = useFinishSession(sessionId);
   // D-N4: local notes state; nollställs vid unmount (Option A — minimal coupling).
   const [notes, setNotes] = useState<string>("");
@@ -1177,13 +1235,41 @@ function AvslutaOverlay({
     };
   }, []);
 
-  const title = "Avsluta passet?";
-  const body =
-    loggedSetCount > 0
-      ? `${loggedSetCount} set sparade. Avsluta passet?`
-      : "Inget set är loggat. Avsluta utan att spara?";
-  const primaryLabel =
-    loggedSetCount > 0 ? "Avsluta" : "Avsluta utan att spara";
+  // D-08: 3-cell stats row, derived CLIENT-SIDE from the sets already loaded
+  // for this session (no new query/aggregate; T-11-04). cell 1 = logged-set
+  // count, cell 2 = Σ weight×reps (kg), cell 3 = MM:SS elapsed since started_at.
+  const totalVolume = sets.reduce(
+    (sum, s) => sum + (s.weight_kg ?? 0) * (s.reps ?? 0),
+    0,
+  );
+  const elapsedMs = startedAt
+    ? Date.now() - new Date(startedAt).getTime()
+    : 0;
+  const elapsedLabel = formatElapsed(elapsedMs);
+  // Volume formatted with a thin space thousands separator (mock "4 820").
+  const volumeLabel = Math.round(totalVolume)
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+
+  const title = t("finishWorkoutQ");
+  // Body copy folds the count + elapsed time (D-08 / Copywriting contract).
+  const body = t("finishBody", { count: loggedSetCount, time: elapsedLabel });
+
+  // MOTN-04 §07 overlay spring: backdrop opacity 0→0.5 + card translateY 24→0
+  // (damping 18, stiffness 220, ~240ms), inline-rendered (no Modal portal,
+  // D-15). Shared values animate on mount; never gate the write.
+  const backdropOpacity = useSharedValue(0);
+  const cardTranslateY = useSharedValue(24);
+  useEffect(() => {
+    backdropOpacity.value = withSpring(0.5, { damping: 18, stiffness: 220 });
+    cardTranslateY.value = withSpring(0, { damping: 18, stiffness: 220 });
+  }, [backdropOpacity, cardTranslateY]);
+  const backdropStyle = useAnimatedStyle(() => ({
+    backgroundColor: `rgba(0,0,0,${backdropOpacity.value})`,
+  }));
+  const cardStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: cardTranslateY.value }],
+  }));
 
   const handleConfirm = () => {
     // mutate (NOT mutateAsync) — Phase 4 commit 5d953b6.
@@ -1211,29 +1297,36 @@ function AvslutaOverlay({
   // resumed or explicitly closed, so backdrop-dismiss there would leave the
   // user in an ambiguous state. UI-SPEC §line 250 (force-decision) vs
   // §line 558 (Avsluta-during-workout, dismissible).
+  const counterWarn = notes.length > 480;
+  const placeholderInk = isDark ? "rgba(255,255,255,0.38)" : "#8B8B8B";
+
   return (
-    <Pressable
-      style={{
-        position: "absolute",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: "rgba(0,0,0,0.5)",
-        alignItems: "center",
-        // D-N1 (revised 2026-05-16, iter 3): center the card normally; only
-        // when the iOS keyboard is up do we switch to flex-end + paddingBottom
-        // = keyboardHeight + 16 so the card lifts exactly above the keyboard.
-        // This avoids the "modal slammed against bottom" look when no input
-        // is focused while still solving the original UAT-blocker.
-        justifyContent: keyboardHeight > 0 ? "flex-end" : "center",
-        paddingHorizontal: 32,
-        paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : 0,
-        zIndex: 2000,
-      }}
+    <AnimatedPressable
+      style={[
+        {
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          alignItems: "center",
+          // D-N1 (revised 2026-05-16, iter 3): center the card normally; only
+          // when the iOS keyboard is up do we switch to flex-end + paddingBottom
+          // = keyboardHeight + 16 so the card lifts exactly above the keyboard.
+          // This avoids the "modal slammed against bottom" look when no input
+          // is focused while still solving the original UAT-blocker.
+          justifyContent: keyboardHeight > 0 ? "flex-end" : "center",
+          paddingHorizontal: 24,
+          paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : 0,
+          zIndex: 2000,
+        },
+        // MOTN-04: animated backdrop opacity 0→0.5 (replaces the static
+        // rgba(0,0,0,0.5)).
+        backdropStyle,
+      ]}
       onPress={onCancel}
       accessibilityRole="button"
-      accessibilityLabel="Stäng dialog"
+      accessibilityLabel={t("closeModal")}
     >
       {/* Inner Pressable claims the touch so backdrop-onPress (onCancel) does
           NOT fire when tapping the card itself (PATTERNS.md landmine #6).
@@ -1245,66 +1338,155 @@ function AvslutaOverlay({
         style={{ width: "100%", maxWidth: 400 }}
         onPress={() => Keyboard.dismiss()}
       >
-          <View
-            className="bg-gray-100 dark:bg-gray-800 rounded-2xl p-6"
-            style={{ gap: 16 }}
+        {/* MOTN-04: card translateY 24→0 spring. Box styling in className per
+            the NativeWind-4 rule; only the animated transform + shadow in
+            style(). */}
+        <Animated.View
+          className="rounded-forge-lg p-6 border bg-forge-surface-light dark:bg-forge-surface2 border-forge-borderStrong-light dark:border-forge-borderStrong"
+          style={[
+            cardStyle,
+            {
+              gap: 0,
+              shadowColor: "#000000",
+              shadowOffset: { width: 0, height: 24 },
+              shadowOpacity: 0.4,
+              shadowRadius: 48,
+            },
+          ]}
+        >
+          {/* Trophy hero — the overlay's OWN gradient icon block (NOT the
+              omitted PR banner). 52px rounded gradient tile + trophy. */}
+          <LinearGradient
+            colors={trophyGrad}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{
+              width: 52,
+              height: 52,
+              borderRadius: 16,
+              alignItems: "center",
+              justifyContent: "center",
+              marginBottom: 16,
+            }}
           >
-            <View style={{ gap: 8 }}>
-              <Text
-                className="text-2xl font-semibold text-gray-900 dark:text-gray-50"
-                accessibilityRole="header"
-              >
-                {title}
-              </Text>
-              <Text className="text-base text-gray-900 dark:text-gray-50">
-                {body}
-              </Text>
-            </View>
-            {/* D-N2: multi-line notes TextInput + char-counter */}
-            <TextInput
-              value={notes}
-              onChangeText={setNotes}
-              placeholder="Anteckningar (valfri)"
-              placeholderTextColor="#9CA3AF"
-              multiline
-              numberOfLines={3}
-              maxLength={500}
-              style={{ minHeight: 80, maxHeight: 160 }}
-              textAlignVertical="top"
-              accessibilityLabel="Anteckningar för passet, valfri"
-              className="rounded-md bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 px-3 py-2 text-base text-gray-900 dark:text-gray-50"
-            />
-            {/* Counter: always visible; flips to red when > 480 (D-N2 warning threshold) */}
-            <Text
-              className={`text-sm text-right ${notes.length > 480 ? "text-red-600 dark:text-red-400" : "text-gray-500 dark:text-gray-400"}`}
-            >
-              {`${notes.length}/500`}
-            </Text>
-            <View className="flex-row gap-3">
-              <Pressable
-                onPress={onCancel}
-                accessibilityRole="button"
-                accessibilityLabel="Fortsätt passet"
-                className="flex-1 py-4 rounded-lg bg-gray-200 dark:bg-gray-700 items-center justify-center active:opacity-80"
-              >
-                <Text className="text-base font-semibold text-gray-900 dark:text-gray-50">
-                  Fortsätt
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={handleConfirm}
-                accessibilityRole="button"
-                accessibilityLabel={primaryLabel}
-                className="flex-1 py-4 rounded-lg bg-blue-600 dark:bg-blue-500 items-center justify-center active:opacity-80"
-              >
-                <Text className="text-base font-semibold text-white">
-                  {primaryLabel}
-                </Text>
-              </Pressable>
-            </View>
+            <Icon name="trophy" size={24} color="#FFFFFF" strokeWidth={2.2} />
+          </LinearGradient>
+
+          <Text
+            className="text-[26px] font-display-bold text-forge-text-light dark:text-forge-text"
+            style={{ letterSpacing: -0.8 }}
+            accessibilityRole="header"
+          >
+            {title}
+          </Text>
+          <Text
+            className="text-[15px] text-forge-text2-light dark:text-forge-text2 mt-2 mb-[18px]"
+            style={{ lineHeight: 21, letterSpacing: -0.1 }}
+          >
+            {body}
+          </Text>
+
+          {/* D-N2: multi-line notes TextInput + char-counter (PRESERVED) */}
+          <TextInput
+            value={notes}
+            onChangeText={setNotes}
+            placeholder={t("notesPlaceholder")}
+            placeholderTextColor={placeholderInk}
+            multiline
+            numberOfLines={3}
+            maxLength={500}
+            style={{ minHeight: 80, maxHeight: 160 }}
+            textAlignVertical="top"
+            accessibilityLabel={t("notes")}
+            className="rounded-forge-sm bg-forge-bg-light dark:bg-forge-bg border border-forge-border-light dark:border-forge-border px-3.5 py-3 text-[15px] text-forge-text-light dark:text-forge-text"
+          />
+          {/* Counter: always visible; flips to danger when > 480 */}
+          <Text
+            className={`text-[11px] text-right mt-1.5 mb-[18px] ${counterWarn ? "text-forge-danger-light dark:text-forge-danger" : "text-forge-text3-light dark:text-forge-text3"}`}
+            style={{ fontVariant: ["tabular-nums"] }}
+          >
+            {`${notes.length}/500`}
+          </Text>
+
+          {/* D-08: 3-cell client-derived stats row (FFOStat) */}
+          <View className="flex-row mb-5" style={{ gap: 8 }}>
+            <FinishStat value={String(loggedSetCount)} label={t("sets")} />
+            <FinishStat value={volumeLabel} label={t("kg")} />
+            <FinishStat value={elapsedLabel} label={t("min")} />
           </View>
+
+          {/* Buttons — neutral "Fortsätt" (surface3) + accent "Avsluta"
+              (D-16, NOT red) with leading check. */}
+          <View className="flex-row" style={{ gap: 10 }}>
+            <Pressable
+              onPress={onCancel}
+              accessibilityRole="button"
+              accessibilityLabel={t("continue")}
+              className="flex-1 h-[52px] rounded-forge-md items-center justify-center bg-forge-surface3-light dark:bg-forge-surface3"
+              style={({ pressed }) => (pressed ? { opacity: 0.8 } : null)}
+            >
+              <Text
+                className="text-[15px] font-semibold text-forge-text-light dark:text-forge-text"
+                style={{ letterSpacing: -0.2 }}
+              >
+                {t("continue")}
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={handleConfirm}
+              accessibilityRole="button"
+              accessibilityLabel={t("finish")}
+              className="h-[52px] rounded-forge-md flex-row items-center justify-center gap-2 bg-forge-accent-light dark:bg-forge-accent"
+              style={({ pressed }) => [
+                {
+                  flexGrow: 1.6,
+                  flexBasis: 0,
+                  shadowColor: isDark ? "#FF5A1F" : "#E14E10",
+                  shadowOffset: { width: 0, height: 6 },
+                  shadowOpacity: 0.4,
+                  shadowRadius: 16,
+                },
+                pressed ? { opacity: 0.85 } : null,
+              ]}
+            >
+              <Icon
+                name="check"
+                size={16}
+                color={accentTextInk}
+                strokeWidth={2.4}
+              />
+              <Text
+                className="text-[15px] font-semibold text-forge-accentText-light dark:text-forge-accentText"
+                style={{ letterSpacing: -0.2 }}
+              >
+                {t("finish")}
+              </Text>
+            </Pressable>
+          </View>
+        </Animated.View>
       </Pressable>
-    </Pressable>
+    </AnimatedPressable>
+  );
+}
+
+// FinishStat — D-08 single stat cell (FFOStat): centered display numeral +
+// uppercase micro-label. Box styling in className.
+function FinishStat({ value, label }: { value: string; label: string }) {
+  return (
+    <View className="flex-1 py-2.5 rounded-forge-sm items-center border bg-forge-bg-light dark:bg-forge-bg border-forge-border-light dark:border-forge-border">
+      <Text
+        className="text-[18px] font-display-bold text-forge-text-light dark:text-forge-text"
+        style={{ letterSpacing: -0.4, lineHeight: 20, fontVariant: ["tabular-nums"] }}
+      >
+        {value}
+      </Text>
+      <Text
+        className="text-[9px] font-bold uppercase text-forge-text3-light dark:text-forge-text3 mt-1"
+        style={{ letterSpacing: 0.8 }}
+      >
+        {label}
+      </Text>
+    </View>
   );
 }
 
