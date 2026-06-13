@@ -211,9 +211,15 @@ export default function ExerciseChartScreen() {
   const summaryQuery = useExerciseSummaryQuery(exerciseId ?? "", metric, range);
   const topSetsQuery = useExerciseTopSetsQuery(exerciseId ?? "", rangeAsWindow(range), 10);
 
-  // D-21 memoization contract — dep array is EXACTLY [chartQuery.data]; do not
-  // add metric/range deps (they live in the queryKey). Victory re-mounts on data-
-  // identity change so the stable reference is load-bearing.
+  // WR-01 fix: the memo body reads BOTH `metric` and `units`, so they MUST be
+  // in the dep array. `metric` lives in the chart queryKey (a change refetches →
+  // new data identity), but `units` is async local state (getPref resolves AFTER
+  // the first data arrives) and is NOT in any queryKey — excluding it left the
+  // plotted line + y-axis in kg while the tooltip switched to lb for imperial
+  // users until the data identity next changed. Listing `units`/`metric` is also
+  // a legitimate reason to rebuild the point array, so the Victory
+  // remount-on-data-identity contract still holds (a unit/metric change is a
+  // real reason to redraw, and the draw-on-mount effect keys on `chartData`).
   const chartData = useMemo(
     () =>
       (chartQuery.data ?? []).map((row) => ({
@@ -225,8 +231,7 @@ export default function ExerciseChartScreen() {
             ? toDisplayVolume(row.value, units)
             : toDisplayWeight(row.value, units),
       })),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- memo contract: [chartQuery.data] only
-    [chartQuery.data],
+    [chartQuery.data, metric, units],
   );
 
   // Pre-format tooltip strings on the JS thread (WR-03 fix). Pre-formatting into
