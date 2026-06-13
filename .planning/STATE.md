@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: — Forge Redesign
-status: completed
+status: executing
 stopped_at: Completed 12-04-PLAN.md (Wave-3 query layer)
-last_updated: "2026-06-13T17:17:28.750Z"
+last_updated: "2026-06-13T17:25:07.112Z"
 last_activity: 2026-06-13
 progress:
   total_phases: 8
   completed_phases: 4
   total_plans: 25
-  completed_plans: 21
+  completed_plans: 22
   percent: 50
 ---
 
@@ -26,8 +26,8 @@ See: .planning/PROJECT.md (updated 2026-06-09)
 ## Current Position
 
 Phase: 12 (history-detail-chart-home-dashboard) — EXECUTING
-Plan: 5 of 8
-Status: Plan 12-04 complete (Wave-3 query layer: useDashboardSummaryQuery + useExerciseSummaryQuery + 3-state ChartRange); ready for 12-05
+Plan: 6 of 8
+Status: Plan 12-07 complete (FSessionDetail re-skin: custom Forge header + 3-stat grid + hybrid exercise cards + forge-danger delete-confirm; all overlay/delete/notes logic preserved; F13 brutal green). Wave-3 screens 12-05/12-06/12-08 remain.
 Last activity: 2026-06-13
 
 ## Performance Metrics
@@ -75,6 +75,7 @@ Last activity: 2026-06-13
 | Phase 12 P01 | ~35min | 3 tasks | 6 files |
 | Phase 12 P03 | ~12min | 2 tasks | 2 files |
 | Phase 12 P04 | ~12min | 3 tasks | 3 files |
+| Phase 12 P07 | ~18min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -136,6 +137,7 @@ Recent decisions affecting current work:
 - **2026-06-13 [12-03]**: MOTN-02/D-19 — ProgressRing animates 0→value via withSpring(§07 damping 18/stiffness 220), arc Path rebuilt in useDerivedValue on UI thread; overflow = second-lap arc + wide low-opacity glow stroke (no Skia <Blur>), upper clamp removed (first lap capped at 360° in worklet), center label shows real count; useReducedMotion snaps to final
 - **2026-06-13 [12-03]**: D-18 — Sparkline draws in left→right via animated-width <Group clip>; last-point dot fades/scales in at end of draw via delayed (withDelay 260ms) second shared value; Reanimated hooks hoisted above the data-guard early-return (rules-of-hooks); path math unchanged, F13 untouched (D-24). Phase-8 static-only headers lifted on both primitives. Plan verify referenced non-existent `npm run typecheck` → used `tsc --noEmit` (project canonical)
 - **2026-06-13 [12-04]**: D-03/D-11/D-24 — Wave-3 query layer. useDashboardSummaryQuery (offline-first by inheritance: no networkMode override → persister hydrates dashboardKeys.summary() for free) parses the 8-field get_dashboard_summary row (weekly_volume_series jsonb → typed array) with device IANA p_tz. New 3-state ChartRange (30d/90d/All, default 90d) + EXPORTED rangeToSince (date-fns subDays) added alongside v1 5-state ChartWindow/windowToSince (byte-unchanged). useExerciseSummaryQuery returns ExerciseSummary|null (empty range → null for empty-state). Additive dashboardKeys/exerciseSummaryKeys; Phase-6 exerciseChartKeys/exerciseTopSetsKeys untouched. Zod parse on both hooks (T-12-08); avg_rpe nullable. 1 deviation (Rule 3): rangeToSince exported to satisfy acceptance contract (v1 windowToSince stays private). No `npm run typecheck` script → tsc --noEmit (project canonical).
+- **2026-06-13 [12-07]**: D-15/D-17/D-22/D-24 — session-detail re-skinned to FSessionDetail (SKIN-06). Custom in-content Forge header (headerShown:false, 40px circular back + ellipsis-hosted delete, FLAG-1 a11y via t('back')/t('moreOptions') + 44px hit-slop) replaces the native headerRight ellipsis. 3-stat grid (Set/kg·volym/min, dividers, tabular-nums) + D-15 hybrid exercise cards (name + right max-weight stat + kept per-set list w × r + RPE). accentSoft notes block (F12 note verbatim). delete-confirm forge-danger (#D70015→#FF453A); PB trophy omitted (D-13). ALL overlay/delete/notes logic byte-preserved (mutate-not-mutateAsync, useFocusEffect reset, keyboard-lift, inline overlays — no Modal portal). fm:units read via settings.tsx useState+getPref idiom; volume cell renders toDisplayVolume numeral + dynamic kg/lb micro-label (no raw kg literal, D-20). Executed out-of-wave (depends only on 12-02); 12-05/06/08 still pending. 2 deviations (Rule 3 plan_name→plan_name_snapshot; Rule 2 added editNote key). tsc+lint clean, test:f13-brutal exit 0.
 - [Phase ?]: 2026-06-13 [12-01]: Migration 0011 deployed live — get_dashboard_summary (combined 8-col single-row aggregate) + get_exercise_summary (chart hero/3-stat). Both security invoker + stable + search_path='' + set_type='working', finished-only. Streak <=2 in-progress-week island boundary LOCKED (D-07); local Mon-Sun bucketing via date_trunc('week', started_at at time zone p_tz) (D-06). Proven by test:dashboard.
 
 ### Pending Todos
@@ -167,8 +169,8 @@ Items acknowledged for later:
 
 ## Session Continuity
 
-Last session: 2026-06-13T17:00:11.139Z
-Stopped at: Completed 12-04-PLAN.md (Wave-3 query layer)
+Last session: 2026-06-13T17:25:07.102Z
+Stopped at: Completed 12-07-PLAN.md (FSessionDetail session-detail re-skin)
 Resume file: None
 Next: Orchestrator runs phase-level closeout — `/gsd-secure-phase 4` (close threat register T-04-01 … T-04-12 against implementation; produce 04-SECURITY.md with threats_open: 0) → `/gsd-verify-work 4` (write 04-VERIFICATION.md with all 5 success criteria MET) → `/gsd-code-review` (post-phase audit) → phase.complete (advance ROADMAP Phase 4 → ✓ Complete). Then plan Phase 5 (Active Workout Hot Path — F13 lives or dies).
 
