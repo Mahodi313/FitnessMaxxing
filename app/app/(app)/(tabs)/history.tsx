@@ -532,9 +532,14 @@ function HistoryListRow({
       accessibilityLabel={`${fullDate}, ${planLabel}, ${session.set_count} ${t("sets")}, ${volumeLabel}, ${durationMin} ${t("min")}`}
       // Box decoration (surface bg + border + radius) via className (NativeWind
       // renders it); the inline style() callback carries ONLY pressed opacity.
-      className="flex-row items-center rounded-2xl border bg-forge-surface-light dark:bg-forge-surface border-forge-border-light dark:border-forge-border"
+      // NativeWind 4: `gap` is a flex-container prop and must live in className
+      // alongside `flex-row` — set in the inline style() callback it never
+      // rendered (the date tile sat flush against the row text; UAT 2026-06-13).
+      // See feedback_nativewind_box_deco_via_classname. px/py stay inline (they
+      // are not flex-container props and do render).
+      className="flex-row items-center gap-5 rounded-2xl border bg-forge-surface-light dark:bg-forge-surface border-forge-border-light dark:border-forge-border"
       style={({ pressed }) => [
-        { paddingHorizontal: 16, paddingVertical: 14, gap: 22 },
+        { paddingHorizontal: 16, paddingVertical: 14 },
         pressed ? { opacity: 0.85 } : null,
       ]}
     >
