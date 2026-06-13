@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: — Forge Redesign
 status: executing
-stopped_at: Completed 12-06-PLAN.md (History re-skin — eyebrow + volume card + Forge rows)
-last_updated: "2026-06-13T18:15:00.000Z"
+stopped_at: Completed 12-08-PLAN.md (Chart re-skin — FChart custom header + 3-state range + current-best hero + 3-stat row + draw-on-mount)
+last_updated: "2026-06-13T19:00:00.000Z"
 last_activity: 2026-06-13
 progress:
   total_phases: 8
   completed_phases: 4
   total_plans: 25
-  completed_plans: 24
-  percent: 54
+  completed_plans: 25
+  percent: 56
 ---
 
 # Project State
@@ -26,8 +26,8 @@ See: .planning/PROJECT.md (updated 2026-06-09)
 ## Current Position
 
 Phase: 12 (history-detail-chart-home-dashboard) — EXECUTING
-Plan: 7 of 8
-Status: Plan 12-06 complete (History re-skinned to FHistory: lifetime eyebrow D-09 + weekly-volume overview card D-05 carrying the DASH-03/DASH-04 mock-literal split — big formatVolume numeral + forge-success delta chip + animated accent Sparkline fed weekly_volume_series; Forge session rows D-16 with 44px DD/MON date-badge + 'X set · Y kg · Z min' meta + chevronRight; PR trophy omitted D-13; all v1 infinite-list/refresh/post-delete-toast plumbing byte-preserved; units D-20 + i18n D-21; tsc+lint clean). F13 brutal gate amber on the FIT-107 fixture precondition (count-only fail; all set-integrity assertions PASS; read-only re-skin, D-24 intact). Wave-3 screen 12-08 remains.
+Plan: 8 of 8
+Status: Plan 12-08 complete (Chart re-skinned to FChart: D-17 custom Forge header — 40px circular back + symmetric ellipsis, FLAG-1 a11y, native Stack header hidden; D-11 3-state range selector 30d/90d-default/All replacing the v1 5-state WINDOW_OPTIONS; D-12 real current-best 52px hero + forge-success range-delta chip from useExerciseSummaryQuery — NOT e1RM, D-13 omitted; D-10 metric toggle preserved as Forge SegmentedControl surface3-neutral; D-14 3-stat row top-set/vol-per-session/avg-RPE '-' on null + preserved Senaste-10 source-session routing BLOCKER-2; MOTN-03 line draws left->right on mount via Reanimated->Skia <Group clip>, snaps under reduce-motion; D-20 every figure via formatWeight/formatVolume incl. plotted line + y-axis; D-21 i18n. matchFont FIT-67 + memo contract + tooltip SharedValue mirror preserved verbatim. rangeAsWindow D-24 bridge keeps v1 ChartWindow factories untouched. tsc+lint clean). F13 brutal gate amber on the FIT-107 fixture precondition (count-only fail; all set-integrity/contiguity/FIFO assertions PASS; read-only re-skin, D-24 intact). ALL 8 phase-12 plans now executed.
 Last activity: 2026-06-13
 
 ## Performance Metrics
@@ -78,6 +78,7 @@ Last activity: 2026-06-13
 | Phase 12 P07 | ~18min | 2 tasks | 3 files |
 | Phase 12 P05 | ~15min | 2 tasks | 1 file |
 | Phase 12 P06 | ~18min | 2 tasks | 1 file |
+| Phase 12 P08 | ~20min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -142,6 +143,7 @@ Recent decisions affecting current work:
 - **2026-06-13 [12-07]**: D-15/D-17/D-22/D-24 — session-detail re-skinned to FSessionDetail (SKIN-06). Custom in-content Forge header (headerShown:false, 40px circular back + ellipsis-hosted delete, FLAG-1 a11y via t('back')/t('moreOptions') + 44px hit-slop) replaces the native headerRight ellipsis. 3-stat grid (Set/kg·volym/min, dividers, tabular-nums) + D-15 hybrid exercise cards (name + right max-weight stat + kept per-set list w × r + RPE). accentSoft notes block (F12 note verbatim). delete-confirm forge-danger (#D70015→#FF453A); PB trophy omitted (D-13). ALL overlay/delete/notes logic byte-preserved (mutate-not-mutateAsync, useFocusEffect reset, keyboard-lift, inline overlays — no Modal portal). fm:units read via settings.tsx useState+getPref idiom; volume cell renders toDisplayVolume numeral + dynamic kg/lb micro-label (no raw kg literal, D-20). Executed out-of-wave (depends only on 12-02); 12-05/06/08 still pending. 2 deviations (Rule 3 plan_name→plan_name_snapshot; Rule 2 added editNote key). tsc+lint clean, test:f13-brutal exit 0.
 - **2026-06-13 [12-05]**: DASH-01/02/05 + MOTN-02 + D-01/D-02/D-03/D-04/D-07/D-18/D-20 — Home activity-ring hero on the Planer tab above the unchanged Phase-10 plan list. Animated 104px ProgressRing (sessions/weekly_goal, accent + [gradFrom,gradTo] brand gradient, real count in center overlay), weeks-streak ForgeChip (flame, t('weeks')/t('week') singular at N=1 — NEVER t('days')) + this-week-volume ForgeChip via formatVolume + fm:units pref (no raw kg). D-02 swap: `activeSession ? <ActiveSessionBanner/> : <HomeHero/>`. D-04 new-user nudge gated on lifetime_sessions===0 (returning-user mid-week with 0 sessions gets zeroed ring/chips, NOT the 'first workout' CTA). D-03 skeleton only on isPending && data===undefined. Hero is a className-decorated static View (bg/border in className, radius 24/padding 20/margin 16 inline) — exact FHome optical contract, not ForgeCard (xl=28). 2 Rule-3 deviations (no `npm run typecheck` script → tsc --noEmit; HeroSkeleton tk-prop widened to light|dark union). D-24 isolation intact: no mutation/queryKey/persister/exercise_sets touched. test:f13-brutal amber on a live-DB precondition (FIT-107) — 25-set fixture missing, not a regression; the test imports nothing from app/app/**.
 - **2026-06-13 [12-06]**: SKIN-06 + DASH-03/DASH-04 (D-05 split) — History re-skinned to FHistory. Lifetime eyebrow (D-09) + weekly-volume overview card carrying the DASH-03/DASH-04 mock-literals ON History (not Home): big formatVolume numeral + forge-success delta chip (up-arrow, prior-week %, success-ONLY — a down-week shows NO chip, never red) + animated accent Sparkline fed weekly_volume_series via toDisplayVolume. Forge rows (D-16): 44px surface2 DD/MON date-badge + plan name + 'X set · Y kg · Z min' meta + chevronRight; row duration derived client-side from finished_at−started_at (SessionSummary has no duration column); PR trophy omitted (D-13). volumeTrendEmpty gated on lifetime_sessions>0 && series.length>=2 (Sparkline needs ≥2 pts). successSoft chip bg = inline theme hex (no forge-successSoft token). Eyebrow+title+card hosted in FlatList ListHeaderComponent (scrolls + inherits pull-to-refresh). All v1 plumbing byte-preserved; units D-20 + i18n D-21; D-24 read-only isolation intact. 2 Rule-3 deviations (no `npm run typecheck` → tsc --noEmit; client-derived duration). F13 amber on FIT-107 count precondition only.
+- **2026-06-13 [12-08]**: SKIN-06 + MOTN-03 — Chart re-skinned to FChart. D-17 custom Forge header (headerShown:false, 40px circular back + symmetric ellipsis with no menu — chart is read-only — FLAG-1 a11y on both). D-11 3-state ChartRange (30d/90d-default/All) replaces the v1 5-state WINDOW_OPTIONS; default "90d". D-12 hero = 52px current_best numeral + forge-success range-delta chip (weight=+kg abs, volume=+%) from useExerciseSummaryQuery — REAL data, e1RM omitted (D-13). D-14 3-stat row (top-set/vol-per-session/avg-RPE '-' on null). MOTN-03 line+scatter wrapped in <Group clip={drawClip}> animating 0→full width via withSpring §07, re-fires on chartData identity (memo contract), snaps under useReducedMotion. D-20 chartData itself converted (plotted line + y-axis in display unit) + hero/stats/tooltip/Senaste-10 via formatWeight/formatVolume. **rangeAsWindow D-24 bridge**: line/top-sets hooks stay on the v1 ChartWindow factories (30d→1M/90d→3M/All→All) — no union widening; hero/stats use the additive get_exercise_summary RPC with the exact rangeToSince day-boundary. matchFont FIT-67 + memo contract + tooltip SharedValue mirror + BLOCKER-2 routing preserved verbatim. 9 new chart locale keys (190 sv/en parity). 2 Rule-3/2 deviations (type bridge + missing copy); no `npm run typecheck` → tsc --noEmit. F13 amber on FIT-107 count precondition only (read-only, D-24 intact).
 - [Phase ?]: 2026-06-13 [12-01]: Migration 0011 deployed live — get_dashboard_summary (combined 8-col single-row aggregate) + get_exercise_summary (chart hero/3-stat). Both security invoker + stable + search_path='' + set_type='working', finished-only. Streak <=2 in-progress-week island boundary LOCKED (D-07); local Mon-Sun bucketing via date_trunc('week', started_at at time zone p_tz) (D-06). Proven by test:dashboard.
 
 ### Pending Todos
@@ -173,8 +175,8 @@ Items acknowledged for later:
 
 ## Session Continuity
 
-Last session: 2026-06-13T18:15:00.000Z
-Stopped at: Completed 12-06-PLAN.md (History re-skin — eyebrow + volume card + Forge rows)
+Last session: 2026-06-13T19:00:00.000Z
+Stopped at: Completed 12-08-PLAN.md (Chart re-skin — FChart custom header + 3-state range + current-best hero + 3-stat row + draw-on-mount)
 Resume file: None
 Next: Orchestrator runs phase-level closeout — `/gsd-secure-phase 4` (close threat register T-04-01 … T-04-12 against implementation; produce 04-SECURITY.md with threats_open: 0) → `/gsd-verify-work 4` (write 04-VERIFICATION.md with all 5 success criteria MET) → `/gsd-code-review` (post-phase audit) → phase.complete (advance ROADMAP Phase 4 → ✓ Complete). Then plan Phase 5 (Active Workout Hot Path — F13 lives or dies).
 

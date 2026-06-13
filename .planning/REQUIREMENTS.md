@@ -75,7 +75,7 @@
 
 - [x] **MOTN-01**: Logging a set plays the set-logged animation + haptic without breaching the ≤3s budget
 - [x] **MOTN-02**: The Home activity ring animates its fill on mount
-- [ ] **MOTN-03**: The exercise chart line draws on mount
+- [x] **MOTN-03**: The exercise chart line draws on mount
 - [x] **MOTN-04**: Overlays/sheets animate per the design motion table while staying inline-rendered
 - [x] **MOTN-05**: Haptics respect the Settings haptics toggle
 
@@ -143,7 +143,7 @@
 | DASH-04 | Phase 12 | Complete |
 | DASH-05 | Phase 12 | Complete |
 | MOTN-02 | Phase 12 | Complete |
-| MOTN-03 | Phase 12 | Pending |
+| MOTN-03 | Phase 12 | Complete |
 | PR-01 | Phase 13 | Pending |
 | PR-02 | Phase 13 | Pending |
 | PR-03 | Phase 13 | Pending |
