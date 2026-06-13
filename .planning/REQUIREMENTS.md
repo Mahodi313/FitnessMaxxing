@@ -21,8 +21,8 @@
 - [ ] **SKIN-01**: Auth screens (sign-in, sign-up) match the Forge design in light + dark
 - [x] **SKIN-02**: Plans list / Home, plan detail, and new-plan screens match the Forge design
 - [x] **SKIN-03**: Exercise picker (browse + create-new) and plan-exercise edit screens match the Forge design
-- [ ] **SKIN-04**: Active-workout screen matches the Forge design with the set log, input row, and progress dots
-- [ ] **SKIN-05**: The three session overlays (finish, draft-resume, saved-toast) and the active-session banner match the Forge design and stay inline-rendered (no modal portals)
+- [x] **SKIN-04**: Active-workout screen matches the Forge design with the set log, input row, and progress dots
+- [x] **SKIN-05**: The three session overlays (finish, draft-resume, saved-toast) and the active-session banner match the Forge design and stay inline-rendered (no modal portals)
 - [ ] **SKIN-06**: History list, session detail, and exercise chart screens match the Forge design
 - [x] **SKIN-07**: Tab bar matches the Forge design (Planer / Historik / Inställningar) in light + dark
 - [x] **SKIN-08**: Re-skin introduces no regression to the ≤3s log-set budget or F13 (`npm run test:f13-brutal` stays green)
@@ -73,11 +73,11 @@
 
 ### Motion & Haptics (MOTN)
 
-- [ ] **MOTN-01**: Logging a set plays the set-logged animation + haptic without breaching the ≤3s budget
+- [x] **MOTN-01**: Logging a set plays the set-logged animation + haptic without breaching the ≤3s budget
 - [ ] **MOTN-02**: The Home activity ring animates its fill on mount
 - [ ] **MOTN-03**: The exercise chart line draws on mount
-- [ ] **MOTN-04**: Overlays/sheets animate per the design motion table while staying inline-rendered
-- [ ] **MOTN-05**: Haptics respect the Settings haptics toggle
+- [x] **MOTN-04**: Overlays/sheets animate per the design motion table while staying inline-rendered
+- [x] **MOTN-05**: Haptics respect the Settings haptics toggle
 
 ## Future Requirements (later milestone)
 
@@ -130,12 +130,12 @@
 | SKIN-03 | Phase 10 | Complete |
 | SKIN-07 | Phase 10 | Complete |
 | I18N-05 | Phase 10 | Complete |
-| SKIN-04 | Phase 11 | Pending |
-| SKIN-05 | Phase 11 | Pending |
+| SKIN-04 | Phase 11 | Complete |
+| SKIN-05 | Phase 11 | Complete |
 | SKIN-08 | Phase 11 | Complete |
-| MOTN-01 | Phase 11 | Pending |
-| MOTN-04 | Phase 11 | Pending |
-| MOTN-05 | Phase 11 | Pending |
+| MOTN-01 | Phase 11 | Complete |
+| MOTN-04 | Phase 11 | Complete |
+| MOTN-05 | Phase 11 | Complete |
 | SKIN-06 | Phase 12 | Pending |
 | DASH-01 | Phase 12 | Pending |
 | DASH-02 | Phase 12 | Pending |

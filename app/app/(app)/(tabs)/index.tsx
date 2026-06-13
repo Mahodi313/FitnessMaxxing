@@ -53,7 +53,13 @@ import {
 import { useColorScheme } from "nativewind";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
-import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
+import Animated, {
+  FadeIn,
+  FadeOut,
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+} from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
 import { format } from "date-fns";
 import { Icon, Logo, ForgeButton } from "@/components/ui";
@@ -63,6 +69,12 @@ import {
   useFinishSession,
 } from "@/lib/queries/sessions";
 import { useSetsForSessionQuery } from "@/lib/queries/sets";
+
+// MOTN-04 — animated Pressable so the draft-resume backdrop opacity can ride
+// the §07 spring (Reanimated drives a `style` array containing a shared-value
+// opacity). Created once at module scope (createAnimatedComponent must not run
+// per-render).
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 // ── Forge token hexes (light / dark) ────────────────────────────────────────
 // Mirror the tailwind.config forge.* token pairs verbatim (10-UI-SPEC §Color),
@@ -78,6 +90,7 @@ const TOKENS = {
     surface2: "#F2F1EC",
     accent: "#E14E10",
     accentText: "#FFFFFF",
+    success: "#1E9E45",
     border: "rgba(0,0,0,0.07)",
     gradFrom: "#FF7A2E",
     gradTo: "#FF3D5E",
@@ -90,6 +103,7 @@ const TOKENS = {
     surface2: "#18181B",
     accent: "#FF5A1F",
     accentText: "#FFFFFF",
+    success: "#30D158",
     border: "rgba(255,255,255,0.08)",
     gradFrom: "#FF7A2E",
     gradTo: "#FF2D55",
@@ -465,6 +479,9 @@ export default function PlansTab() {
         <DraftResumeOverlay
           sessionId={activeSession.id}
           bodyText={draftBody}
+          planName={activeSession.plan_name_snapshot ?? null}
+          setsCount={setsCount}
+          startedAt={startedAt}
           onResume={() => {
             setDismissedForSessionId(activeSession.id);
             router.push(`/workout/${activeSession.id}` as Href);
@@ -473,31 +490,42 @@ export default function PlansTab() {
         />
       ) : null}
 
-      {/* Phase 5 D-24 — "Passet sparat ✓" success toast. */}
+      {/* Phase 5 D-24 / SKIN-05 — "Passet sparat ✓" success toast, re-skinned to
+          FSavedToast (forge-screens.jsx L1933+): a forge-success pill with a
+          white check inside a translucent white circle, bottom-centered above
+          the tab bar (bottom:92 clears the floating TabBar — UAT-tuned, kept).
+          Box styling (success bg + pill radius) in className per the NativeWind
+          rule; inline style carries ONLY position + the success glow shadow.
+          Edge-trigger logic (previousActiveRef watcher + 2s timer) is unchanged
+          — chrome re-skin only. FadeIn/FadeOut kept (inline, no Modal). */}
       {showToast ? (
         <Animated.View
           entering={FadeIn.duration(200)}
           exiting={FadeOut.duration(200)}
           accessibilityRole="alert"
           accessibilityLiveRegion="polite"
+          className="absolute self-center flex-row items-center gap-2.5 px-[18px] py-3 rounded-full bg-forge-success-light dark:bg-forge-success"
           style={{
-            position: "absolute",
             bottom: 92,
-            alignSelf: "center",
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 8,
-            paddingHorizontal: 20,
-            paddingVertical: 12,
-            borderRadius: 24,
-            backgroundColor: tk.surface,
-            borderWidth: 1,
-            borderColor: tk.border,
+            shadowColor: tk.success,
+            shadowOffset: { width: 0, height: 16 },
+            shadowOpacity: 0.4,
+            shadowRadius: 32,
           }}
         >
-          <Icon name="check" size={16} color={tk.accent} strokeWidth={2.4} />
+          <View
+            className="w-[22px] h-[22px] rounded-full items-center justify-center"
+            style={{ backgroundColor: "rgba(255,255,255,0.22)" }}
+          >
+            <Icon name="check" size={13} color="#FFFFFF" strokeWidth={3} />
+          </View>
           <Text
-            style={{ fontSize: 15, fontWeight: "600", color: tk.text }}
+            style={{
+              fontSize: 15,
+              fontWeight: "700",
+              letterSpacing: -0.2,
+              color: "#FFFFFF",
+            }}
           >
             {t("sessionSaved")}
           </Text>
@@ -516,11 +544,17 @@ export default function PlansTab() {
 function DraftResumeOverlay({
   sessionId,
   bodyText,
+  planName,
+  setsCount,
+  startedAt,
   onResume,
   onDismiss,
 }: {
   sessionId: string;
   bodyText: string;
+  planName: string | null;
+  setsCount: number;
+  startedAt: string;
   onResume: () => void;
   onDismiss: () => void;
 }) {
@@ -528,6 +562,23 @@ function DraftResumeOverlay({
   const { colorScheme } = useColorScheme();
   const tk = TOKENS[colorScheme === "dark" ? "dark" : "light"];
   const finishSession = useFinishSession(sessionId);
+
+  // MOTN-04 / D-11 — §07 overlay spring (damping 18 / stiffness 220, ~240ms):
+  // backdrop opacity 0→0.55 + card translateY 24→0. Inline-rendered (no Modal
+  // portal — D-15). `progress` drives both; multiply for the backdrop alpha and
+  // interpolate (24→0) for the card lift. Purely presentational, never gates the
+  // force-decision logic below.
+  const progress = useSharedValue(0);
+  useEffect(() => {
+    progress.value = withSpring(1, { damping: 18, stiffness: 220 });
+  }, [progress]);
+  const backdropStyle = useAnimatedStyle(() => ({
+    opacity: progress.value,
+  }));
+  const cardStyle = useAnimatedStyle(() => ({
+    opacity: progress.value,
+    transform: [{ translateY: 24 * (1 - progress.value) }],
+  }));
 
   const handleAvslutaSession = () => {
     // .mutate (NOT mutateAsync) — paused mutations under offlineFirst never
@@ -542,34 +593,69 @@ function DraftResumeOverlay({
   };
 
   return (
-    <Pressable
+    <Animated.View
       className="absolute inset-0"
-      style={{ backgroundColor: "rgba(0,0,0,0.55)" }}
       accessibilityElementsHidden={false}
-      // Intentionally NO onPress — backdrop absorbs taps but does not dismiss;
-      // force-decision UX per UI-SPEC.
     >
-      <View
+      {/* Backdrop — absorbs taps but does NOT dismiss (force-decision UX, the
+          orphaned draft MUST be resolved). NO onPress, intentionally. */}
+      <AnimatedPressable
+        className="absolute inset-0"
+        style={[{ backgroundColor: "rgba(0,0,0,0.55)" }, backdropStyle]}
+      />
+      <Animated.View
         onStartShouldSetResponder={() => true}
-        style={{
-          position: "absolute",
-          left: 16,
-          right: 16,
-          top: "40%",
-          backgroundColor: tk.surface,
-          borderWidth: 1,
-          borderColor: tk.border,
-          borderRadius: 20,
-          padding: 24,
-          gap: 24,
-        }}
+        // Box styling (bg/border/radius/padding) in className — NativeWind 4
+        // renders it; the inline style() carries ONLY the spring transform +
+        // shadow (the Phase 10 naked-re-skin rule).
+        className="absolute left-4 right-4 rounded-forge-lg border p-6 bg-forge-surface-light dark:bg-forge-surface2 border-forge-borderStrong-light dark:border-forge-borderStrong"
+        style={[
+          {
+            top: "30%",
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 30 },
+            shadowOpacity: 0.4,
+            shadowRadius: 60,
+          },
+          cardStyle,
+        ]}
       >
+        {/* Pulsing-dot icon block (FDraftResumeOverlay L1850-1865) — accentSoft
+            tile, glowing accent core dot + a faint accent ring. */}
+        <View
+          className="w-[52px] h-[52px] rounded-forge-md items-center justify-center mb-4 bg-forge-accentSoft-light dark:bg-forge-accentSoft border-[1.5px] border-forge-accent-light dark:border-forge-accent"
+        >
+          <View
+            style={{
+              width: 14,
+              height: 14,
+              borderRadius: 7,
+              backgroundColor: tk.accent,
+              shadowColor: tk.accent,
+              shadowOffset: { width: 0, height: 0 },
+              shadowOpacity: 0.9,
+              shadowRadius: 8,
+            }}
+          />
+          <View
+            style={{
+              position: "absolute",
+              width: 26,
+              height: 26,
+              borderRadius: 13,
+              borderWidth: 2,
+              borderColor: tk.accent,
+              opacity: 0.35,
+            }}
+          />
+        </View>
+
         <View style={{ gap: 8 }}>
           <Text
             style={{
-              fontSize: 22,
+              fontSize: 26,
               fontWeight: "700",
-              letterSpacing: -0.5,
+              letterSpacing: -0.8,
               color: tk.text,
             }}
           >
@@ -579,45 +665,80 @@ function DraftResumeOverlay({
             {bodyText}
           </Text>
         </View>
-        <View style={{ flexDirection: "row", gap: 12 }}>
-          <Pressable
-            onPress={handleAvslutaSession}
-            accessibilityRole="button"
-            accessibilityLabel={t("finishSession")}
-            className="flex-1 h-[52px] rounded-forge-md items-center justify-center border bg-forge-surface2-light dark:bg-forge-surface2 border-forge-border-light dark:border-forge-border"
-            style={({ pressed }) => (pressed ? { opacity: 0.85 } : null)}
-          >
+
+        {/* Meta strip (FDraftResumeOverlay L1876-1901) — clock icon + plan name
+            + "{time} · {N} set" + a "Live" pill. Rendered from the user's own
+            already-authorized draft data (no new fetch — T-11-09 accept). */}
+        <View
+          className="flex-row items-center gap-3 my-5 px-3.5 py-3 rounded-forge-sm border bg-forge-bg-light dark:bg-forge-bg border-forge-border-light dark:border-forge-border"
+        >
+          <Icon name="clock" size={16} color={tk.text2} />
+          <View style={{ flex: 1, minWidth: 0 }}>
+            {planName ? (
+              <Text
+                numberOfLines={1}
+                style={{
+                  fontSize: 13,
+                  fontWeight: "600",
+                  letterSpacing: -0.1,
+                  color: tk.text,
+                }}
+              >
+                {planName}
+              </Text>
+            ) : null}
             <Text
+              numberOfLines={1}
               style={{
-                fontSize: 15,
-                fontWeight: "600",
-                color: tk.text,
-                letterSpacing: -0.2,
+                fontSize: 11,
+                color: tk.text3,
+                marginTop: planName ? 1 : 0,
+                fontVariant: ["tabular-nums"],
               }}
             >
-              {t("finishSession")}
+              {startedAt ? `${startedAt} · ` : ""}
+              {setsCount} {t("sets")}
             </Text>
-          </Pressable>
-          <Pressable
-            onPress={onResume}
-            accessibilityRole="button"
-            accessibilityLabel={t("resume")}
-            className="flex-1 h-[52px] rounded-forge-md items-center justify-center bg-forge-accent-light dark:bg-forge-accent"
-            style={({ pressed }) => (pressed ? { opacity: 0.85 } : null)}
+          </View>
+          <View
+            className="flex-row items-center gap-1 px-2 py-1 rounded-[6px] bg-forge-accent-light dark:bg-forge-accent"
           >
             <Text
               style={{
-                fontSize: 15,
-                fontWeight: "600",
+                fontSize: 10,
+                fontWeight: "700",
+                letterSpacing: 0.6,
+                textTransform: "uppercase",
                 color: tk.accentText,
-                letterSpacing: -0.2,
               }}
             >
-              {t("resume")}
+              Live
             </Text>
-          </Pressable>
+          </View>
         </View>
-      </View>
-    </Pressable>
+
+        {/* Buttons (FDraftResumeOverlay L1903-1923) — primary accent "Återuppta"
+            (play icon) ABOVE a DANGER GHOST "Avsluta sessionen" (D-16: the one
+            place red is correct — closing an orphaned draft is data-loss-
+            adjacent). ForgeButton variants carry box styling via className. */}
+        <View style={{ gap: 10 }}>
+          <ForgeButton
+            label={t("resume")}
+            icon="play"
+            variant="primary"
+            size="lg"
+            fullWidth
+            onPress={onResume}
+          />
+          <ForgeButton
+            label={t("finishSession")}
+            variant="destructive"
+            size="lg"
+            fullWidth
+            onPress={handleAvslutaSession}
+          />
+        </View>
+      </Animated.View>
+    </Animated.View>
   );
 }

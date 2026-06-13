@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
 milestone: v2.0
-milestone_name: Forge Redesign
-status: ready_to_plan
-stopped_at: Phase 10 complete (6/6) — ready to discuss Phase 11
-last_updated: 2026-06-12T21:42:09.258Z
-last_activity: 2026-06-12
+milestone_name: — Forge Redesign
+status: completed
+stopped_at: Completed 11-03-PLAN.md
+last_updated: "2026-06-13T11:31:32.292Z"
+last_activity: 2026-06-13 -- Phase 11 marked complete
 progress:
   total_phases: 8
-  completed_phases: 3
-  total_plans: 14
-  completed_plans: 14
-  percent: 38
+  completed_phases: 4
+  total_plans: 17
+  completed_plans: 17
+  percent: 50
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-09)
 
 **Core value:** Logga ett set och omedelbart se vad jag tog senast på samma övning — utan att tappa data, någonsin.
-**Current focus:** Phase 11 — active workout re skin (high risk — f13)
+**Current focus:** Phase 11 — active-workout-re-skin-high-risk-f13
 
 ## Current Position
 
-Phase: 11
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-06-12
+Phase: 11 — COMPLETE
+Plan: 3 of 3
+Status: Phase 11 complete
+Last activity: 2026-06-13 -- Phase 11 marked complete
 
 ## Performance Metrics
 
@@ -71,6 +71,7 @@ Last activity: 2026-06-12
 | Phase 10 P10-03 | ~4min | 3 tasks | 3 files |
 | Phase 10 P10-05 | ~4min | 3 tasks | 5 files |
 | Phase 10 P10-06 | ~6min | 3 tasks | 4 files |
+| Phase 11 P01 | 7min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -79,6 +80,8 @@ Last activity: 2026-06-12
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- **2026-06-13 (11-03)**: D-16 — draft-resume End-session button är en danger ghost (ForgeButton destructive); data-loss-adjacent är enda stället rött är rätt
+- **2026-06-13 (11-03)**: D-11/MOTN-04 — §07 overlay-spring (damping 18 / stiffness 220) på draft-resume; saved-toast behöll FadeIn/FadeOut; båda inline (D-15, ingen Modal-portal)
 - **2026-05-07**: F13 offline-stöd bumpat från Bör → Måste (driver offline-first från Phase 4)
 - **2026-05-07**: F17 set-typ är schema-only i V1; UI deferred till V1.1
 - **2026-05-07**: F15 dark mode = konvention från Phase 1; toggle-UI i Phase 7
@@ -120,6 +123,11 @@ Recent decisions affecting current work:
 - [Phase ?]: Plan 10-05: tab bar re-skinned via custom ForgeTabBar tabBar renderer over live <Tabs> (keeps expo-router navigation; Phase-8 TabBar shell stays gallery-only)
 - [Phase ?]: Plan 10-05: plan-card meta renders existing description (not an exercise count) — avoids per-plan N+1 / new aggregate (activity-ring hero is the Phase 12 boundary)
 - [Phase ?]: Plan 10-06 plan-detail FPlanDetail re-skin + hard-delete D-10/D-11 + plan_name_snapshot on start
+- [Phase ?]: 11-01: progress dots replace counter chip; Forge set-table with x-delete and always-on RPE; trophy omitted (D-02/D-03/D-04/D-05/D-06)
+- [Phase ?]: 11-01: custom in-content Forge header + live started_at timer; native Stack header hidden (D-07/D-09)
+- [Phase ?]: 11-01: this plan owns all phase locale keys at sv/en parity for 11-02/11-03 to consume (D-14)
+- [Phase 11]: 11-02: Forge set-input row (56px accent ForgeNumField + 50px Klart CTA); set-logged SlideInDown+check-scale motion (ungated) + fm:haptics-gated Medium haptic, fire-and-forget after addSet.mutate (D-10/D-11/D-12)
+- [Phase 11]: 11-02: AvslutaOverlay re-skinned to FFinishOverlay — client-derived 3-cell stats row, §07 overlay spring, accent-not-red Avsluta, inline (no Modal); frozen write path untouched (D-08/D-15/D-16/D-17)
 
 ### Pending Todos
 
@@ -150,8 +158,8 @@ Items acknowledged for later:
 
 ## Session Continuity
 
-Last session: 2026-06-12T19:26:31.565Z
-Stopped at: Completed 10-06-PLAN.md
+Last session: 2026-06-13T10:32:36.957Z
+Stopped at: Completed 11-03-PLAN.md
 Resume file: None
 Next: Orchestrator runs phase-level closeout — `/gsd-secure-phase 4` (close threat register T-04-01 … T-04-12 against implementation; produce 04-SECURITY.md with threats_open: 0) → `/gsd-verify-work 4` (write 04-VERIFICATION.md with all 5 success criteria MET) → `/gsd-code-review` (post-phase audit) → phase.complete (advance ROADMAP Phase 4 → ✓ Complete). Then plan Phase 5 (Active Workout Hot Path — F13 lives or dies).
 
