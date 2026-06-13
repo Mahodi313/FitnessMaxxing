@@ -23,7 +23,7 @@
 - [x] **SKIN-03**: Exercise picker (browse + create-new) and plan-exercise edit screens match the Forge design
 - [x] **SKIN-04**: Active-workout screen matches the Forge design with the set log, input row, and progress dots
 - [x] **SKIN-05**: The three session overlays (finish, draft-resume, saved-toast) and the active-session banner match the Forge design and stay inline-rendered (no modal portals)
-- [ ] **SKIN-06**: History list, session detail, and exercise chart screens match the Forge design
+- [x] **SKIN-06**: History list, session detail, and exercise chart screens match the Forge design
 - [x] **SKIN-07**: Tab bar matches the Forge design (Planer / Historik / Inställningar) in light + dark
 - [x] **SKIN-08**: Re-skin introduces no regression to the ≤3s log-set budget or F13 (`npm run test:f13-brutal` stays green)
 
@@ -41,11 +41,11 @@
 
 ### Home Dashboard (DASH)
 
-- [ ] **DASH-01**: Home shows an activity ring of sessions-this-week against the weekly goal
-- [ ] **DASH-02**: Home shows the current training streak
-- [ ] **DASH-03**: Home shows this week's total volume with the change vs the prior week
-- [ ] **DASH-04**: Home shows a volume sparkline trend
-- [ ] **DASH-05**: Dashboard aggregates come from RLS-scoped read-side RPCs and render an empty state for new users
+- [x] **DASH-01**: Home shows an activity ring of sessions-this-week against the weekly goal
+- [x] **DASH-02**: Home shows the current training streak
+- [x] **DASH-03**: Home shows this week's total volume with the change vs the prior week
+- [x] **DASH-04**: Home shows a volume sparkline trend
+- [x] **DASH-05**: Dashboard aggregates come from RLS-scoped read-side RPCs and render an empty state for new users
 
 ### PR Celebration (PR)
 
@@ -136,12 +136,12 @@
 | MOTN-01 | Phase 11 | Complete |
 | MOTN-04 | Phase 11 | Complete |
 | MOTN-05 | Phase 11 | Complete |
-| SKIN-06 | Phase 12 | Pending |
-| DASH-01 | Phase 12 | Pending |
-| DASH-02 | Phase 12 | Pending |
-| DASH-03 | Phase 12 | Pending |
-| DASH-04 | Phase 12 | Pending |
-| DASH-05 | Phase 12 | Pending |
+| SKIN-06 | Phase 12 | Complete |
+| DASH-01 | Phase 12 | Complete |
+| DASH-02 | Phase 12 | Complete |
+| DASH-03 | Phase 12 | Complete |
+| DASH-04 | Phase 12 | Complete |
+| DASH-05 | Phase 12 | Complete |
 | MOTN-02 | Phase 12 | Pending |
 | MOTN-03 | Phase 12 | Pending |
 | PR-01 | Phase 13 | Pending |

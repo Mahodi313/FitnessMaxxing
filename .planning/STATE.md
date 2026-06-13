@@ -4,13 +4,13 @@ milestone: v2.0
 milestone_name: — Forge Redesign
 status: executing
 stopped_at: Phase 12 UI-SPEC approved
-last_updated: "2026-06-13T16:42:33.612Z"
-last_activity: 2026-06-13 -- Phase 12 planning complete
+last_updated: "2026-06-13T17:00:11.139Z"
+last_activity: 2026-06-13
 progress:
   total_phases: 8
   completed_phases: 4
   total_plans: 25
-  completed_plans: 17
+  completed_plans: 18
   percent: 50
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-09)
 
 **Core value:** Logga ett set och omedelbart se vad jag tog senast på samma övning — utan att tappa data, någonsin.
-**Current focus:** Phase 11 — active-workout-re-skin-high-risk-f13
+**Current focus:** Phase 12 — history-detail-chart-home-dashboard
 
 ## Current Position
 
-Phase: 11 — COMPLETE
-Plan: 3 of 3
+Phase: 12 (history-detail-chart-home-dashboard) — EXECUTING
+Plan: 2 of 8
 Status: Ready to execute
-Last activity: 2026-06-13 -- Phase 12 planning complete
+Last activity: 2026-06-13
 
 ## Performance Metrics
 
@@ -72,6 +72,7 @@ Last activity: 2026-06-13 -- Phase 12 planning complete
 | Phase 10 P10-05 | ~4min | 3 tasks | 5 files |
 | Phase 10 P10-06 | ~6min | 3 tasks | 4 files |
 | Phase 11 P01 | 7min | 2 tasks | 3 files |
+| Phase 12 P01 | ~35min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -128,6 +129,7 @@ Recent decisions affecting current work:
 - [Phase ?]: 11-01: this plan owns all phase locale keys at sv/en parity for 11-02/11-03 to consume (D-14)
 - [Phase 11]: 11-02: Forge set-input row (56px accent ForgeNumField + 50px Klart CTA); set-logged SlideInDown+check-scale motion (ungated) + fm:haptics-gated Medium haptic, fire-and-forget after addSet.mutate (D-10/D-11/D-12)
 - [Phase 11]: 11-02: AvslutaOverlay re-skinned to FFinishOverlay — client-derived 3-cell stats row, §07 overlay spring, accent-not-red Avsluta, inline (no Modal); frozen write path untouched (D-08/D-15/D-16/D-17)
+- [Phase ?]: 2026-06-13 [12-01]: Migration 0011 deployed live — get_dashboard_summary (combined 8-col single-row aggregate) + get_exercise_summary (chart hero/3-stat). Both security invoker + stable + search_path='' + set_type='working', finished-only. Streak <=2 in-progress-week island boundary LOCKED (D-07); local Mon-Sun bucketing via date_trunc('week', started_at at time zone p_tz) (D-06). Proven by test:dashboard.
 
 ### Pending Todos
 
@@ -158,9 +160,9 @@ Items acknowledged for later:
 
 ## Session Continuity
 
-Last session: 2026-06-13T16:01:43.610Z
+Last session: 2026-06-13T16:59:44.681Z
 Stopped at: Phase 12 UI-SPEC approved
-Resume file: .planning/phases/12-history-detail-chart-home-dashboard/12-UI-SPEC.md
+Resume file: None
 Next: Orchestrator runs phase-level closeout — `/gsd-secure-phase 4` (close threat register T-04-01 … T-04-12 against implementation; produce 04-SECURITY.md with threats_open: 0) → `/gsd-verify-work 4` (write 04-VERIFICATION.md with all 5 success criteria MET) → `/gsd-code-review` (post-phase audit) → phase.complete (advance ROADMAP Phase 4 → ✓ Complete). Then plan Phase 5 (Active Workout Hot Path — F13 lives or dies).
 
 ## Operator Next Steps

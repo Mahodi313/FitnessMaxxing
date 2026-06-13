@@ -150,11 +150,11 @@ Plans:
 3. Dashboard aggregates come from RLS-scoped read-side RPCs with a clean empty state for new users
 4. The chart line draws on mount
 
-**Plans:** 8 plans
+**Plans:** 1/8 plans executed
 Plans:
 **Wave 1**
 
-- [ ] 12-01-PLAN.md — Migration 0011 (get_dashboard_summary + get_exercise_summary RPCs) + [BLOCKING] push + gen:types + verify-deploy + cross-user test:rls + streak/week Wave-0 fixtures
+- [x] 12-01-PLAN.md — Migration 0011 (get_dashboard_summary + get_exercise_summary RPCs) + [BLOCKING] push + gen:types + verify-deploy + cross-user test:rls + streak/week Wave-0 fixtures
 - [ ] 12-02-PLAN.md — Shared deps: units toDisplayVolume/formatVolume + full sv/en i18n key set incl. weeks/week streak relabel
 - [ ] 12-03-PLAN.md — Animate Skia primitives: ProgressRing fill + overflow glow (MOTN-02/D-19) + Sparkline draw-in (D-18), reduce-motion aware
 
@@ -225,7 +225,7 @@ Deferred to a later milestone (needs Apple Developer license + tooling). Mapped 
 | 9. Auth, Settings & Preferences               | v2.0 | 3/3 | Complete   | 2026-06-11 |
 | 10. Plans & Exercises Re-skin                 | v2.0 | 6/6 | Complete    | 2026-06-12 |
 | 11. Active Workout Re-skin (F13 risk)         | v2.0 | 3/3 | Complete   | 2026-06-13 |
-| 12. History, Detail, Chart & Dashboard        | v2.0 | 0/8 | ○ Planned  | — |
+| 12. History, Detail, Chart & Dashboard        | v2.0 | 1/8 | In Progress|  |
 | 13. PR Celebration (F18)                      | v2.0 | 0/? | ○ Planned  | — |
 | 14. Rest Timer (F19)                          | v2.0 | 0/? | ○ Planned  | — |
 | 15. Bilingual & Release Hardening             | v2.0 | 0/? | ○ Planned  | — |
