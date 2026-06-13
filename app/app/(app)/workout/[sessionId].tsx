@@ -52,20 +52,23 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
-import ReanimatedSwipeable from "react-native-gesture-handler/ReanimatedSwipeable";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
+import { useColorScheme } from "nativewind";
 import {
   Stack,
   useFocusEffect,
   useLocalSearchParams,
   useRouter,
 } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import { useTranslation } from "react-i18next";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 
+import { ForgeButton, Icon } from "@/components/ui";
 import { randomUUID } from "@/lib/utils/uuid";
 
 import { useFinishSession, useSessionQuery } from "@/lib/queries/sessions";
@@ -97,12 +100,25 @@ import type { PlanExerciseRow } from "@/lib/schemas/plan-exercises";
 // @hookform/resolvers Resolver invariance.
 type SetFormInput = z.input<typeof setFormSchema>;
 
+// mm:ss (or h:mm:ss past an hour) elapsed since `startedAt`. Copied from
+// active-session-banner.tsx (module-private there) for the in-content header
+// timer (D-07). Kept byte-identical so the two timers tick the same way.
+function formatElapsed(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
+}
+
 // ---------------------------------------------------------------------------
 // Default export — WorkoutScreen
 // ---------------------------------------------------------------------------
 
 export default function WorkoutScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   // WR-07 (05-REVIEW.md): useLocalSearchParams' generic argument is a TYPE
   // ASSERTION, not a runtime guard. The actual runtime shape is
   // Record<string, string | string[]> — a param could be string[] for
@@ -134,6 +150,22 @@ export default function WorkoutScreen() {
   const { data: setsData } = useSetsForSessionQuery(session?.id ?? "");
   const loggedSetCount = setsData?.length ?? 0;
 
+  // D-07: live header timer — tick every second from session.started_at.
+  // Mirrors the active-session-banner ticker (L62-69) verbatim so both the
+  // banner and this header advance in lockstep. Single 1s interval cleared on
+  // unmount (T-11-03 — bounded, no leak, never touches the write path).
+  const startedAt = session?.started_at;
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!startedAt) return;
+    setNow(Date.now());
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, [startedAt]);
+  const timer = startedAt
+    ? formatElapsed(now - new Date(startedAt).getTime())
+    : null;
+
   // Plan 05-05 (FIT-8): hydration gate. PersistQueryClientProvider in
   // _layout.tsx fires onSuccess → setHydrated(true) once AsyncStorage
   // round-trip completes. Before that, useSetsForSessionQuery returns
@@ -146,11 +178,11 @@ export default function WorkoutScreen() {
 
   if (!hydrated) {
     return (
-      <SafeAreaView className="flex-1 bg-white dark:bg-gray-900">
-        <Stack.Screen options={{ headerShown: true, title: "Pass" }} />
+      <SafeAreaView className="flex-1 bg-forge-bg-light dark:bg-forge-bg">
+        <Stack.Screen options={{ headerShown: false }} />
         <View className="flex-1 items-center justify-center">
-          <Text className="text-base text-gray-500 dark:text-gray-400">
-            Återställer pass…
+          <Text className="text-base text-forge-text2-light dark:text-forge-text2">
+            {t("restoringWorkout")}
           </Text>
         </View>
       </SafeAreaView>
@@ -162,11 +194,11 @@ export default function WorkoutScreen() {
   // `session` populated synchronously for any active session.
   if (!session) {
     return (
-      <SafeAreaView className="flex-1 bg-white dark:bg-gray-900">
-        <Stack.Screen options={{ headerShown: true, title: "Pass" }} />
+      <SafeAreaView className="flex-1 bg-forge-bg-light dark:bg-forge-bg">
+        <Stack.Screen options={{ headerShown: false }} />
         <View className="flex-1 items-center justify-center">
-          <Text className="text-base text-gray-500 dark:text-gray-400">
-            Laddar…
+          <Text className="text-base text-forge-text2-light dark:text-forge-text2">
+            {t("loading")}
           </Text>
         </View>
       </SafeAreaView>
@@ -174,50 +206,115 @@ export default function WorkoutScreen() {
   }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaView
-        className="flex-1 bg-white dark:bg-gray-900"
-        edges={["bottom"]}
-      >
-        <Stack.Screen
-          options={{
-            headerShown: true,
-            title: "Pass",
-            headerRight: () => (
-              <Pressable
-                onPress={() => setShowAvslutaOverlay(true)}
-                accessibilityRole="button"
-                accessibilityLabel="Avsluta passet"
-                hitSlop={8}
-                className="px-3 py-2 active:opacity-80"
-              >
-                <Text className="text-base font-semibold text-blue-600 dark:text-blue-400">
-                  Avsluta
-                </Text>
-              </Pressable>
-            ),
+    <SafeAreaView
+      className="flex-1 bg-forge-bg-light dark:bg-forge-bg"
+      edges={["bottom"]}
+    >
+      {/* D-09: native Stack header hidden; the in-content Forge header below
+          owns the safe-area top inset + back navigation. */}
+      <Stack.Screen options={{ headerShown: false }} />
+      <WorkoutHeader
+        timer={timer}
+        onBack={() => router.back()}
+        onFinish={() => setShowAvslutaOverlay(true)}
+      />
+      {/* WARNING-01 fix (Open Q#4 RESOLVED): second OfflineBanner
+          instance mounted inside /workout/[sessionId] because the route
+          is outside (tabs). Both instances state-mirror via
+          useOnlineStatus(); F13 brutal-test asserts this banner is
+          visible after force-quit re-open. */}
+      <OfflineBanner />
+      <WorkoutBody session={session} />
+      {showAvslutaOverlay && (
+        <AvslutaOverlay
+          sessionId={session.id}
+          loggedSetCount={loggedSetCount}
+          onCancel={() => setShowAvslutaOverlay(false)}
+          onFinish={() => {
+            setShowAvslutaOverlay(false);
+            router.replace("/(app)/(tabs)");
           }}
         />
-        {/* WARNING-01 fix (Open Q#4 RESOLVED): second OfflineBanner
-            instance mounted inside /workout/[sessionId] because the route
-            is outside (tabs). Both instances state-mirror via
-            useOnlineStatus(); F13 brutal-test asserts this banner is
-            visible after force-quit re-open. */}
-        <OfflineBanner />
-        <WorkoutBody session={session} />
-        {showAvslutaOverlay && (
-          <AvslutaOverlay
-            sessionId={session.id}
-            loggedSetCount={loggedSetCount}
-            onCancel={() => setShowAvslutaOverlay(false)}
-            onFinish={() => {
-              setShowAvslutaOverlay(false);
-              router.replace("/(app)/(tabs)");
-            }}
-          />
-        )}
-      </SafeAreaView>
-    </GestureHandlerRootView>
+      )}
+    </SafeAreaView>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// WorkoutHeader — D-07/D-09 in-content Forge header
+//   left   : 40px circular back button (surface + border)
+//   center : accentSoft live-timer pill (6px accent dot + MM:SS, tabular)
+//   right  : accent "Avsluta" pill opening the existing Avsluta overlay
+// Owns its safe-area top inset (the native header no longer provides it).
+// ---------------------------------------------------------------------------
+
+function WorkoutHeader({
+  timer,
+  onBack,
+  onFinish,
+}: {
+  timer: string | null;
+  onBack: () => void;
+  onFinish: () => void;
+}) {
+  const { t } = useTranslation();
+  const { colorScheme } = useColorScheme();
+  const insets = useSafeAreaInsets();
+  const isDark = colorScheme === "dark";
+  const backInk = isDark ? "#FFFFFF" : "#0A0A0A";
+  const accentInk = isDark ? "#FF5A1F" : "#E14E10";
+
+  return (
+    <View
+      className="flex-row items-center justify-between px-4 pb-1"
+      style={{ paddingTop: insets.top + 8 }}
+    >
+      {/* Left — 40px circular back button */}
+      <Pressable
+        onPress={onBack}
+        accessibilityRole="button"
+        accessibilityLabel={t("back")}
+        hitSlop={8}
+        className="w-10 h-10 rounded-forge-lg items-center justify-center border bg-forge-surface-light dark:bg-forge-surface border-forge-border-light dark:border-forge-border"
+        style={({ pressed }) => (pressed ? { opacity: 0.85 } : null)}
+      >
+        <Icon name="chevronLeft" size={18} color={backInk} strokeWidth={2.2} />
+      </Pressable>
+
+      {/* Center — accentSoft live-timer pill */}
+      <View className="flex-row items-center gap-2 px-3.5 py-2 rounded-forge-lg border bg-forge-accentSoft-light dark:bg-forge-accentSoft border-forge-border-light dark:border-forge-border">
+        <View className="w-1.5 h-1.5 rounded-full bg-forge-accent-light dark:bg-forge-accent" />
+        <Text
+          className="text-[13px] font-semibold text-forge-accent-light dark:text-forge-accent"
+          style={{ fontVariant: ["tabular-nums"], letterSpacing: -0.1 }}
+          accessibilityLiveRegion="polite"
+        >
+          {timer ?? "0:00"}
+        </Text>
+      </View>
+
+      {/* Right — accent "Avsluta" pill (FIT-66 accent shadow in style()) */}
+      <Pressable
+        onPress={onFinish}
+        accessibilityRole="button"
+        accessibilityLabel={t("finish")}
+        hitSlop={8}
+        className="h-9 px-4 rounded-full items-center justify-center bg-forge-accent-light dark:bg-forge-accent"
+        style={({ pressed }) => [
+          {
+            shadowColor: accentInk,
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: 0.45,
+            shadowRadius: 16,
+          },
+          pressed ? { opacity: 0.85 } : null,
+        ]}
+      >
+        <Text className="text-[14px] font-semibold text-forge-accentText-light dark:text-forge-accentText">
+          {t("finish")}
+        </Text>
+      </Pressable>
+    </View>
   );
 }
 
@@ -227,6 +324,9 @@ export default function WorkoutScreen() {
 
 function WorkoutBody({ session }: { session: SessionRow }) {
   const router = useRouter();
+  const { t } = useTranslation();
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
   const { data: planExercises } = usePlanExercisesQuery(session.plan_id ?? "");
   const { data: setsData } = useSetsForSessionQuery(session.id);
   const { data: exercises } = useExercisesQuery();
@@ -245,25 +345,36 @@ function WorkoutBody({ session }: { session: SessionRow }) {
   // this state is reachable only if a plan's exercises were removed
   // mid-pass — but the fallback keeps the screen usable.
   if ((planExercises?.length ?? 0) === 0) {
+    // D-13: defensive empty-state, Forge-skinned + i18n'd. Mirrors the
+    // (tabs)/index.tsx empty-state tile structure (surface2 icon tile +
+    // heading + body + ForgeButton). Reachable only if a plan's exercises
+    // were removed mid-pass.
     return (
-      <View className="flex-1 items-center justify-center px-6 gap-3">
-        <Ionicons name="list-outline" size={64} color="#2563EB" />
-        <Text className="text-2xl font-semibold text-gray-900 dark:text-gray-50 text-center">
-          Den här planen har inga övningar än
-        </Text>
-        <Text className="text-base text-gray-900 dark:text-gray-50 text-center">
-          Gå tillbaka och lägg till några.
-        </Text>
-        <Pressable
-          onPress={() => router.back()}
-          accessibilityRole="button"
-          accessibilityLabel="Tillbaka till planen"
-          className="rounded-lg bg-blue-600 dark:bg-blue-500 px-4 py-4 mt-3 active:opacity-80"
-        >
-          <Text className="text-base font-semibold text-white">
-            Tillbaka till planen
+      <View className="flex-1 items-center justify-center gap-6 px-4">
+        <View className="w-16 h-16 rounded-forge-md items-center justify-center border bg-forge-surface2-light dark:bg-forge-surface2 border-forge-border-light dark:border-forge-border">
+          <Icon
+            name="list"
+            size={28}
+            color={isDark ? "rgba(255,255,255,0.62)" : "#4D4D4D"}
+            strokeWidth={2}
+          />
+        </View>
+        <View className="gap-2 items-center">
+          <Text className="text-[22px] font-display-bold text-forge-text-light dark:text-forge-text text-center">
+            {t("nothingToLog")}
           </Text>
-        </Pressable>
+          <Text className="text-[15px] text-forge-text2-light dark:text-forge-text2 text-center">
+            {t("nothingToLogBody")}
+          </Text>
+        </View>
+        <View className="flex-row">
+          <ForgeButton
+            label={t("back")}
+            variant="primary"
+            size="lg"
+            onPress={() => router.back()}
+          />
+        </View>
       </View>
     );
   }
@@ -313,6 +424,7 @@ function ExerciseCard({
   sessionId: string;
   allSets: SetRow[];
 }) {
+  const { t } = useTranslation();
   // Pre-fetch F7 data on card mount per CONTEXT.md D-20. staleTime 15min
   // keeps the result in cache offline.
   const { data: lastValueMap } = useLastValueQuery(
@@ -409,61 +521,76 @@ function ExerciseCard({
     );
   };
 
-  // Plan-target chip + counter chip (header)
+  // Plan-target chip (header)
   const targetChip = formatTargetChip(planExercise);
-  const counterChipText =
-    planExercise.target_sets != null
-      ? `${loggedCount}/${planExercise.target_sets} set klart`
-      : `${loggedCount} set`;
-  const counterReached =
-    planExercise.target_sets != null &&
-    loggedCount >= planExercise.target_sets;
+  // D-02: per-card set-progress dots replace the v1 "3/4 set klart" counter
+  // chip. The "total" for the dot strip is the plan target_sets, falling back
+  // to the logged count (so a target-less exercise still shows a filled strip).
+  const targetSets = planExercise.target_sets ?? loggedCount;
+  const dotCount = Math.max(targetSets, loggedCount, 1);
 
   return (
-    <View className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 mb-4">
+    <View className="bg-forge-surface-light dark:bg-forge-surface border border-forge-border-light dark:border-forge-border rounded-forge-lg p-4 mb-4">
       {/* Card header */}
-      <View className="flex-row items-start justify-between mb-2">
-        <View className="flex-1 gap-1 mr-3">
-          <Text
-            className="text-2xl font-semibold text-gray-900 dark:text-gray-50"
-            numberOfLines={1}
-          >
-            {exerciseName}
-          </Text>
-          {(targetChip || planExercise.notes) && (
-            <View className="flex-row flex-wrap gap-2 mt-1">
-              {targetChip && (
-                <View className="bg-gray-200 dark:bg-gray-700 rounded-full px-3 py-1">
-                  <Text className="text-sm text-gray-900 dark:text-gray-50">
-                    {targetChip}
-                  </Text>
-                </View>
-              )}
-            </View>
-          )}
-        </View>
-        <View
-          className={`rounded-full px-3 py-1 ${
-            counterReached
-              ? "bg-green-100 dark:bg-green-900"
-              : "bg-gray-200 dark:bg-gray-700"
-          }`}
+      <View className="gap-1 mb-3">
+        <Text
+          className="text-[22px] font-display-bold text-forge-text-light dark:text-forge-text"
+          numberOfLines={1}
         >
-          <Text
-            className={`text-sm font-semibold ${
-              counterReached
-                ? "text-green-900 dark:text-green-100"
-                : "text-gray-900 dark:text-gray-50"
-            }`}
-          >
-            {counterChipText}
-          </Text>
-        </View>
+          {exerciseName}
+        </Text>
+        {targetChip && (
+          <View className="flex-row flex-wrap gap-2 mt-1">
+            <View className="bg-forge-surface2-light dark:bg-forge-surface2 rounded-full px-3 py-1">
+              <Text className="text-[13px] text-forge-text2-light dark:text-forge-text2">
+                {targetChip}
+              </Text>
+            </View>
+          </View>
+        )}
       </View>
 
-      {/* Logged set rows */}
+      {/* D-02: set-progress dot strip + trailing N / M counter */}
+      <SetProgressDots
+        loggedCount={loggedCount}
+        dotCount={dotCount}
+        targetSets={planExercise.target_sets}
+      />
+
+      {/* Logged set rows — Forge set-table (D-03) */}
       {setsForThisExercise.length > 0 && (
-        <View className="gap-2 mt-2">
+        <View className="mt-3 rounded-forge-md border border-forge-border-light dark:border-forge-border overflow-hidden">
+          {/* Column headers (D-03) — 10px uppercase, once per card */}
+          <View
+            className="flex-row items-center px-4 py-2.5 border-b border-forge-border-light dark:border-forge-border"
+            style={{ gap: 12 }}
+          >
+            <Text
+              className="text-[10px] font-semibold uppercase text-forge-text3-light dark:text-forge-text3"
+              style={{ width: 32, letterSpacing: 1 }}
+            >
+              #
+            </Text>
+            <Text
+              className="flex-1 text-[10px] font-semibold uppercase text-forge-text3-light dark:text-forge-text3"
+              style={{ letterSpacing: 1 }}
+            >
+              {t("colWeight")}
+            </Text>
+            <Text
+              className="flex-1 text-[10px] font-semibold uppercase text-forge-text3-light dark:text-forge-text3"
+              style={{ letterSpacing: 1 }}
+            >
+              {t("colReps")}
+            </Text>
+            <Text
+              className="text-[10px] font-semibold uppercase text-forge-text3-light dark:text-forge-text3"
+              style={{ width: 56, letterSpacing: 1 }}
+            >
+              {t("colRpe")}
+            </Text>
+            <View style={{ width: 36 }} />
+          </View>
           {setsForThisExercise.map((set) => (
             <LoggedSetRow
               key={set.id}
@@ -474,7 +601,12 @@ function ExerciseCard({
         </View>
       )}
 
-      {/* Always-visible inline set-input row */}
+      {/* Always-visible inline set-input row.
+          NOTE (11-01 scope): chrome retoken only — the full D-10 input-row
+          redesign (56px display-value-with-unit-label fields + 50px accent
+          "Klart" CTA) is plan 11-02's domain. Here the raw TextInput keyboard
+          wiring is preserved byte-for-byte (D-17); only the Forge tokens are
+          applied to the existing layout. */}
       <View className="flex-row items-center gap-2 mt-3">
         <Controller
           control={control}
@@ -484,24 +616,24 @@ function ExerciseCard({
               <TextInput
                 value={value == null ? "" : String(value)}
                 onChangeText={onChange}
-                placeholder="Vikt"
-                placeholderTextColor="#9CA3AF"
+                placeholder={t("weight")}
+                placeholderTextColor="#8B8B8B"
                 keyboardType="decimal-pad"
                 inputMode="decimal"
                 returnKeyType="done"
                 autoCorrect={false}
                 autoCapitalize="none"
                 selectTextOnFocus={true}
-                accessibilityLabel="Vikt i kilo"
-                className={`rounded-md bg-white dark:bg-gray-900 border px-3 py-3 text-base font-semibold text-gray-900 dark:text-gray-50 min-h-[56px] ${
+                accessibilityLabel={t("weight")}
+                className={`rounded-forge-md bg-forge-bg-light dark:bg-forge-bg border px-3 py-3 text-base font-semibold text-forge-text-light dark:text-forge-text min-h-[56px] ${
                   error
-                    ? "border-red-600 dark:border-red-400"
-                    : "border-gray-300 dark:border-gray-700"
-                } focus:border-blue-600 dark:focus:border-blue-500`}
+                    ? "border-forge-danger-light dark:border-forge-danger"
+                    : "border-forge-border-light dark:border-forge-border"
+                }`}
               />
               {error && (
                 <Text
-                  className="text-base text-red-600 dark:text-red-400 mt-1 px-1"
+                  className="text-base text-forge-danger-light dark:text-forge-danger mt-1 px-1"
                   accessibilityLiveRegion="polite"
                 >
                   {error.message}
@@ -518,24 +650,24 @@ function ExerciseCard({
               <TextInput
                 value={value == null ? "" : String(value)}
                 onChangeText={onChange}
-                placeholder="Reps"
-                placeholderTextColor="#9CA3AF"
+                placeholder={t("reps")}
+                placeholderTextColor="#8B8B8B"
                 keyboardType="number-pad"
                 inputMode="numeric"
                 returnKeyType="done"
                 autoCorrect={false}
                 autoCapitalize="none"
                 selectTextOnFocus={true}
-                accessibilityLabel="Antal repetitioner"
-                className={`rounded-md bg-white dark:bg-gray-900 border px-3 py-3 text-base font-semibold text-gray-900 dark:text-gray-50 min-h-[56px] ${
+                accessibilityLabel={t("reps")}
+                className={`rounded-forge-md bg-forge-bg-light dark:bg-forge-bg border px-3 py-3 text-base font-semibold text-forge-text-light dark:text-forge-text min-h-[56px] ${
                   error
-                    ? "border-red-600 dark:border-red-400"
-                    : "border-gray-300 dark:border-gray-700"
-                } focus:border-blue-600 dark:focus:border-blue-500`}
+                    ? "border-forge-danger-light dark:border-forge-danger"
+                    : "border-forge-border-light dark:border-forge-border"
+                }`}
               />
               {error && (
                 <Text
-                  className="text-base text-red-600 dark:text-red-400 mt-1 px-1"
+                  className="text-base text-forge-danger-light dark:text-forge-danger mt-1 px-1"
                   accessibilityLiveRegion="polite"
                 >
                   {error.message}
@@ -552,25 +684,25 @@ function ExerciseCard({
               <TextInput
                 value={value == null ? "" : String(value)}
                 onChangeText={onChange}
-                placeholder="RPE"
-                placeholderTextColor="#9CA3AF"
+                placeholder={t("rpe")}
+                placeholderTextColor="#8B8B8B"
                 keyboardType="decimal-pad"
                 inputMode="decimal"
                 returnKeyType="done"
                 autoCorrect={false}
                 autoCapitalize="none"
                 selectTextOnFocus={true}
-                accessibilityLabel="Upplevd ansträngning, valfri"
+                accessibilityLabel={t("rpe")}
                 maxLength={4}
-                className={`rounded-md bg-white dark:bg-gray-900 border px-2 py-3 text-base font-semibold text-gray-900 dark:text-gray-50 min-h-[56px] text-center ${
+                className={`rounded-forge-md bg-forge-bg-light dark:bg-forge-bg border px-2 py-3 text-base font-semibold text-forge-text-light dark:text-forge-text min-h-[56px] text-center ${
                   error
-                    ? "border-red-600 dark:border-red-400"
-                    : "border-gray-300 dark:border-gray-700"
-                } focus:border-blue-600 dark:focus:border-blue-500`}
+                    ? "border-forge-danger-light dark:border-forge-danger"
+                    : "border-forge-border-light dark:border-forge-border"
+                }`}
               />
               {error && (
                 <Text
-                  className="text-base text-red-600 dark:text-red-400 mt-1 px-1"
+                  className="text-base text-forge-danger-light dark:text-forge-danger mt-1 px-1"
                   accessibilityLiveRegion="polite"
                 >
                   {error.message}
@@ -583,10 +715,13 @@ function ExerciseCard({
           onPress={handleSubmit(onKlart)}
           disabled={isSubmitting}
           accessibilityRole="button"
-          accessibilityLabel="Spara set"
-          className="w-16 min-h-[56px] rounded-md bg-blue-600 dark:bg-blue-500 items-center justify-center disabled:opacity-60 active:opacity-80"
+          accessibilityLabel={t("done")}
+          className="w-16 min-h-[56px] rounded-forge-md bg-forge-accent-light dark:bg-forge-accent items-center justify-center disabled:opacity-60"
+          style={({ pressed }) => (pressed ? { opacity: 0.85 } : null)}
         >
-          <Text className="text-base font-semibold text-white">Klart</Text>
+          <Text className="text-base font-semibold text-forge-accentText-light dark:text-forge-accentText">
+            {t("done")}
+          </Text>
         </Pressable>
       </View>
 
@@ -612,7 +747,54 @@ function ExerciseCard({
 }
 
 // ---------------------------------------------------------------------------
-// LoggedSetRow — display + tap-to-edit + swipe-left-to-delete
+// SetProgressDots — D-02 per-card set-progress dot strip + N / M counter
+//   done bars      : accent fill
+//   current bar    : accentSoft fill + accent border
+//   remaining bars : surface2 fill
+// The 6px bar height is a declared spacing exception (UI-SPEC).
+// ---------------------------------------------------------------------------
+
+function SetProgressDots({
+  loggedCount,
+  dotCount,
+  targetSets,
+}: {
+  loggedCount: number;
+  dotCount: number;
+  targetSets: number | null;
+}) {
+  const bars = Array.from({ length: dotCount }, (_, i) => i + 1);
+  // Counter denominator = plan target when present, else the live logged count.
+  const denom = targetSets ?? loggedCount;
+  return (
+    <View className="flex-row items-center" style={{ gap: 6 }}>
+      {bars.map((n) => {
+        const done = n <= loggedCount;
+        const current = n === loggedCount + 1;
+        const cls = done
+          ? "bg-forge-accent-light dark:bg-forge-accent"
+          : current
+            ? "bg-forge-accentSoft-light dark:bg-forge-accentSoft border border-forge-accent-light dark:border-forge-accent"
+            : "bg-forge-surface2-light dark:bg-forge-surface2";
+        return (
+          <View key={n} className={`flex-1 h-1.5 rounded-[3px] ${cls}`} />
+        );
+      })}
+      <Text
+        className="text-[12px] font-semibold text-forge-text2-light dark:text-forge-text2 ml-1.5"
+        style={{ fontVariant: ["tabular-nums"] }}
+      >
+        {`${loggedCount} / ${denom}`}
+      </Text>
+    </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// LoggedSetRow — Forge set-table row (D-03) + tap-to-edit + ✕-delete (D-04)
+//   grid: 32px # · 1fr weight · 1fr reps · 56px RPE · 36px action
+//   RPE always rendered, muted "–" when null (D-05). No trophy (D-06).
+//   Swipe-to-delete removed; trailing ✕ replaces it (D-04).
 // ---------------------------------------------------------------------------
 
 function LoggedSetRow({
@@ -622,6 +804,9 @@ function LoggedSetRow({
   set: SetRow;
   sessionId: string;
 }) {
+  const { t } = useTranslation();
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
   const [isEditing, setIsEditing] = useState(false);
 
   // Reset edit mode on screen blur (Pitfall 5 — freezeOnBlur).
@@ -654,43 +839,85 @@ function LoggedSetRow({
   }
 
   const handleDelete = () => {
+    // D-17 frozen write path: payload shape unchanged.
     removeSet.mutate({ id: set.id, session_id: sessionId });
   };
 
+  const successInk = isDark ? "#30D158" : "#1E9E45";
+  const deleteInk = isDark ? "rgba(255,255,255,0.38)" : "#8B8B8B";
+
   return (
-    <ReanimatedSwipeable
-      friction={2}
-      rightThreshold={48}
-      renderRightActions={() => (
-        <Pressable
-          onPress={handleDelete}
-          accessibilityRole="button"
-          accessibilityLabel="Ta bort set"
-          className="bg-red-600 dark:bg-red-500 justify-center items-center px-6 rounded-md"
-        >
-          <Text className="text-base font-semibold text-white">Ta bort</Text>
-        </Pressable>
-      )}
+    <View
+      className="flex-row items-center px-4 border-b border-forge-border-light dark:border-forge-border"
+      style={{ gap: 12, paddingVertical: 14 }}
     >
+      {/* Tappable region (# + weight + reps + RPE + success) enters inline edit */}
       <Pressable
         onPress={() => setIsEditing(true)}
         accessibilityRole="button"
-        accessibilityLabel={`Set ${set.set_number}: ${set.weight_kg} kilo gånger ${set.reps} reps. Tryck för att redigera.`}
-        className="flex-row items-center bg-white dark:bg-gray-900 rounded-md px-3 py-3 active:opacity-80"
+        accessibilityLabel={`Set ${set.set_number}: ${set.weight_kg} kg × ${set.reps}`}
+        className="flex-row items-center flex-1"
+        style={({ pressed }) => [{ gap: 12 }, pressed ? { opacity: 0.7 } : null]}
       >
-        <Ionicons
-          name="checkmark-circle"
-          size={20}
-          color="#16A34A"
-        />
-        <Text className="text-sm font-semibold text-gray-500 dark:text-gray-400 mx-2">
-          Set {set.set_number}
+        {/* Set-number badge — accent circle, accentText numeral */}
+        <View
+          className="items-center justify-center rounded-full bg-forge-accent-light dark:bg-forge-accent"
+          style={{ width: 22, height: 22 }}
+        >
+          <Text
+            className="text-[11px] font-bold text-forge-accentText-light dark:text-forge-accentText"
+            style={{ fontVariant: ["tabular-nums"] }}
+          >
+            {set.set_number}
+          </Text>
+        </View>
+        {/* Weight + kg unit suffix */}
+        <View className="flex-1 flex-row items-baseline">
+          <Text
+            className="text-[18px] font-display-semibold text-forge-text-light dark:text-forge-text"
+            style={{ fontVariant: ["tabular-nums"], letterSpacing: -0.3 }}
+          >
+            {set.weight_kg}
+          </Text>
+          <Text className="text-[12px] text-forge-text3-light dark:text-forge-text3 ml-1">
+            {t("kg")}
+          </Text>
+        </View>
+        {/* Reps */}
+        <Text
+          className="flex-1 text-[18px] font-display-semibold text-forge-text-light dark:text-forge-text"
+          style={{ fontVariant: ["tabular-nums"], letterSpacing: -0.3 }}
+        >
+          {set.reps}
         </Text>
-        <Text className="text-base font-normal text-gray-900 dark:text-gray-50 flex-1">
-          {`${set.weight_kg} × ${set.reps}`}
+        {/* RPE — always rendered; muted "–" when null (D-05) */}
+        <Text
+          className="text-[14px] text-forge-text2-light dark:text-forge-text2"
+          style={{ width: 56, fontVariant: ["tabular-nums"] }}
+        >
+          {set.rpe != null ? (
+            String(set.rpe)
+          ) : (
+            <Text className="text-forge-text3-light dark:text-forge-text3">–</Text>
+          )}
         </Text>
+        {/* Success check (plain checkCircle — no trophy, D-06) */}
+        <View style={{ width: 36 }} className="items-center">
+          <Icon name="checkCircle" size={20} color={successInk} />
+        </View>
       </Pressable>
-    </ReanimatedSwipeable>
+      {/* Trailing ✕-delete (D-04) — replaces swipe; muted, no confirm */}
+      <Pressable
+        onPress={handleDelete}
+        accessibilityRole="button"
+        accessibilityLabel={t("removeSet")}
+        hitSlop={{ top: 11, bottom: 11, left: 11, right: 11 }}
+        className="items-center justify-center"
+        style={({ pressed }) => (pressed ? { opacity: 0.6 } : null)}
+      >
+        <Icon name="close" size={18} color={deleteInk} strokeWidth={2} />
+      </Pressable>
+    </View>
   );
 }
 
@@ -704,6 +931,10 @@ function EditableSetRow({
   set: SetRow;
   onDone: (updated: { weight_kg: number; reps: number } | null) => void;
 }) {
+  const { t } = useTranslation();
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
+  // D-17: RHF + keyboard wiring preserved byte-for-byte; chrome retoken only.
   const {
     control,
     handleSubmit,
@@ -719,9 +950,9 @@ function EditableSetRow({
   });
 
   return (
-    <View className="flex-row items-center gap-2 bg-white dark:bg-gray-900 rounded-md px-3 py-3">
-      <Text className="text-sm font-semibold text-gray-500 dark:text-gray-400">
-        Set {set.set_number}
+    <View className="flex-row items-center gap-2 bg-forge-surface-light dark:bg-forge-surface border-b border-forge-border-light dark:border-forge-border px-3 py-3">
+      <Text className="text-[13px] font-semibold text-forge-text2-light dark:text-forge-text2">
+        {t("set")} {set.set_number}
       </Text>
       <Controller
         control={control}
@@ -730,19 +961,19 @@ function EditableSetRow({
           <TextInput
             value={value == null ? "" : String(value)}
             onChangeText={onChange}
-            placeholder="Vikt"
-            placeholderTextColor="#9CA3AF"
+            placeholder={t("weight")}
+            placeholderTextColor="#8B8B8B"
             keyboardType="decimal-pad"
             inputMode="decimal"
             returnKeyType="done"
             autoCorrect={false}
             autoCapitalize="none"
             selectTextOnFocus={true}
-            accessibilityLabel="Vikt i kilo"
-            className={`flex-1 rounded-md bg-white dark:bg-gray-900 border px-3 py-2 text-base text-gray-900 dark:text-gray-50 min-h-[44px] ${
+            accessibilityLabel={t("weight")}
+            className={`flex-1 rounded-forge-md bg-forge-bg-light dark:bg-forge-bg border px-3 py-2 text-base text-forge-text-light dark:text-forge-text min-h-[44px] ${
               error
-                ? "border-red-600 dark:border-red-400"
-                : "border-gray-300 dark:border-gray-700"
+                ? "border-forge-danger-light dark:border-forge-danger"
+                : "border-forge-border-light dark:border-forge-border"
             }`}
           />
         )}
@@ -754,19 +985,19 @@ function EditableSetRow({
           <TextInput
             value={value == null ? "" : String(value)}
             onChangeText={onChange}
-            placeholder="Reps"
-            placeholderTextColor="#9CA3AF"
+            placeholder={t("reps")}
+            placeholderTextColor="#8B8B8B"
             keyboardType="number-pad"
             inputMode="numeric"
             returnKeyType="done"
             autoCorrect={false}
             autoCapitalize="none"
             selectTextOnFocus={true}
-            accessibilityLabel="Antal repetitioner"
-            className={`flex-1 rounded-md bg-white dark:bg-gray-900 border px-3 py-2 text-base text-gray-900 dark:text-gray-50 min-h-[44px] ${
+            accessibilityLabel={t("reps")}
+            className={`flex-1 rounded-forge-md bg-forge-bg-light dark:bg-forge-bg border px-3 py-2 text-base text-forge-text-light dark:text-forge-text min-h-[44px] ${
               error
-                ? "border-red-600 dark:border-red-400"
-                : "border-gray-300 dark:border-gray-700"
+                ? "border-forge-danger-light dark:border-forge-danger"
+                : "border-forge-border-light dark:border-forge-border"
             }`}
           />
         )}
@@ -777,19 +1008,28 @@ function EditableSetRow({
         )}
         disabled={isSubmitting}
         accessibilityRole="button"
-        accessibilityLabel="Spara redigering"
-        className="w-16 min-h-[44px] rounded-md bg-blue-600 dark:bg-blue-500 items-center justify-center disabled:opacity-60 active:opacity-80"
+        accessibilityLabel={t("done")}
+        className="w-16 min-h-[44px] rounded-forge-md bg-forge-accent-light dark:bg-forge-accent items-center justify-center disabled:opacity-60"
+        style={({ pressed }) => (pressed ? { opacity: 0.85 } : null)}
       >
-        <Text className="text-base font-semibold text-white">Klart</Text>
+        <Text className="text-base font-semibold text-forge-accentText-light dark:text-forge-accentText">
+          {t("done")}
+        </Text>
       </Pressable>
       <Pressable
         onPress={() => onDone(null)}
         accessibilityRole="button"
-        accessibilityLabel="Avbryt redigering"
-        className="px-2 active:opacity-80"
+        accessibilityLabel={t("cancel")}
+        className="px-2"
         hitSlop={8}
+        style={({ pressed }) => (pressed ? { opacity: 0.8 } : null)}
       >
-        <Ionicons name="close-outline" size={20} color="#6B7280" />
+        <Icon
+          name="close"
+          size={20}
+          color={isDark ? "rgba(255,255,255,0.62)" : "#4D4D4D"}
+          strokeWidth={2}
+        />
       </Pressable>
     </View>
   );
@@ -808,16 +1048,17 @@ function LastValueChip({
   sessionId: string;
   setNumber: number;
 }) {
+  const { t } = useTranslation();
   const { data: lastValueMap } = useLastValueQuery(exerciseId, sessionId);
   const prev = lastValueMap?.[setNumber];
   if (!prev) return null; // D-19 — not rendered when no data
   return (
-    <View className="flex-row items-center gap-1 px-3 py-1 mt-1">
-      <Text className="text-base font-normal text-gray-500 dark:text-gray-400">
-        Förra:
-      </Text>
-      <Text className="text-base font-semibold text-gray-500 dark:text-gray-400">
-        {`${prev.weight_kg} × ${prev.reps}`}
+    <View className="flex-row items-center px-3 py-1 mt-1">
+      <Text
+        className="text-base font-semibold text-forge-text2-light dark:text-forge-text2"
+        style={{ fontVariant: ["tabular-nums"] }}
+      >
+        {t("previous", { w: prev.weight_kg, r: prev.reps })}
       </Text>
     </View>
   );
