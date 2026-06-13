@@ -1,10 +1,11 @@
 ---
 phase: 11
 slug: active-workout-re-skin-high-risk-f13
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-06-13
+reviewed_at: 2026-06-13
 ---
 
 # Phase 11 — UI Design Contract
