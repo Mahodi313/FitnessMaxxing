@@ -90,6 +90,7 @@ const TOKENS = {
     surface2: "#F2F1EC",
     accent: "#E14E10",
     accentText: "#FFFFFF",
+    success: "#1E9E45",
     border: "rgba(0,0,0,0.07)",
     gradFrom: "#FF7A2E",
     gradTo: "#FF3D5E",
@@ -102,6 +103,7 @@ const TOKENS = {
     surface2: "#18181B",
     accent: "#FF5A1F",
     accentText: "#FFFFFF",
+    success: "#30D158",
     border: "rgba(255,255,255,0.08)",
     gradFrom: "#FF7A2E",
     gradTo: "#FF2D55",
@@ -488,31 +490,42 @@ export default function PlansTab() {
         />
       ) : null}
 
-      {/* Phase 5 D-24 — "Passet sparat ✓" success toast. */}
+      {/* Phase 5 D-24 / SKIN-05 — "Passet sparat ✓" success toast, re-skinned to
+          FSavedToast (forge-screens.jsx L1933+): a forge-success pill with a
+          white check inside a translucent white circle, bottom-centered above
+          the tab bar (bottom:92 clears the floating TabBar — UAT-tuned, kept).
+          Box styling (success bg + pill radius) in className per the NativeWind
+          rule; inline style carries ONLY position + the success glow shadow.
+          Edge-trigger logic (previousActiveRef watcher + 2s timer) is unchanged
+          — chrome re-skin only. FadeIn/FadeOut kept (inline, no Modal). */}
       {showToast ? (
         <Animated.View
           entering={FadeIn.duration(200)}
           exiting={FadeOut.duration(200)}
           accessibilityRole="alert"
           accessibilityLiveRegion="polite"
+          className="absolute self-center flex-row items-center gap-2.5 px-[18px] py-3 rounded-full bg-forge-success-light dark:bg-forge-success"
           style={{
-            position: "absolute",
             bottom: 92,
-            alignSelf: "center",
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 8,
-            paddingHorizontal: 20,
-            paddingVertical: 12,
-            borderRadius: 24,
-            backgroundColor: tk.surface,
-            borderWidth: 1,
-            borderColor: tk.border,
+            shadowColor: tk.success,
+            shadowOffset: { width: 0, height: 16 },
+            shadowOpacity: 0.4,
+            shadowRadius: 32,
           }}
         >
-          <Icon name="check" size={16} color={tk.accent} strokeWidth={2.4} />
+          <View
+            className="w-[22px] h-[22px] rounded-full items-center justify-center"
+            style={{ backgroundColor: "rgba(255,255,255,0.22)" }}
+          >
+            <Icon name="check" size={13} color="#FFFFFF" strokeWidth={3} />
+          </View>
           <Text
-            style={{ fontSize: 15, fontWeight: "600", color: tk.text }}
+            style={{
+              fontSize: 15,
+              fontWeight: "700",
+              letterSpacing: -0.2,
+              color: "#FFFFFF",
+            }}
           >
             {t("sessionSaved")}
           </Text>
