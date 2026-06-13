@@ -46,11 +46,15 @@
 //   - 06-UI-SPEC.md lines 258 + 555-574 + 599-615
 
 import { useQuery } from "@tanstack/react-query";
-import { subMonths, subYears } from "date-fns";
+import { subDays, subMonths, subYears } from "date-fns";
 import { z } from "zod";
 
 import { supabase } from "@/lib/supabase";
-import { exerciseChartKeys, exerciseTopSetsKeys } from "@/lib/query/keys";
+import {
+  exerciseChartKeys,
+  exerciseSummaryKeys,
+  exerciseTopSetsKeys,
+} from "@/lib/query/keys";
 
 // ---------------------------------------------------------------------------
 // Types + schemas
@@ -146,6 +150,78 @@ export function useExerciseTopSetsQuery(
       });
       if (error) throw error;
       return (data ?? []).map((row: unknown) => TopSetRowSchema.parse(row));
+    },
+    enabled: !!exerciseId,
+  });
+}
+
+// ===========================================================================
+// Phase 12 (12-04) — chart-detail hero + 3-stat summary.
+//
+// ADDITIVE per D-24: the existing 5-state ChartWindow union + windowToSince()
+// above are BYTE-UNCHANGED — the v1 chart route still types against them until
+// the screen migrates. The new chart-detail screen uses the NEW 3-state
+// ChartRange below ("30d" | "90d" | "All", default 90d — D-11) and the
+// get_exercise_summary RPC (deployed in migration 0011) for the hero
+// (current_best + range_first_value delta) and the 3-stat row (top set /
+// volume-per-session / avg RPE — D-12/D-14).
+// ===========================================================================
+
+// 3-state range for the redesigned chart detail (D-11). DISTINCT from the v1
+// 5-state ChartWindow; do not conflate.
+export type ChartRange = "30d" | "90d" | "All";
+
+// "All" → null (no lower bound; the RPC's `(p_since is null or ...)` guard
+// returns the full history). 30d/90d → ISO timestamp via date-fns subDays.
+// Exported (unlike the v1 windowToSince) so the chart-detail screen can reuse
+// the same since-resolution for its x-axis range labels (12-04 acceptance).
+export function rangeToSince(range: ChartRange): string | null {
+  const now = new Date();
+  switch (range) {
+    case "30d":
+      return subDays(now, 30).toISOString();
+    case "90d":
+      return subDays(now, 90).toISOString();
+    case "All":
+      return null;
+  }
+}
+
+// get_exercise_summary 6-field shape (migration 0011). avg_rpe is nullable —
+// RPE is optional per set, so a range with no RPE-tagged sets yields NULL.
+// Every numeric field is z.coerce.number() (PostgREST numeric/bigint → string).
+const ExerciseSummarySchema = z.object({
+  current_best: z.coerce.number(),
+  range_first_value: z.coerce.number(),
+  top_set_weight_kg: z.coerce.number(),
+  top_set_reps: z.coerce.number(),
+  vol_per_session_kg: z.coerce.number(),
+  avg_rpe: z.coerce.number().nullable(),
+});
+export type ExerciseSummary = z.infer<typeof ExerciseSummarySchema>;
+
+export function useExerciseSummaryQuery(
+  exerciseId: string,
+  metric: ChartMetric,
+  range: ChartRange,
+) {
+  return useQuery<ExerciseSummary | null>({
+    queryKey: exerciseSummaryKeys.byExercise(exerciseId, metric, range),
+    queryFn: async () => {
+      // Same documented `null as unknown as string` cast as the v1 hooks above
+      // — Supabase type-gen treats the nullable timestamptz RPC param as a
+      // required string; the SQL body guards NULL via `(p_since is null or ...)`.
+      const since = rangeToSince(range);
+      const { data, error } = await supabase.rpc("get_exercise_summary", {
+        p_exercise_id: exerciseId,
+        p_metric: metric,
+        p_since: since as unknown as string,
+      });
+      if (error) throw error;
+      // The RPC returns a single summary row; an exercise with no sets in range
+      // may return no rows → null (the screen renders the empty state).
+      const row = (data ?? [])[0];
+      return row ? ExerciseSummarySchema.parse(row) : null;
     },
     enabled: !!exerciseId,
   });
