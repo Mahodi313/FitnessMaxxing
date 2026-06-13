@@ -611,7 +611,7 @@ function DraftResumeOverlay({
         className="absolute left-4 right-4 rounded-forge-lg border p-6 bg-forge-surface-light dark:bg-forge-surface2 border-forge-borderStrong-light dark:border-forge-borderStrong"
         style={[
           {
-            top: "40%",
+            top: "30%",
             shadowColor: "#000",
             shadowOffset: { width: 0, height: 30 },
             shadowOpacity: 0.4,
@@ -726,12 +726,14 @@ function DraftResumeOverlay({
             label={t("resume")}
             icon="play"
             variant="primary"
+            size="lg"
             fullWidth
             onPress={onResume}
           />
           <ForgeButton
             label={t("finishSession")}
             variant="destructive"
+            size="lg"
             fullWidth
             onPress={handleAvslutaSession}
           />
