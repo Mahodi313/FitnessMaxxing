@@ -150,7 +150,7 @@ Plans:
 3. Dashboard aggregates come from RLS-scoped read-side RPCs with a clean empty state for new users
 4. The chart line draws on mount
 
-**Plans:** 2/8 plans executed
+**Plans:** 4/8 plans executed
 Plans:
 **Wave 1**
 
@@ -160,7 +160,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 12-04-PLAN.md — Query layer: dashboardKeys/exerciseSummaryKeys + useDashboardSummaryQuery + useExerciseSummaryQuery + 3-state ChartRange/rangeToSince (additive, D-24-safe)
+- [x] 12-04-PLAN.md — Query layer: dashboardKeys/exerciseSummaryKeys + useDashboardSummaryQuery + useExerciseSummaryQuery + 3-state ChartRange/rangeToSince (additive, D-24-safe)
 
 **Wave 3** *(blocked on Waves 1+2)*
 
@@ -225,7 +225,7 @@ Deferred to a later milestone (needs Apple Developer license + tooling). Mapped 
 | 9. Auth, Settings & Preferences               | v2.0 | 3/3 | Complete   | 2026-06-11 |
 | 10. Plans & Exercises Re-skin                 | v2.0 | 6/6 | Complete    | 2026-06-12 |
 | 11. Active Workout Re-skin (F13 risk)         | v2.0 | 3/3 | Complete   | 2026-06-13 |
-| 12. History, Detail, Chart & Dashboard        | v2.0 | 3/8 | In Progress|  |
+| 12. History, Detail, Chart & Dashboard        | v2.0 | 4/8 | In Progress|  |
 | 13. PR Celebration (F18)                      | v2.0 | 0/? | ○ Planned  | — |
 | 14. Rest Timer (F19)                          | v2.0 | 0/? | ○ Planned  | — |
 | 15. Bilingual & Release Hardening             | v2.0 | 0/? | ○ Planned  | — |
