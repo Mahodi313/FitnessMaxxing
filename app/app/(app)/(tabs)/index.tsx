@@ -63,7 +63,6 @@ import Animated, {
 import { useTranslation } from "react-i18next";
 import { format } from "date-fns";
 import { Icon, Logo, ForgeButton, ProgressRing, ForgeChip } from "@/components/ui";
-import { ActiveSessionBanner } from "@/components/active-session-banner";
 import { usePlansQuery } from "@/lib/queries/plans";
 import {
   useActiveSessionQuery,
@@ -273,10 +272,12 @@ export default function PlansTab() {
       </Text>
 
       {/* Phase 12 DASH-01/02/05 + D-02 — activity-ring hero ABOVE the plan list.
-          D-02: while a session is live the hero slot swaps to the (already-Forge)
-          ActiveSessionBanner; the ring + volume framing hide until the session
-          ends. The plan list below is unchanged Phase-10 code. */}
-      {activeSession ? <ActiveSessionBanner /> : <HomeHero />}
+          D-02: while a session is live the hero hides. The active-session banner
+          is ALREADY rendered globally by the tabs layout ((tabs)/_layout.tsx) on
+          every tab, so we must NOT render a second one here — doing so showed the
+          banner twice on Planer (UAT 2026-06-13). When active → no hero (the
+          global banner is the single indicator); idle → ring-hero. */}
+      {activeSession ? null : <HomeHero />}
 
       {/* Section header — MINA PLANER + Ny plan inline accent link */}
       {!isEmpty ? (
