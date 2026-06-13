@@ -1460,11 +1460,14 @@ function AvslutaOverlay({
               onPress={handleConfirm}
               accessibilityRole="button"
               accessibilityLabel={t("finish")}
-              className="h-[52px] rounded-forge-md flex-row items-center justify-center gap-2 bg-forge-accent-light dark:bg-forge-accent"
+              className="flex-1 h-[52px] rounded-forge-md flex-row items-center justify-center gap-2 bg-forge-accent-light dark:bg-forge-accent"
               style={({ pressed }) => [
                 {
-                  flexGrow: 1.6,
-                  flexBasis: 0,
+                  // NativeWind-4 rule: flex/box sizing MUST be in className
+                  // (flex-1 above), NOT here — flexGrow/flexBasis in this
+                  // style() callback render NAKED and the button collapsed to
+                  // content width + clipped past the card edge (device UAT).
+                  // style() keeps ONLY shadow + pressed opacity.
                   shadowColor: isDark ? "#FF5A1F" : "#E14E10",
                   shadowOffset: { width: 0, height: 6 },
                   shadowOpacity: 0.4,
