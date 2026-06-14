@@ -52,8 +52,8 @@
 - [x] **PR-01**: A logged set that beats the prior best e1RM (Epley) for that exercise is detected as a personal best, computed client-side so it works offline
 - [ ] **PR-02**: A PR set is marked with a trophy in the active-workout set list
 - [ ] **PR-03**: A PR shows a celebration banner (with gradient-sweep animation) during the workout
-- [ ] **PR-04**: PR sessions are marked with a trophy in history; session detail and chart surface PR/e1RM
-- [ ] **PR-05**: The exercise chart shows estimated 1RM with the change over the selected range
+- [x] **PR-04**: PR sessions are marked with a trophy in history; session detail and chart surface PR/e1RM
+- [x] **PR-05**: The exercise chart shows estimated 1RM with the change over the selected range
 
 ### Rest Timer (TIMER)
 
@@ -147,8 +147,8 @@
 | PR-01 | Phase 13 | Complete |
 | PR-02 | Phase 13 | Pending |
 | PR-03 | Phase 13 | Pending |
-| PR-04 | Phase 13 | Pending |
-| PR-05 | Phase 13 | Pending |
+| PR-04 | Phase 13 | Complete |
+| PR-05 | Phase 13 | Complete |
 | TIMER-01 | Phase 14 | Pending |
 | TIMER-02 | Phase 14 | Pending |
 | TIMER-03 | Phase 14 | Pending |

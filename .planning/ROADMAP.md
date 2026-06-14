@@ -185,12 +185,12 @@ Plans:
 2. PR sets show a trophy in the workout set list and a celebration banner (with sweep animation) appears
 3. History marks PR sessions; session detail and the chart surface PR / estimated 1RM with the range delta
 
-**Plans:** 1/5 plans executed
+**Plans:** 2/5 plans executed
 Plans:
 **Wave 1**
 
 - [x] 13-01-PLAN.md — lib/e1rm.ts pure Epley util + test-e1rm.ts + test:e1rm script (PR-01 formula source, D-08)
-- [ ] 13-02-PLAN.md — migration 0012 (3 read-only PR RPCs) + [BLOCKING] push + gen:types + verify-deploy + cross-user test:rls (PR-01/04/05)
+- [x] 13-02-PLAN.md — migration 0012 (3 read-only PR RPCs) + [BLOCKING] push + gen:types + verify-deploy + cross-user test:rls (PR-01/04/05)
 
 **Wave 2** *(blocked on Wave 1)*
 
@@ -248,7 +248,7 @@ Deferred to a later milestone (needs Apple Developer license + tooling). Mapped 
 | 10. Plans & Exercises Re-skin                 | v2.0 | 6/6 | Complete    | 2026-06-12 |
 | 11. Active Workout Re-skin (F13 risk)         | v2.0 | 3/3 | Complete   | 2026-06-13 |
 | 12. History, Detail, Chart & Dashboard        | v2.0 | 11/11 | Complete    | 2026-06-14 |
-| 13. PR Celebration (F18)                      | v2.0 | 1/5 | In Progress|  |
+| 13. PR Celebration (F18)                      | v2.0 | 2/5 | In Progress|  |
 | 14. Rest Timer (F19)                          | v2.0 | 0/? | ○ Planned  | — |
 | 15. Bilingual & Release Hardening             | v2.0 | 0/? | ○ Planned  | — |
 
