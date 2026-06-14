@@ -65,12 +65,15 @@ import { sv } from "date-fns/locale";
 import { useTranslation } from "react-i18next";
 
 import { Icon } from "@/components/ui/Icon";
+import { PrTrophy } from "@/components/ui/PrTrophy";
 import { useDeleteSession, useSessionQuery, useUpdateSessionNotes } from "@/lib/queries/sessions";
 import { useSetsForSessionQuery } from "@/lib/queries/sets";
+import { usePrHistoryQuery } from "@/lib/queries/pr-history";
 import { useExercisesQuery } from "@/lib/queries/exercises";
 import type { SetRow } from "@/lib/schemas/sets";
 import { type UnitPref } from "@/lib/prefs";
 import { useUnitStore } from "@/lib/units-store";
+import { epley1RM } from "@/lib/e1rm";
 import { formatWeight, toDisplayVolume } from "@/lib/units";
 
 // ---------------------------------------------------------------------------
@@ -483,6 +486,9 @@ export default function SessionDetailScreen() {
               }
               sets={sets}
               units={units}
+              // D-15: the trophy on this card lights up only for a PR-at-the-time
+              // set logged in THIS session — ExerciseCard scopes was_pr to this id.
+              sessionId={session.id}
               // FIT-110: restore the session-detail → chart entry point dropped
               // in the 12-07 re-skin. exerciseId is the setsByExercise Map key
               // (the caller's own RLS-scoped sets). Typed-route literal; if
@@ -776,59 +782,86 @@ function ExerciseCard({
   exerciseName,
   sets,
   units,
+  sessionId,
   onPress,
 }: {
   exerciseId: string;
   exerciseName: string;
   sets: SetRow[];
   units: UnitPref;
+  sessionId: string;
   onPress: () => void;
 }) {
   const { t } = useTranslation();
-  // Per-exercise max-weight = top set's weight in this session.
-  const maxWeightKg = sets.reduce(
-    (max, s) => (s.weight_kg > max ? s.weight_kg : max),
-    0,
-  );
-  // exerciseId is referenced for the a11y label routing context; the actual
-  // navigation is wired at the call site via onPress (router in scope there).
-  void exerciseId;
+
+  // D-15/D-08/D-20: per-exercise estimated 1RM = the MAX Epley e1RM across this
+  // exercise's WORKING sets in this session (D-03 working-set filter is a caller
+  // concern). Computed in kg via lib/e1rm.ts — the SINGLE formula source, never
+  // an inline `w*(1+r/30)` — then display-converted via formatWeight + the
+  // reactive units pref so a kg↔lbs toggle re-renders it live. epley1RM guards
+  // weight≤0 / reps≤0 / non-finite → 0, so the reduce never yields NaN.
+  const e1rmKg = sets.reduce((max, s) => {
+    if (s.set_type !== "working") return max;
+    const e = epley1RM(s.weight_kg, s.reps);
+    return e > max ? e : max;
+  }, 0);
+
+  // D-15: light the trophy only when a PR-AT-THE-TIME set was logged for THIS
+  // exercise in THIS session. usePrHistoryQuery returns chronological was_pr-per-
+  // set rows for the exercise; we scope to this session's id. The per-exercise
+  // hook is hooks-legal HERE because ExerciseCard is a stable child rendered once
+  // per exercise (one hook per mounted card) — NOT a hook called inside a loop in
+  // the parent. The trophy is PR-at-log-time and never migrates (D-14).
+  const { data: prRows } = usePrHistoryQuery(exerciseId);
+  const hadPrThisSession =
+    prRows?.some((r) => r.session_id === sessionId && r.was_pr) === true;
 
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={t("viewExerciseChart", { exercise: exerciseName })}
+      accessibilityLabel={
+        hadPrThisSession
+          ? `${t("viewExerciseChart", { exercise: exerciseName })}, ${t("personalBest")}`
+          : t("viewExerciseChart", { exercise: exerciseName })
+      }
       className="rounded-forge-md border bg-forge-surface-light dark:bg-forge-surface border-forge-border-light dark:border-forge-border px-4 py-3.5"
       style={({ pressed }) => (pressed ? { opacity: 0.85 } : null)}
     >
       <View className="flex-row items-start justify-between">
-        <View className="flex-1 mr-3">
+        <View className="flex-1 mr-3 flex-row items-center" style={{ gap: 8 }}>
+          {/* D-15: 18px gradient trophy beside the exercise name on a PR-at-the-
+              time exercise. Non-interactive status glyph; PrTrophy owns its own
+              gradient fill + circle size/radius (its LinearGradient's own sizing,
+              not a NativeWind box — Pitfall-6 does not apply). No glyph when no
+              PR (no placeholder). */}
+          {hadPrThisSession ? <PrTrophy size={18} /> : null}
           <Text
-            className="text-[15px] font-semibold text-forge-text-light dark:text-forge-text"
+            className="flex-1 text-[15px] font-semibold text-forge-text-light dark:text-forge-text"
             style={{ letterSpacing: -0.2 }}
             numberOfLines={1}
           >
             {exerciseName}
           </Text>
         </View>
-        {/* Right-aligned max-weight stat + a chevronRight "opens the chart" cue
-            (FIT-110 — the regression's harm was an invisible affordance). The
+        {/* Right-aligned per-exercise e1RM stat + a chevronRight "opens the chart"
+            cue (FIT-110 — the regression's harm was an invisible affordance). The
             chevron sits to the right of the stat column with a small gap, the
-            Forge history-row convention (text-forge-text3 token). */}
+            Forge history-row convention (text-forge-text3 token). The stat swaps
+            the prior max-weight figure for the estimated-1RM numeral (D-15). */}
         <View className="flex-row items-center">
           <View className="items-end">
             <Text
               className="text-[18px] font-display-bold text-forge-text-light dark:text-forge-text"
               style={{ fontVariant: ["tabular-nums"], letterSpacing: -0.3 }}
             >
-              {formatWeight(maxWeightKg, units)}
+              {formatWeight(e1rmKg, units)}
             </Text>
             <Text
               className="text-[10px] font-semibold uppercase text-forge-text3-light dark:text-forge-text3"
               style={{ letterSpacing: 0.5 }}
             >
-              {t("maxWeight")}
+              {t("estimated1RM")}
             </Text>
           </View>
           <View className="ml-2.5">
