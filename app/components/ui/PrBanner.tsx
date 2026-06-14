@@ -29,11 +29,14 @@
 //   otherwise.
 //
 // CRITICAL — NativeWind 4 box-decoration rule (project MEMORY / Pitfall 6):
-// bg / border / radius / padding go in `className`; only the animated transform
-// (scale) + opacity live in the inline animated `style`. The gradient WASH +
-// SWEEP are a Skia <Canvas> absolute-fill layer UNDER the content — Skia draws
-// its own gradient, so the className surface stays a transparent-bg rounded box
-// with the accent border, and the wash shows through.
+// bg / radius go in `className`; border + shadow + the animated transform (scale)
+// live in the inline animated `style`. The OUTER Animated.View carries the OPAQUE
+// Forge card surface (`bg-forge-surface`) + the accent border + the float shadow —
+// the banner is an absolutely-positioned overlay (D-09) over the opaque exercise
+// cards, so it needs its own opaque fill or the 15% wash lets the card title bleed
+// through (FIT-116). An INNER overflow-hidden wrapper clips the Skia WASH + SWEEP
+// (a <Canvas> absolute-fill layer OVER the opaque bg, UNDER the content) to the
+// 16px radius; the shadow stays on the outer view so it is NOT clipped.
 //
 // UNITS (D-20): the banner shows the SET's actual weight/reps. weight is stored
 // canonical kg → display-converted via the reactive useUnitStore + formatWeight
@@ -167,17 +170,29 @@ export function PrBanner({
   const sub = `${pbSubFixed} ${t("pbSetSuffix", { n: setNumber })}`;
 
   return (
+    // OUTER surface (Pitfall 6): opaque Forge card bg + 16px radius + 1px accent30
+    // border live in className (box-decoration). The banner is an absolutely-
+    // positioned floating overlay (D-09) ON TOP of the opaque exercise cards, so
+    // the surface needs its OWN opaque fill — the SAME bg-forge-surface token the
+    // cards use ([sessionId].tsx:734) — otherwise the 15% gradient wash alone lets
+    // the card title bleed through (FIT-116). The float shadow + border go in the
+    // inline style (Pitfall 6: elevation/shadow are not NativeWind box-decoration).
+    // NO overflow-hidden here — it would clip the iOS shadow; the wash is clipped
+    // by the INNER wrapper instead.
     <Animated.View
-      // Box-decoration in className (Pitfall 6): 16px radius + 1px accent30
-      // border + md padding (12px vertical / 14px horizontal). The surface bg is
-      // TRANSPARENT — the Skia wash canvas below provides the gradient fill.
-      className="rounded-[16px] overflow-hidden"
+      className="rounded-[16px] bg-forge-surface-light dark:bg-forge-surface"
       style={[
         {
           borderWidth: 1,
           borderColor: `${grad.accent}${A30}`,
-          paddingVertical: 12,
-          paddingHorizontal: 14,
+          // Soft float shadow so the overlay reads as a card hovering above the
+          // set list (it is an overlay). shadowColor/Opacity/Radius/Offset = iOS;
+          // elevation = Android parity.
+          shadowColor: "#000",
+          shadowOpacity: isDark ? 0.4 : 0.12,
+          shadowRadius: 12,
+          shadowOffset: { width: 0, height: 4 },
+          elevation: 6,
         },
         bannerStyle,
       ]}
@@ -186,75 +201,84 @@ export function PrBanner({
       accessibilityRole="text"
       accessibilityLabel={`${t("personalBest")}. ${sub}`}
     >
-      {/* Animated gradient WASH + SWEEP — Skia canvas behind the content. The
-          wash is the low-alpha gradFrom15 → gradTo15 surface fill; the sweep
-          slides its gradient vector across on mount. */}
-      {bannerH > 0 && (
-        <Canvas
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            width,
-            height: bannerH,
-          }}
-          pointerEvents="none"
-        >
-          <Rect x={0} y={0} width={width} height={bannerH}>
-            <LinearGradient
-              start={gradStart}
-              end={gradEnd}
-              colors={[`${grad.from}${A15}`, `${grad.to}${A15}`]}
-            />
-          </Rect>
-        </Canvas>
-      )}
-
-      {/* Content row: 36px gradient trophy tile + text block (md gap = 12). */}
-      <View className="flex-row items-center" style={{ gap: 12 }}>
-        {/* 36px gradient trophy TILE (10px radius — UI-SPEC ratified optical;
-            18px white trophy). Gradient fill is the LinearGradient's own prop;
-            radius/size live in its style (not a NativeWind box). */}
-        <View
-          className="items-center justify-center overflow-hidden"
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: 10,
-            backgroundColor: grad.from, // base; the gradient tile draws over it
-          }}
-        >
-          <Canvas style={{ position: "absolute", width: 36, height: 36 }}>
-            <Rect x={0} y={0} width={36} height={36}>
+      {/* INNER wrapper: overflow-hidden clips the Skia wash + content to the 16px
+          radius (the shadow lives on the OUTER view, so it is not clipped). md
+          padding (12px vertical / 14px horizontal). */}
+      <View
+        className="rounded-[16px] overflow-hidden"
+        style={{ paddingVertical: 12, paddingHorizontal: 14 }}
+      >
+        {/* Animated gradient WASH + SWEEP — Skia canvas OVER the opaque bg, UNDER
+            the content. The wash is the low-alpha gradFrom15 → gradTo15 surface
+            fill (the opaque bg shows through the 85% transparency); the sweep
+            slides its gradient vector across on mount. */}
+        {bannerH > 0 && (
+          <Canvas
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width,
+              height: bannerH,
+            }}
+            pointerEvents="none"
+          >
+            <Rect x={0} y={0} width={width} height={bannerH}>
               <LinearGradient
-                start={vec(0, 0)}
-                end={vec(36, 36)}
-                colors={[grad.from, grad.to]}
+                start={gradStart}
+                end={gradEnd}
+                colors={[`${grad.from}${A15}`, `${grad.to}${A15}`]}
               />
             </Rect>
           </Canvas>
-          <Icon name="trophy" size={18} color="#FFFFFF" strokeWidth={2.2} />
-        </View>
+        )}
 
-        <View style={{ flex: 1 }}>
-          {/* Title 14/700, letterSpacing -0.2 (UI-SPEC Typography). */}
-          <Text
-            className="font-display-bold text-forge-text-light dark:text-forge-text"
-            style={{ fontSize: 14, letterSpacing: -0.2 }}
-          >
-            {t("personalBest")}
-          </Text>
-          {/* Sub 12/600, tabular-nums (UI-SPEC). */}
-          <Text
-            className="font-semibold text-forge-text2-light dark:text-forge-text2"
+        {/* Content row: 36px gradient trophy tile + text block (md gap = 12). */}
+        <View className="flex-row items-center" style={{ gap: 12 }}>
+          {/* 36px gradient trophy TILE (10px radius — UI-SPEC ratified optical;
+              18px white trophy). Gradient fill is the LinearGradient's own prop;
+              radius/size live in its style (not a NativeWind box). */}
+          <View
+            className="items-center justify-center overflow-hidden"
             style={{
-              fontSize: 12,
-              marginTop: 1,
-              fontVariant: ["tabular-nums"],
+              width: 36,
+              height: 36,
+              borderRadius: 10,
+              backgroundColor: grad.from, // base; the gradient tile draws over it
             }}
           >
-            {sub}
-          </Text>
+            <Canvas style={{ position: "absolute", width: 36, height: 36 }}>
+              <Rect x={0} y={0} width={36} height={36}>
+                <LinearGradient
+                  start={vec(0, 0)}
+                  end={vec(36, 36)}
+                  colors={[grad.from, grad.to]}
+                />
+              </Rect>
+            </Canvas>
+            <Icon name="trophy" size={18} color="#FFFFFF" strokeWidth={2.2} />
+          </View>
+
+          <View style={{ flex: 1 }}>
+            {/* Title 14/700, letterSpacing -0.2 (UI-SPEC Typography). */}
+            <Text
+              className="font-display-bold text-forge-text-light dark:text-forge-text"
+              style={{ fontSize: 14, letterSpacing: -0.2 }}
+            >
+              {t("personalBest")}
+            </Text>
+            {/* Sub 12/600, tabular-nums (UI-SPEC). */}
+            <Text
+              className="font-semibold text-forge-text2-light dark:text-forge-text2"
+              style={{
+                fontSize: 12,
+                marginTop: 1,
+                fontVariant: ["tabular-nums"],
+              }}
+            >
+              {sub}
+            </Text>
+          </View>
         </View>
       </View>
     </Animated.View>
