@@ -27,8 +27,8 @@
 //
 // Units (D-20): every kg/volume figure routes through formatVolume — no raw
 // `kg` string literal in the rendered output. The fm:units pref is read via the
-// settings.tsx useState+getPref idiom (metric default until the async read
-// settles).
+// reactive useUnitStore selector (FIT-111) so a Settings unit toggle re-renders
+// every figure live (no app restart); metric default until boot hydration.
 //
 // i18n (D-21): all chrome strings are t()-keyed (live re-render on toggle); user
 // content (plan name) renders verbatim (D-16). All keys already exist at sv/en
@@ -76,7 +76,8 @@ import {
 } from "@/lib/queries/sessions";
 import { useDashboardSummaryQuery } from "@/lib/queries/dashboard";
 import { Icon, Sparkline } from "@/components/ui";
-import { getPref, type UnitPref } from "@/lib/prefs";
+import { type UnitPref } from "@/lib/prefs";
+import { useUnitStore } from "@/lib/units-store";
 import { formatVolume, toDisplayVolume } from "@/lib/units";
 
 // ── Forge token hexes (light / dark) ────────────────────────────────────────
@@ -113,28 +114,14 @@ const TOKENS = {
   },
 } as const;
 
-// Shared fm:units read — the settings.tsx useState+getPref idiom (D-20). Metric
-// default until the async read settles; no raw kg literal anywhere downstream.
-function useUnitPref(): UnitPref {
-  const [unit, setUnit] = useState<UnitPref>("metric");
-  useEffect(() => {
-    let mounted = true;
-    void getPref("fm:units").then((u) => {
-      if (mounted) setUnit(u);
-    });
-    return () => {
-      mounted = false;
-    };
-  }, []);
-  return unit;
-}
-
 export default function HistoryTab() {
   const { colorScheme } = useColorScheme();
   const tk = TOKENS[colorScheme === "dark" ? "dark" : "light"];
   const { t, i18n } = useTranslation();
   const router = useRouter();
-  const unit = useUnitPref();
+  // FIT-111: reactive unit selector — re-renders every formatVolume/
+  // toDisplayVolume figure on this screen the instant Settings toggles the unit.
+  const unit = useUnitStore((s) => s.unit);
 
   const {
     data,

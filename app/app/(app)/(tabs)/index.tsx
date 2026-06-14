@@ -70,7 +70,7 @@ import {
 } from "@/lib/queries/sessions";
 import { useSetsForSessionQuery } from "@/lib/queries/sets";
 import { useDashboardSummaryQuery } from "@/lib/queries/dashboard";
-import { getPref, type UnitPref } from "@/lib/prefs";
+import { useUnitStore } from "@/lib/units-store";
 import { formatVolume } from "@/lib/units";
 
 // MOTN-04 — animated Pressable so the draft-resume backdrop opacity can ride
@@ -789,18 +789,10 @@ function HomeHero() {
   const tk = TOKENS[colorScheme === "dark" ? "dark" : "light"];
   const { data, isPending } = useDashboardSummaryQuery();
 
-  // D-20 — fm:units pref read via the settings.tsx useState+getPref idiom (no
-  // raw kg literal; metric default until the async read settles).
-  const [unit, setUnit] = useState<UnitPref>("metric");
-  useEffect(() => {
-    let mounted = true;
-    void getPref("fm:units").then((u) => {
-      if (mounted) setUnit(u);
-    });
-    return () => {
-      mounted = false;
-    };
-  }, []);
+  // D-20 / FIT-111 — fm:units pref read via the reactive useUnitStore selector
+  // so the volume chip re-renders the instant Settings toggles the unit (no raw
+  // kg literal; metric default until boot hydration).
+  const unit = useUnitStore((s) => s.unit);
 
   // D-03 skeleton gate: ONLY on a truly-empty cache (first load, nothing
   // hydrated). A cached value — even an all-zero new-user row — renders.

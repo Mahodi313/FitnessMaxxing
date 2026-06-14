@@ -95,7 +95,8 @@ import {
   type ChartRange,
 } from "@/lib/queries/exercise-chart";
 import { SegmentedControl } from "@/components/segmented-control";
-import { getPref, type UnitPref } from "@/lib/prefs";
+import { type UnitPref } from "@/lib/prefs";
+import { useUnitStore } from "@/lib/units-store";
 import { formatVolume, formatWeight, toDisplayVolume, toDisplayWeight } from "@/lib/units";
 
 // ── Forge token hexes (light / dark) ────────────────────────────────────────
@@ -159,12 +160,13 @@ export default function ExerciseChartScreen() {
   const gridColor = tk.grid;
   const tooltipBg = tk.tooltipBg;
 
-  // D-20: read the unit pref into local state (settings.tsx idiom — useState +
-  // useEffect getPref). Storage stays canonical kg; conversion is display-only.
-  const [units, setUnits] = useState<UnitPref>("metric");
-  useEffect(() => {
-    void getPref("fm:units").then(setUnits);
-  }, []);
+  // D-20 / FIT-111: read the unit pref from the reactive useUnitStore selector
+  // so the plotted line, y-axis, hero, stats, tooltip, and Senaste-10 all
+  // re-render the instant Settings toggles the unit. Storage stays canonical kg;
+  // conversion is display-only. `units` stays in the chartData memo dep array
+  // below (WR-01) — it is still a reactive value, just sourced from the store
+  // instead of async local state.
+  const units = useUnitStore((s) => s.unit);
 
   // Local state — D-10 default Max vikt; D-11 default 90d (NOT the v1 "3M").
   const [metric, setMetric] = useState<ChartMetric>("weight");
@@ -213,13 +215,15 @@ export default function ExerciseChartScreen() {
 
   // WR-01 fix: the memo body reads BOTH `metric` and `units`, so they MUST be
   // in the dep array. `metric` lives in the chart queryKey (a change refetches →
-  // new data identity), but `units` is async local state (getPref resolves AFTER
-  // the first data arrives) and is NOT in any queryKey — excluding it left the
+  // new data identity), but `units` is NOT in any queryKey — it now comes from
+  // the reactive useUnitStore selector (FIT-111). Excluding it would leave the
   // plotted line + y-axis in kg while the tooltip switched to lb for imperial
-  // users until the data identity next changed. Listing `units`/`metric` is also
-  // a legitimate reason to rebuild the point array, so the Victory
-  // remount-on-data-identity contract still holds (a unit/metric change is a
-  // real reason to redraw, and the draw-on-mount effect keys on `chartData`).
+  // users until the data identity next changed. Keeping `units` in the deps is
+  // exactly what makes the store toggle redraw the line + y-axis live. Listing
+  // `units`/`metric` is also a legitimate reason to rebuild the point array, so
+  // the Victory remount-on-data-identity contract still holds (a unit/metric
+  // change is a real reason to redraw, and the draw-on-mount effect keys on
+  // `chartData`).
   const chartData = useMemo(
     () =>
       (chartQuery.data ?? []).map((row) => ({

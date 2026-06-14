@@ -69,7 +69,8 @@ import { useDeleteSession, useSessionQuery, useUpdateSessionNotes } from "@/lib/
 import { useSetsForSessionQuery } from "@/lib/queries/sets";
 import { useExercisesQuery } from "@/lib/queries/exercises";
 import type { SetRow } from "@/lib/schemas/sets";
-import { getPref, type UnitPref } from "@/lib/prefs";
+import { type UnitPref } from "@/lib/prefs";
+import { useUnitStore } from "@/lib/units-store";
 import { formatWeight, toDisplayVolume } from "@/lib/units";
 
 // ---------------------------------------------------------------------------
@@ -100,13 +101,11 @@ export default function SessionDetailScreen() {
   const surfaceHex = isDark ? "#0E0E10" : "#FFFFFF";
   const borderHex = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.07)";
 
-  // D-20: read the unit pref into local state (settings.tsx idiom — useState +
-  // useEffect getPref). Defaults metric; storage stays canonical kg, conversion
-  // is display-only.
-  const [units, setUnits] = useState<UnitPref>("metric");
-  useEffect(() => {
-    void getPref("fm:units").then(setUnits);
-  }, []);
+  // D-20 / FIT-111: read the unit pref from the reactive useUnitStore selector
+  // so the stat grid + per-set list re-render the instant Settings toggles the
+  // unit. Defaults metric; storage stays canonical kg, conversion is
+  // display-only.
+  const units = useUnitStore((s) => s.unit);
 
   const sessionQuery = useSessionQuery(sessionId ?? "");
   const setsQuery = useSetsForSessionQuery(sessionId ?? "");
