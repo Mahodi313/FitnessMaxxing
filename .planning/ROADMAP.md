@@ -135,6 +135,7 @@ Plans:
 4. Haptics respect the Settings haptics toggle
 
 **Plans:** 3/3 plans complete
+
 - [x] 11-01-PLAN.md — Workout screen structural re-skin (custom header + live timer, progress dots, Forge logged-set table + ✕-delete, empty/loading, full i18n sweep + all phase locale keys)
 - [x] 11-02-PLAN.md — Set-input row re-skin (preserve keyboard wiring) + set-logged motion + gated haptic + Forge finish overlay with stats row + spring + BLOCKING F13 verification
 - [x] 11-03-PLAN.md — Draft-resume overlay (danger ghost End-session) + saved-toast re-skin (chrome only, §07 spring, inline-rendered)
@@ -215,8 +216,16 @@ Plans:
 **Plans:** 4 plans
 
 Plans:
+**Wave 1**
+
 - [ ] 14-01-PLAN.md — Wave 0 scaffold: pure rest-timer.ts + test + fm:restSeconds/fm:restTimerEnabled prefs + i18n + expo-notifications install (TIMER-01/02/04/05)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 14-02-PLAN.md — notifications.ts wrapper + rest-timer-store (Zustand) + _layout handler/tap deep-link (TIMER-03/05)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 14-03-PLAN.md — Settings restTimer row + duration picker + in-context permission prompt (TIMER-04)
 - [ ] 14-04-PLAN.md — floating countdown banner + fire-and-forget auto-start after addSet.mutate (TIMER-01/02/05)
 
