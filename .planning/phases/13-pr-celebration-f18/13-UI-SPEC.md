@@ -47,13 +47,12 @@ Declared values (multiples of 4 where the standard scale applies). All transcrib
 
 ### Ratified Forge Optical Exceptions (`forge_optical_exceptions_approved: true`)
 
-These values are **not** multiples of 4. They are **locked Forge design-system tokens already shipped** in the surrounding screens; this PR markup must reuse them verbatim. Rounding any of them to the 4-grid would break visual parity with the screens they sit inside. **Do NOT round these.** Each is cited to its authority below.
+These values are **not** multiples of 4. They are **locked Forge design-system tokens already shipped** in the surrounding screens; this PR markup must reuse them verbatim. Rounding any of them to the 4-grid would break visual parity with the screens they sit inside. **Do NOT round these.** Each is cited to its authority below. (The banner corner radius is the literal **16px** from `forge-screens.jsx:392` — a 4-multiple that sits between the named `forge-md` 14 and `forge-lg` 20 radius tokens, so it uses the literal rather than snapping to a token; it is *not* an exception and lives in the standard scale.)
 
 | Value | Element | Authority (mock line / token / carry-forward) | Why it cannot collapse to 4-grid |
 |-------|---------|-----------------------------------------------|----------------------------------|
 | **14px** | Banner horizontal padding (`padding: '12px 14px'`) | `forge-screens.jsx` line **392** (`padding: '12px 14px'`) — Forge card-inset optical value | The banner is dropped between already-shipped Forge cards on `FWorkout` that use this same inset; 16px would make the banner inset wider than its sibling cards and visibly misalign. Already shipped on the mock surface. |
 | **10px** | Trophy tile radius (36px banner tile) | `forge-screens.jsx` line **398** (`borderRadius: 10`) | The 36px gradient tile's corner radius is tuned optically to the tile size in the locked mock; 8px or 12px changes the trophy-chip silhouette against the banner wash. Locked Forge value. |
-| **16px** | Banner corner radius | `forge-screens.jsx` line **392** (`borderRadius: 16`) | Sits between `forge-md` (14) and `forge-lg` (20); the mock pins the banner at the literal `16`. (16 *is* a 4-multiple — listed here only because it is between the two named radius tokens and must use the literal, not snap to a token.) |
 | **5px / 9px** | Delta-chip padding (`padding: '5px 9px'`) | `forge-screens.jsx` line **809** (`padding: '5px 9px'`) **+ Phase 12 D-12 carry-forward** — this exact chip is **already shipped** on `chart.tsx` (live line 435: `px-2.5 py-1.5` = 10px/6px Tailwind realization of the same Forge chip, with the mock authority `5px 9px`) | The success delta chip is reused verbatim from the Phase 12 current-best hero (D-16 swaps its data, not its geometry). Re-deriving the padding would diverge the e1RM chip from the chip already rendered on the same hero in the prior phase. |
 
 **Touch targets:** the banner is non-interactive (auto-dismiss, no tap — D-10); set-row trophy + history trophy are non-interactive status glyphs inside existing ≥44px rows. No new tap targets introduced.
@@ -64,7 +63,7 @@ These values are **not** multiples of 4. They are **locked Forge design-system t
 
 Inter Display + tabular-nums on numerals; System for label/body. Sizes transcribed from the exact mock lines this phase renders. Near-duplicate sizes from the mock have been **collapsed** to a minimal functional ladder; the genuinely-distinct sizes are then **ratified as locked Forge type-scale tokens** (below) because they are already shipped on the surrounding screens and cannot collapse further without breaking parity.
 
-**Size collapse applied (reduces 7 mock sizes → 5 functional sizes):**
+**Size collapse applied (reduces 7 mock sizes → 6 functional sizes — 52 / 18 / 14 / 13 / 12 / 11px):**
 - `10px` + `11px` label/eyebrow cluster → **11px eyebrow** (single eyebrow size; the lone 10px `FChartStat` label on the *existing* shipped chart is unchanged by this phase and is out of the new-markup set).
 - `12px` + `13px` sub/value cluster → **12px banner sub** for the new banner text; the **13px delta-chip numeral** is retained as a distinct ratified token because it is the already-shipped chip figure (mock 811, live `chart.tsx` 444) and changing it would diverge the e1RM chip from the shipped current-best chip.
 
