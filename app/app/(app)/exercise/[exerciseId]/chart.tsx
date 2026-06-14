@@ -98,7 +98,7 @@ import { useExerciseSetsInRangeQuery } from "@/lib/queries/exercise-sets-in-rang
 import { SegmentedControl } from "@/components/segmented-control";
 import { useUnitStore } from "@/lib/units-store";
 import { epley1RM } from "@/lib/e1rm";
-import { formatVolume, formatWeight, toDisplayVolume, toDisplayWeight } from "@/lib/units";
+import { formatVolume, formatWeight, formatWeightValue, toDisplayVolume, toDisplayWeight } from "@/lib/units";
 
 // ── Forge token hexes (light / dark) ────────────────────────────────────────
 // NativeWind `dark:` classes do NOT apply inside the Skia canvas — resolve the
@@ -380,8 +380,12 @@ export default function ExerciseChartScreen() {
     return { bestE1rmKg, earliestE1rmKg };
   }, [setsInRangeQuery.data]);
 
+  // e1RM is a COMPUTED estimate (Epley), so the hero numeral must round —
+  // metric toDisplayWeight is a raw passthrough, which leaked a 17-digit float
+  // (e.g. 266.6666…) into the 52px numeral. formatWeightValue applies the same
+  // numeral convention formatWeight uses; heroUnit renders the unit separately.
   const heroNumeral =
-    hero != null ? String(toDisplayWeight(hero.bestE1rmKg, units)) : "–";
+    hero != null ? formatWeightValue(toDisplayWeight(hero.bestE1rmKg, units)) : "–";
   const heroUnit = units === "imperial" ? "lb" : "kg";
   // Success-only delta chip (D-16, Phase 12 D-12 carry-forward): positive →
   // "+{kg} kg" success chip; zero or negative → NO chip (never a red down-chip).

@@ -39,6 +39,17 @@ export function toDisplayWeight(kg: number, unit: UnitPref): number {
 }
 
 /**
+ * Format a bare display *numeral* (no unit suffix) using the canonical weight
+ * convention: integers stay integer; fractional values trim to one decimal.
+ * Use this when the unit is rendered separately (e.g. the chart hero numeral +
+ * heroUnit), so an unrounded passthrough float (e.g. a computed e1RM estimate
+ * like 266.6666…) never leaks into the numeral. Mirrors formatWeight's `fmt`.
+ */
+export function formatWeightValue(v: number): string {
+  return Number.isInteger(v) ? String(v) : v.toFixed(1);
+}
+
+/**
  * Format a canonical kg weight as a display string with its unit suffix.
  * e.g. formatWeight(100, "metric") === "100 kg"; formatWeight(100, "imperial") === "220.5 lb".
  */
@@ -47,9 +58,8 @@ export function formatWeight(kg: number, unit: UnitPref): string {
   // WR-04: normalize BOTH branches' display. The metric branch is a raw
   // passthrough (toDisplayWeight doesn't round kg), so without this a stored
   // float like 72.4999 would print verbatim. Integers stay integer; fractional
-  // values trim to one decimal — consistent across unit modes.
-  const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
-  return `${fmt(v)} ${unit === "imperial" ? "lb" : "kg"}`;
+  // values trim to one decimal — consistent across unit modes (formatWeightValue).
+  return `${formatWeightValue(v)} ${unit === "imperial" ? "lb" : "kg"}`;
 }
 
 /**
