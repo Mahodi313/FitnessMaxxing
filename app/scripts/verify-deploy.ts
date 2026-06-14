@@ -162,6 +162,55 @@ async function main() {
   }
 
   // -------------------------------------------------------------------------
+  // Phase 13 RPC verification (Migration 0012) — assert all four new read-only
+  // PR RPCs exist with SECURITY INVOKER (prosecdef = false) and search_path = ''
+  // (proconfig contains 'search_path=' substring). Same pg_proc check shape as
+  // Phase 12. These are the deploy-side locks for get_exercise_pr_history +
+  // get_best_working_sets + get_exercise_sets_in_range + get_session_pr_flags
+  // (PR-01 / PR-04 / PR-05 — T-13-01 RLS inheritance + T-13-02 search_path).
+  // -------------------------------------------------------------------------
+  console.log("\n=== Phase 13 RPC verification (Migration 0012) ===");
+  const phase13Functions = [
+    "get_exercise_pr_history",
+    "get_best_working_sets",
+    "get_exercise_sets_in_range",
+    "get_session_pr_flags",
+  ];
+  let phase13Failures = 0;
+  for (const fname of phase13Functions) {
+    const rows = await sql`
+      select proname, prosecdef, proconfig
+      from pg_proc
+      where pronamespace = 'public'::regnamespace
+        and proname = ${fname}
+    `;
+    if (rows.length === 0) {
+      console.log(`  FAIL: ${fname} — function not deployed`);
+      phase13Failures += 1;
+      continue;
+    }
+    const row = rows[0];
+    const cfg = Array.isArray(row.proconfig) ? row.proconfig.join(",") : (row.proconfig ?? "");
+    const hasSecurityInvoker = row.prosecdef === false;
+    const hasSearchPath = cfg.includes("search_path=");
+    if (hasSecurityInvoker && hasSearchPath) {
+      console.log(`  PASS: ${fname} — SECURITY INVOKER + search_path set`);
+    } else {
+      console.log(
+        `  FAIL: ${fname} — prosecdef=${row.prosecdef} proconfig=[${cfg}]`,
+      );
+      phase13Failures += 1;
+    }
+  }
+  if (phase13Failures > 0) {
+    console.error(
+      `\nPhase 13 verify-deploy FAILED — ${phase13Failures} function(s) missing or misconfigured`,
+    );
+    await sql.end();
+    process.exit(1);
+  }
+
+  // -------------------------------------------------------------------------
   // Phase 10 (Migration 0010) — assert the two additive columns landed AND the
   // workout_sessions → workout_plans FK is still ON DELETE SET NULL
   // (confdeltype = 'n'). D-06 + D-11. These are the regression locks for the
