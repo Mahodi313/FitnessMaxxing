@@ -159,6 +159,7 @@
   "setsStatLabel": "Sets",
   "volumeStatLabel": "kg · volume",
   "exercisesHeader": "Exercises",
+  "viewExerciseChart": "View progress chart for {{exercise}}",
   "deleteSessionQ": "Delete workout?",
   "cannotUndo": "This can't be undone.",
   "metricMaxWeight": "Max weight",

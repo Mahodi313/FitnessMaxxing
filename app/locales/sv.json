@@ -159,6 +159,7 @@
   "setsStatLabel": "Set",
   "volumeStatLabel": "kg · volym",
   "exercisesHeader": "Övningar",
+  "viewExerciseChart": "Visa progressionsgraf för {{exercise}}",
   "deleteSessionQ": "Ta bort pass?",
   "cannotUndo": "Det här går inte att ångra.",
   "metricMaxWeight": "Max vikt",
