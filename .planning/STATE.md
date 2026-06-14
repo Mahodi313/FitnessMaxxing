@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: — Forge Redesign
 status: executing
-stopped_at: Phase 13 UI-SPEC approved
-last_updated: "2026-06-14T14:45:10.818Z"
+stopped_at: Completed 13-03-PLAN.md
+last_updated: "2026-06-14T14:53:06.428Z"
 last_activity: 2026-06-14
 progress:
   total_phases: 8
   completed_phases: 5
   total_plans: 33
-  completed_plans: 30
+  completed_plans: 31
   percent: 63
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-06-09)
 ## Current Position
 
 Phase: 13 (pr-celebration-f18) — EXECUTING
-Plan: 3 of 5
+Plan: 4 of 5
 Status: Ready to execute
 Last activity: 2026-06-14
 
@@ -83,6 +83,7 @@ Last activity: 2026-06-14
 | Phase 12 P10 (FIT-110) | ~8min | 2 tasks | 3 files |
 | Phase 12 P11 (FIT-111) | ~14min | 3 tasks | 7 files |
 | Phase 13 P02 | 18min | 3 tasks | 4 files |
+| Phase 13 P03 | 8min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -154,6 +155,7 @@ Recent decisions affecting current work:
 - **2026-06-14 [12-09]**: FIT-109 (D-03/D-24) — finishing a session now invalidates dashboardKeys.all in the EXISTING ['session','finish'] onSettled (after listInfinite). Root cause: onSettled invalidated active/detail/last-value/listInfinite but not dashboardKeys, so get_dashboard_summary cache stayed stale until an unrelated refetch (next session start). One broad-prefix fire-and-forget invalidate (matches lastValueKeys.all convention) refreshes the shared Home-ring + History-card + lifetime-eyebrow slot (D-03). D-24 intact: mutationFn/onMutate/onError/retry/scope byte-unchanged, no await on the finish write. tsc+lint clean, non-comment dashboardKeys.all count=1, test:f13-brutal exit 0 (no-recent-session no-op; FIT-107 window).
 - [Phase ?]: 2026-06-13 [12-01]: Migration 0011 deployed live — get_dashboard_summary (combined 8-col single-row aggregate) + get_exercise_summary (chart hero/3-stat). Both security invoker + stable + search_path='' + set_type='working', finished-only. Streak <=2 in-progress-week island boundary LOCKED (D-07); local Mon-Sun bucketing via date_trunc('week', started_at at time zone p_tz) (D-06). Proven by test:dashboard.
 - [Phase ?]: 2026-06-14 [13-02]: Migration 0012 live — four read-only SECURITY INVOKER PR RPCs (search_path='', set_type=working D-03, weight_kg>0 D-04, finished-only). get_exercise_pr_history flags was_pr PR-at-log-time via strictly-prior window frame (rows between unbounded preceding and 1 preceding, Pitfall 1) + order by completed_at,set_id tiebreak (Pitfall 2) + first-set baseline false (D-02) + strict > so tie is not a PR (D-05). get_best_working_sets = all-time-best per exercise distinct-on ordered by internal e1RM (offline baseline D-06). get_exercise_sets_in_range = raw range sets for chart hero+delta (D-16). get_session_pr_flags = SAME engine partition by exercise_id + bool_or to session has_pr (D-14, history-list trophy aggregator, RESEARCH Open Q1). Internal SQL e1RM (float div) is ordering/flagging ONLY, never returned (D-08); RAW sets returned, JS recomputes via lib/e1rm.ts. phase13Functions deploy gate + test-rls cross-user + was_pr/has_pr fixture all green. 0 deviations.
+- [Phase ?]: 2026-06-14 [13-03]: Wave-2 PR read-side query layer. useBestE1rmQuery offline-first Record<exerciseId,{weight_kg,reps}> over get_best_working_sets (single dashboardKeys.summary()-style slot, NO per-exercise arg; Record-not-Map persister-safe; userId belt-and-braces; 15-min staleTime mirroring last-value.ts) = the live PR-detection baseline (D-06/PR-01). usePrHistoryQuery (was_pr-per-set, D-14/D-15) + useExerciseSetsInRangeQuery (raw range sets, since=null omits p_since so PostgREST defaults NULL, D-16) + useSessionPrFlags (ONE get_session_pr_flags call over the visible session-id array -> Record<session_id,has_pr>, hooks-legal history-LIST aggregator replacing a per-exercise hook loop, D-14/RESEARCH-OpenQ1; key sorts an id-list copy for order-independent cache). All four Zod-parse every RPC row (T-13-06); raw weight/reps returned, JS owns e1RM via lib/e1rm.ts (D-08). ONE additive bestE1rmKeys.all invalidate in the existing session-finish onSettled (D-17 hard line). tsc+test:f13-brutal green; 0 deviations.
 
 ### Pending Todos
 
@@ -184,8 +186,8 @@ Items acknowledged for later:
 
 ## Session Continuity
 
-Last session: 2026-06-14T14:41:48.572Z
-Stopped at: Phase 13 UI-SPEC approved
+Last session: 2026-06-14T14:53:06.416Z
+Stopped at: Completed 13-03-PLAN.md
 Resume file: None
 Next: Orchestrator runs phase-level closeout — `/gsd-secure-phase 4` (close threat register T-04-01 … T-04-12 against implementation; produce 04-SECURITY.md with threats_open: 0) → `/gsd-verify-work 4` (write 04-VERIFICATION.md with all 5 success criteria MET) → `/gsd-code-review` (post-phase audit) → phase.complete (advance ROADMAP Phase 4 → ✓ Complete). Then plan Phase 5 (Active Workout Hot Path — F13 lives or dies).
 

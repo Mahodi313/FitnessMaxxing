@@ -185,7 +185,7 @@ Plans:
 2. PR sets show a trophy in the workout set list and a celebration banner (with sweep animation) appears
 3. History marks PR sessions; session detail and the chart surface PR / estimated 1RM with the range delta
 
-**Plans:** 2/5 plans executed
+**Plans:** 3/5 plans executed
 Plans:
 **Wave 1**
 
@@ -194,7 +194,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 13-03-PLAN.md — query layer: best-e1rm (offline-first) + pr-history + sets-in-range hooks + the single additive ['session','finish'].onSettled line (PR-01/04/05)
+- [x] 13-03-PLAN.md — query layer: best-e1rm (offline-first) + pr-history + sets-in-range hooks + the single additive ['session','finish'].onSettled line (PR-01/04/05)
 
 **Wave 3** *(blocked on Wave 2)*
 
@@ -248,7 +248,7 @@ Deferred to a later milestone (needs Apple Developer license + tooling). Mapped 
 | 10. Plans & Exercises Re-skin                 | v2.0 | 6/6 | Complete    | 2026-06-12 |
 | 11. Active Workout Re-skin (F13 risk)         | v2.0 | 3/3 | Complete   | 2026-06-13 |
 | 12. History, Detail, Chart & Dashboard        | v2.0 | 11/11 | Complete    | 2026-06-14 |
-| 13. PR Celebration (F18)                      | v2.0 | 2/5 | In Progress|  |
+| 13. PR Celebration (F18)                      | v2.0 | 3/5 | In Progress|  |
 | 14. Rest Timer (F19)                          | v2.0 | 0/? | ○ Planned  | — |
 | 15. Bilingual & Release Hardening             | v2.0 | 0/? | ○ Planned  | — |
 
