@@ -173,7 +173,7 @@ Plans:
 
 - [x] 12-09-PLAN.md - FIT-109: invalidate dashboardKeys on session finish so the Home ring/count refreshes immediately (D-03/D-24) — completed 2026-06-14
 - [x] 12-10-PLAN.md - FIT-110 (regression): restore the session-detail ExerciseCard chart cross-link dropped in the 12-07 re-skin (D-15/D-17 preserved) — completed 2026-06-14
-- [ ] 12-11-PLAN.md - FIT-111: reactive units store so a kg-lbs toggle re-renders all figures live, no restart (D-20/D-08/D-24)
+- [x] 12-11-PLAN.md - FIT-111: reactive units store so a kg-lbs toggle re-renders all figures live, no restart (D-20/D-08/D-24) — completed 2026-06-14
 
 #### Phase 13: PR Celebration (F18)
 
