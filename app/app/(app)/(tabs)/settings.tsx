@@ -57,6 +57,7 @@ import { z } from "zod";
 import { useAuthStore } from "@/lib/auth-store";
 import { supabase } from "@/lib/supabase";
 import { getPref, setPref, type UnitPref } from "@/lib/prefs";
+import { useUnitStore } from "@/lib/units-store";
 import i18n, { resolveLanguage, type LanguagePref } from "@/lib/i18n";
 import { SegmentedControl } from "@/components/segmented-control";
 import { SettingsRow, SettingsSection } from "@/components/ui/SettingsRow";
@@ -203,8 +204,11 @@ export default function SettingsTab() {
   const [theme, setTheme] = useState<ThemePref>("system");
   // ---- Language (SET-05/I18N-02) — fm:language three-state. ----
   const [language, setLanguage] = useState<LanguagePref>("system");
-  // ---- Units (SET-03) — fm:units. ----
-  const [units, setUnits] = useState<UnitPref>("metric");
+  // ---- Units (SET-03) — fm:units via the reactive store (FIT-111). Reading
+  // from useUnitStore (instead of a local useState seeded once by getPref) means
+  // a toggle here flips every read-side subscriber live, mirroring how the
+  // LANGUAGE control propagates live via i18n.changeLanguage. ----
+  const units = useUnitStore((s) => s.unit);
   // ---- Notifications + haptics switches (SET-06/SET-07). ----
   const [haptics, setHaptics] = useState(true);
   const [notifications, setNotifications] = useState(false);
@@ -220,7 +224,8 @@ export default function SettingsTab() {
       setColorScheme(parsed);
     });
     void getPref("fm:language").then(setLanguage);
-    void getPref("fm:units").then(setUnits);
+    // fm:units is hydrated into useUnitStore at boot (UnitsBootstrap) and read
+    // reactively above — no local seed needed here (FIT-111).
     void getPref("fm:haptics").then(setHaptics);
     void getPref("fm:notifications").then(setNotifications);
   }, [setColorScheme]);
@@ -266,8 +271,9 @@ export default function SettingsTab() {
   };
 
   const onUnitsChange = (value: UnitPref) => {
-    setUnits(value);
-    setPref("fm:units", value);
+    // The store action owns BOTH the live state flip (every subscriber
+    // re-renders) AND the setPref("fm:units") persist (FIT-111).
+    useUnitStore.getState().setUnit(value);
   };
 
   // Units row → iOS ActionSheet picker (mockup: tap row → väljare). V1 is

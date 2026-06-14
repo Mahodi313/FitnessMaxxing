@@ -150,6 +150,31 @@ Plans:
 3. Dashboard aggregates come from RLS-scoped read-side RPCs with a clean empty state for new users
 4. The chart line draws on mount
 
+**Plans:** 11/11 plans complete
+Plans:
+**Wave 1**
+
+- [x] 12-01-PLAN.md — Migration 0011 (get_dashboard_summary + get_exercise_summary RPCs) + [BLOCKING] push + gen:types + verify-deploy + cross-user test:rls + streak/week Wave-0 fixtures
+- [x] 12-02-PLAN.md — Shared deps: units toDisplayVolume/formatVolume + full sv/en i18n key set incl. weeks/week streak relabel
+- [x] 12-03-PLAN.md — Animate Skia primitives: ProgressRing fill + overflow glow (MOTN-02/D-19) + Sparkline draw-in (D-18), reduce-motion aware
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [x] 12-04-PLAN.md — Query layer: dashboardKeys/exerciseSummaryKeys + useDashboardSummaryQuery + useExerciseSummaryQuery + 3-state ChartRange/rangeToSince (additive, D-24-safe)
+
+**Wave 3** *(blocked on Waves 1+2)*
+
+- [x] 12-05-PLAN.md — Home ring hero (DASH-01/02) + active-session swap + zeroed empty state + F13 gate
+- [x] 12-06-PLAN.md — History re-skin: lifetime eyebrow + volume card (DASH-03/04 split) + Forge rows + F13 gate
+- [x] 12-07-PLAN.md — Session detail re-skin: custom header + hybrid breakdown + preserved overlays + F13 gate
+- [x] 12-08-PLAN.md — Exercise chart re-skin: custom header + 3-state range + real current-best hero + 3-stat row + draw-on-mount (MOTN-03) + F13 gate
+
+**Wave 4 - Gap closure** *(device-UAT fixes from 12-UAT.md)*
+
+- [x] 12-09-PLAN.md - FIT-109: invalidate dashboardKeys on session finish so the Home ring/count refreshes immediately (D-03/D-24) — completed 2026-06-14
+- [x] 12-10-PLAN.md - FIT-110 (regression): restore the session-detail ExerciseCard chart cross-link dropped in the 12-07 re-skin (D-15/D-17 preserved) — completed 2026-06-14
+- [x] 12-11-PLAN.md - FIT-111: reactive units store so a kg-lbs toggle re-renders all figures live, no restart (D-20/D-08/D-24) — completed 2026-06-14
+
 #### Phase 13: PR Celebration (F18)
 
 **Goal:** Detect personal bests by e1RM client-side (offline-safe) and surface trophies + a celebration banner.
@@ -206,7 +231,7 @@ Deferred to a later milestone (needs Apple Developer license + tooling). Mapped 
 | 9. Auth, Settings & Preferences               | v2.0 | 3/3 | Complete   | 2026-06-11 |
 | 10. Plans & Exercises Re-skin                 | v2.0 | 6/6 | Complete    | 2026-06-12 |
 | 11. Active Workout Re-skin (F13 risk)         | v2.0 | 3/3 | Complete   | 2026-06-13 |
-| 12. History, Detail, Chart & Dashboard        | v2.0 | 0/? | ○ Planned  | — |
+| 12. History, Detail, Chart & Dashboard        | v2.0 | 11/11 | Complete    | 2026-06-14 |
 | 13. PR Celebration (F18)                      | v2.0 | 0/? | ○ Planned  | — |
 | 14. Rest Timer (F19)                          | v2.0 | 0/? | ○ Planned  | — |
 | 15. Bilingual & Release Hardening             | v2.0 | 0/? | ○ Planned  | — |

@@ -1008,6 +1008,108 @@ async function main() {
     }
   }
 
+  // =========================================================================
+  // Phase 12 extension (Migration 0011) — cross-user assertions, ONE per new
+  // read-only aggregate RPC (D-23). Threat-register IDs T-12-01, T-12-02.
+  // Both RPCs are SECURITY INVOKER → the caller's JWT flows into the 0001 RLS
+  // policies, so B's data must NEVER surface in A's aggregates.
+  // =========================================================================
+  console.log(
+    "[test-rls] Phase 12 extension — dashboard + exercise summary RPCs cross-user gates…",
+  );
+
+  // Seed a FINISHED session + working set for User B so the finished-only
+  // dashboard aggregate has B-data that COULD leak if RLS were broken. (B's
+  // baseline sessB above is unfinished, so it never reaches a finished-only
+  // aggregate — this finished one is the real leak bait.)
+  const sessBFinishedId = randomUUID();
+  {
+    const { error } = await clientB.from("workout_sessions").insert({
+      id: sessBFinishedId,
+      user_id: userB.id,
+      plan_id: planB.id,
+      started_at: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+      finished_at: new Date().toISOString(),
+    });
+    if (error) throw new Error(`seed B finished session: ${error.message}`);
+  }
+  {
+    const { error } = await clientB.from("exercise_sets").insert({
+      session_id: sessBFinishedId,
+      exercise_id: exB.id,
+      set_number: 1,
+      reps: 8,
+      weight_kg: 80,
+      rpe: 8,
+      set_type: "working",
+    });
+    if (error) throw new Error(`seed B finished set: ${error.message}`);
+  }
+
+  // ---- get_dashboard_summary cross-user RPC (T-12-01) ----------------------
+  // A calls it: A has NO finished sessions, so every aggregate must be zero.
+  // If B's finished session/volume inflated A's totals, RLS is broken.
+  {
+    const { data: dashAsA, error: dashErr } =
+      await clientA.rpc("get_dashboard_summary", { p_tz: "Europe/Stockholm" });
+    const rowA = dashAsA?.[0];
+    if (dashErr) {
+      fail("Phase 12 extension: get_dashboard_summary RPC returned error for A", {
+        error: dashErr,
+      });
+    } else if (!rowA) {
+      fail("Phase 12 extension: get_dashboard_summary returned no row for A", {
+        dashAsA,
+      });
+    } else if (
+      Number(rowA.lifetime_sessions) !== 0 ||
+      Number(rowA.sessions_this_week) !== 0 ||
+      Number(rowA.volume_this_week_kg) !== 0
+    ) {
+      fail("Phase 12 extension: A's get_dashboard_summary leaked B's finished session", {
+        lifetime_sessions: rowA.lifetime_sessions,
+        sessions_this_week: rowA.sessions_this_week,
+        volume_this_week_kg: rowA.volume_this_week_kg,
+      });
+    } else {
+      pass(
+        "Phase 12 extension: A's get_dashboard_summary reflects only A's data (B's finished session not surfaced)",
+      );
+    }
+  }
+
+  // ---- get_exercise_summary cross-user RPC (T-12-02) -----------------------
+  // A calls it with B's exercise_id — RLS on exercise_sets + workout_sessions
+  // scopes via parent-FK EXISTS, so every figure must be empty/zero/null.
+  {
+    const { data: summAsA, error: summErr } =
+      await clientA.rpc("get_exercise_summary", {
+        p_exercise_id: exB.id,
+        p_metric: "weight",
+        p_since: null as unknown as string,
+      });
+    const rowS = summAsA?.[0];
+    if (summErr) {
+      fail("Phase 12 extension: get_exercise_summary RPC returned error for A on B's exercise", {
+        error: summErr,
+      });
+    } else if (
+      rowS &&
+      (rowS.current_best != null ||
+        rowS.top_set_weight_kg != null ||
+        rowS.vol_per_session_kg != null ||
+        rowS.avg_rpe != null)
+    ) {
+      fail("Phase 12 extension: A's get_exercise_summary leaked B's exercise data", {
+        row: rowS,
+      });
+    } else {
+      pass(
+        "Phase 12 extension: A's get_exercise_summary on B's exercise returns empty/null (RLS-filtered)",
+      );
+    }
+  }
+
   // ---- Defense-in-depth: B's session survives A's delete attempt -----------
   console.log(
     "[test-rls] Phase 6 extension — defense-in-depth: B's session survives…",

@@ -1,64 +1,42 @@
 // app/app/(app)/history/[sessionId].tsx
 //
-// Phase 6 Plan 06-02: F9 session-detail + delete vertical slice.
+// Phase 12 Plan 12-07: FSessionDetail re-skin (SKIN-06).
 //
-// Read-only session-detail screen. The route is reached from the Historik
-// tab (Plan 06-01b rewrote that screen as a cursor-paginated FlatList; each
-// row's onPress lands here). Composition:
+// CHROME-ONLY re-skin over the Phase 6 / Phase 4 offline-critical logic. The
+// session-detail screen is now a Forge surface:
 //
-//   - Stack.Screen with a dynamic date title + a headerRight ellipsis
-//     trigger for the overflow menu.
-//   - SafeAreaView/ScrollView with a SummaryHeader (chip row: set-count,
-//     total-volume, duration) above a list of ExerciseCard components
-//     (one per exercise that appears in this session's set list).
-//   - Each ExerciseCard's header is a Pressable cross-link to
-//     /exercise/<exerciseId>/chart (D-11 + D-25 — the route ships in Plan
-//     06-03 so the path literal is cast `as Href` until that lands; see
-//     Phase 4 D-X cross-plan-route convention from (tabs)/index.tsx).
-//   - Inline-overlay overflow menu (Phase 4 commit 954c480 pattern — NOT a
-//     Modal portal; NativeWind/flex layout silently collapses inside the
-//     Modal portal per UAT 2026-05-10).
-//   - Inline-overlay delete-confirm (Phase 4 commit e07029a pattern); body
-//     shows the exact set-count + total-volume so the user sees what is
-//     being deleted (D-07).
-//   - Toast on success — emitted on the destination route via
-//     router.replace({ params: { toast: "deleted" } }); the list screen
-//     (tabs)/history.tsx renders the toast on mount and clears the param.
-//     Mounting it here (WR-01 in 06-REVIEW.md) was a visibility dead-zone
-//     because router.replace synchronously blurs the detail screen.
+//   - D-17 custom in-content Forge header (Stack native header hidden):
+//     40px circular back (chevronLeft) + 40px circular ellipsis (hosts the
+//     EXISTING overflow → delete flow). Icon-only controls carry
+//     accessibilityLabel via t('back') / t('moreOptions') + role="button" +
+//     44px hit target (FLAG-1). Replaces the old headerRight ellipsis.
+//   - Eyebrow (plan-name snapshot, uppercase) + display date title.
+//   - 3-stat grid card (Set / kg·volym / min) with cell dividers, tabular-nums,
+//     every figure unit-converted (D-20 via formatWeight/formatVolume + units).
+//   - Notes block: accentSoft card + accent border + accent pencil icon
+//     (F12 note rendered verbatim, never translated).
+//   - D-15 HYBRID exercise-breakdown cards: Forge frame + name + right-aligned
+//     max-weight stat AND the kept expanded per-set list (w × r + RPE per set).
+//   - Delete-confirm button colored forge-danger (#D70015 → #FF453A).
+//   - PB trophy OMITTED everywhere (D-13).
 //
-// useFocusEffect cleanup resets the two overlay-state flags on blur so
-// freezeOnBlur (Phase 4 D-08) does not leave a ghost overlay on re-focus
-// (Pitfall 7 in 06-RESEARCH.md).
-//
-// Delete-handler convention (mutate-not-mutateAsync — Phase 4 commit
-// 5d953b6): deleteSession.mutate({ id }, { onError }); the toast fires
-// immediately after the optimistic remove from cache. router.replace lands
-// the user back on Historik. Offline: paused mutation queues under
-// networkMode:'offlineFirst' (Phase 4 D-07) and replays on reconnect via
-// resumePausedMutations (Plan 04-01); FK on delete cascade then purges
-// the now-orphaned exercise_sets server-side.
-//
-// Theme — useColorScheme() drives the muted/accent values used by the
-// header ellipsis Ionicon, the chart-link Ionicon on each card, and the
-// toast bg-blue accent (Phase 4 D-18 / Plan 06-PATTERNS shared pattern).
-//
-// Loading-gate (Phase 4 plans/[id] pattern): gate on `!session` (NOT
-// isPending). useSessionQuery has initialData seeding from
-// sessionsKeys.active() so when the user reaches this route by tapping
-// from the Historik list, `session` is populated synchronously. Error
-// state surfaces the generic Swedish copy.
+// OFFLINE-CRITICAL LOGIC PRESERVED VERBATIM (D-22 — re-skin chrome only, do NOT
+// touch the logic): keyboard-height lift + paddingBottom = keyboardHeight + 16;
+// useFocusEffect overlay reset on blur (freezeOnBlur ghost-overlay guard);
+// mutate-not-mutateAsync for delete + edit-notes; inline-overlay pattern (NEVER
+// a Modal portal) for overflow menu / delete-confirm / edit-notes with
+// tap-on-scrim dismiss + setTimeout(...50) before the stacked confirm;
+// post-delete router.replace to /(tabs)/history with toast:"deleted"; loading
+// gate on !session (NOT isPending) + initialData seeding.
 //
 // References:
-//   - 06-02-PLAN.md Task 2 + acceptance criteria
-//   - 06-UI-SPEC.md §Session-detail screen container + §Session-detail
-//     summary-header + §Session-detail exercise-card + §Session-detail
-//     overflow-menu trigger + §Session-detail overflow-menu overlay +
-//     §Session-detail delete-confirm overlay + §Post-delete toast
-//   - 06-CONTEXT.md D-05/D-06/D-07/D-09/D-10/D-11/D-12/D-13
-//   - 06-PATTERNS.md "app/app/(app)/history/[sessionId].tsx" full section
-//   - 06-RESEARCH.md Pitfall 6 (InfiniteQuery envelope) + Pitfall 7
-//     (freezeOnBlur overlay reset)
+//   - 12-07-PLAN.md Task 1 + acceptance criteria
+//   - 12-UI-SPEC.md §Session detail (Layout Contract 202) + Copywriting Contract
+//     + Color (forge-danger) + Icon-only-control accessibility (FLAG-1)
+//   - 12-PATTERNS.md §history/[sessionId].tsx (deltas + preserve-verbatim list)
+//   - 12-CONTEXT.md D-13/D-15/D-17/D-20/D-21/D-22/D-24
+//   - design source: forge-screens.jsx FSessionDetail 649-764 (PB trophy 739-746 OMITTED)
+//   - Phase 11 workout/[sessionId].tsx WorkoutHeader (D-09 custom-header precedent)
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -71,7 +49,10 @@ import {
   View,
 } from "react-native";
 import { useColorScheme } from "nativewind";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import {
   Stack,
   useFocusEffect,
@@ -79,20 +60,18 @@ import {
   useRouter,
   type Href,
 } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
 import { differenceInMinutes, format } from "date-fns";
 import { sv } from "date-fns/locale";
+import { useTranslation } from "react-i18next";
 
+import { Icon } from "@/components/ui/Icon";
 import { useDeleteSession, useSessionQuery, useUpdateSessionNotes } from "@/lib/queries/sessions";
 import { useSetsForSessionQuery } from "@/lib/queries/sets";
 import { useExercisesQuery } from "@/lib/queries/exercises";
 import type { SetRow } from "@/lib/schemas/sets";
-
-// Swedish non-breaking-space thousands separator: 3240 → "3 240".
-// Same helper as (tabs)/history.tsx — V1.1 may extract to a shared util.
-function formatNumber(n: number): string {
-  return n.toLocaleString("sv-SE");
-}
+import { type UnitPref } from "@/lib/prefs";
+import { useUnitStore } from "@/lib/units-store";
+import { formatWeight, toDisplayVolume } from "@/lib/units";
 
 // ---------------------------------------------------------------------------
 // Default export — SessionDetailScreen
@@ -100,6 +79,8 @@ function formatNumber(n: number): string {
 
 export default function SessionDetailScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
   // useLocalSearchParams' generic is a TYPE ASSERTION, not a runtime guard
   // (per workout/[sessionId].tsx WR-07). Narrow explicitly so any malformed
   // deep-link with an array param does not poison the queryKey or router
@@ -110,8 +91,21 @@ export default function SessionDetailScreen() {
 
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
-  const muted = isDark ? "#9CA3AF" : "#6B7280";
-  const accent = isDark ? "#60A5FA" : "#2563EB";
+  // Forge token hexes for the inline-overlay surfaces (NativeWind dark: classes
+  // do NOT apply inside the absolute-positioned RN-StyleSheet overlays per the
+  // Phase 4 inline-overlay convention). Class-driven surfaces still use tokens.
+  const ink = isDark ? "#FFFFFF" : "#0A0A0A";
+  const muted2 = isDark ? "rgba(255,255,255,0.62)" : "#4D4D4D";
+  const accentInk = isDark ? "#FF5A1F" : "#E14E10";
+  const dangerInk = isDark ? "#FF453A" : "#D70015";
+  const surfaceHex = isDark ? "#0E0E10" : "#FFFFFF";
+  const borderHex = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.07)";
+
+  // D-20 / FIT-111: read the unit pref from the reactive useUnitStore selector
+  // so the stat grid + per-set list re-render the instant Settings toggles the
+  // unit. Defaults metric; storage stays canonical kg, conversion is
+  // display-only.
+  const units = useUnitStore((s) => s.unit);
 
   const sessionQuery = useSessionQuery(sessionId ?? "");
   const setsQuery = useSetsForSessionQuery(sessionId ?? "");
@@ -183,11 +177,10 @@ export default function SessionDetailScreen() {
     updateNotes.mutate(
       { id: session.id, notes: draftNotes },
       {
-        onError: () =>
-          setBannerError("Kunde inte spara anteckningen. Försök igen."),
+        onError: () => setBannerError(t("errorGenericSub")),
       },
     );
-  }, [draftNotes, session, updateNotes]);
+  }, [draftNotes, session, updateNotes, t]);
 
   // Build the exercise-name lookup. Phase 4 Plan 04-04 commit 3bfaba8
   // pattern — avoids a join in the queryFn; the exercises cache is hot from
@@ -216,14 +209,20 @@ export default function SessionDetailScreen() {
     return m;
   }, [setsQuery.data]);
 
-  // Aggregates for SummaryHeader (D-09). Empty pass (D-13) gracefully
-  // produces `0 set · 0 kg · X min` because the reduce over an empty array
-  // returns 0.
+  // Aggregates for the 3-stat grid (D-15). Empty pass (D-13) gracefully
+  // produces zeros because the reduce over an empty array returns 0.
   const setCount = (setsQuery.data ?? []).length;
   const totalVolumeKg = (setsQuery.data ?? []).reduce(
     (sum, s) => sum + s.weight_kg * s.reps,
     0,
   );
+  // D-20: the grid numeral renders the converted value WITHOUT a suffix (the
+  // suffix lives in the micro-label "kg · volym" / "lb · volym"). Locale-group
+  // for the Swedish non-breaking-space separator.
+  const totalVolumeDisplay = Math.round(
+    toDisplayVolume(totalVolumeKg, units),
+  ).toLocaleString("sv-SE");
+  const volumeUnitLabel = units === "imperial" ? "lb" : "kg";
   // D-10: '—' when finished_at is null. V1 history filters
   // finished_at IS NOT NULL so this path is defensive.
   const durationMin =
@@ -233,18 +232,18 @@ export default function SessionDetailScreen() {
           new Date(session.started_at),
         )
       : null;
-  const durationLabel = durationMin != null ? `${durationMin} min` : "—";
+  const durationDisplay = durationMin != null ? String(durationMin) : "—";
 
   // Error gate — useSessionQuery returns no data when RLS blocks (T-06-06
   // mitigation: spoofed/missing id renders generic copy, no data
   // disclosure).
   if (sessionQuery.error) {
     return (
-      <SafeAreaView className="flex-1 bg-white dark:bg-gray-900">
-        <Stack.Screen options={{ headerShown: true, title: "Pass" }} />
+      <SafeAreaView className="flex-1 bg-forge-bg-light dark:bg-forge-bg">
+        <Stack.Screen options={{ headerShown: false }} />
         <View className="flex-1 items-center justify-center px-6">
-          <Text className="text-base text-gray-500 dark:text-gray-400 text-center">
-            Något gick fel. Försök igen.
+          <Text className="text-base text-forge-text2-light dark:text-forge-text2 text-center">
+            {t("errorGeneric")}
           </Text>
         </View>
       </SafeAreaView>
@@ -257,11 +256,11 @@ export default function SessionDetailScreen() {
   // synchronously when navigating in from /(tabs)/history.
   if (!session) {
     return (
-      <SafeAreaView className="flex-1 bg-white dark:bg-gray-900">
-        <Stack.Screen options={{ headerShown: true, title: "Pass" }} />
+      <SafeAreaView className="flex-1 bg-forge-bg-light dark:bg-forge-bg">
+        <Stack.Screen options={{ headerShown: false }} />
         <View className="flex-1 items-center justify-center">
-          <Text className="text-base text-gray-500 dark:text-gray-400">
-            Laddar…
+          <Text className="text-base text-forge-text2-light dark:text-forge-text2">
+            {t("loading")}
           </Text>
         </View>
       </SafeAreaView>
@@ -278,17 +277,13 @@ export default function SessionDetailScreen() {
   // WR-01: the post-delete toast is emitted on the LIST route via the
   // `?toast=deleted` query param; the list screen consumes + clears it on
   // mount. Mounting the toast here was a dead-zone — router.replace
-  // synchronously blurs this screen so the user never sees it. The error
-  // banner stays here because mutation failure surfaces (rarely) after the
-  // user has navigated away, which is its own UX gap; closing that gap is
-  // tracked separately (V1.1 polish).
+  // synchronously blurs this screen so the user never sees it.
   const onDeleteConfirm = () => {
     setShowDeleteConfirm(false);
     deleteSession.mutate(
       { id: session.id },
       {
-        onError: () =>
-          setBannerError("Kunde inte ta bort passet. Försök igen."),
+        onError: () => setBannerError(t("errorGenericSub")),
       },
     );
     router.replace({
@@ -300,139 +295,209 @@ export default function SessionDetailScreen() {
   const formattedTitle = format(new Date(session.started_at), "d MMM yyyy", {
     locale: sv,
   });
+  // Eyebrow = plan-name snapshot (uppercase, Phase 10 D-11). Falls back to the
+  // no-plan copy for plan-less sessions.
+  const eyebrow = (session.plan_name_snapshot ?? t("noPlan")).toUpperCase();
 
   return (
-    <SafeAreaView className="flex-1 bg-white dark:bg-gray-900">
-      <Stack.Screen
-        options={{
-          headerShown: true,
-          title: formattedTitle,
-          headerRight: () => (
-            <Pressable
-              onPress={() => setShowOverflowMenu(true)}
-              accessibilityRole="button"
-              accessibilityLabel="Pass-menyn"
-              hitSlop={8}
-              className="px-2 py-1"
-            >
-              <Ionicons name="ellipsis-horizontal" size={24} color={muted} />
-            </Pressable>
-          ),
-        }}
-      />
+    <SafeAreaView
+      className="flex-1 bg-forge-bg-light dark:bg-forge-bg"
+      edges={["left", "right", "bottom"]}
+    >
+      <Stack.Screen options={{ headerShown: false }} />
+
       <ScrollView
         contentContainerStyle={{
-          paddingHorizontal: 16,
-          paddingTop: 16,
-          paddingBottom: 96,
+          paddingBottom: 32,
         }}
       >
-        <View className="gap-6">
-          {/* F12 Notes-block — above SummaryHeader chiparna (D-E4).
-              Two modes: text + pencil (notes present) OR add-affordance (notes null).
-              Both open edit-notes-overlay via openEditNotes. */}
-          <View className="bg-gray-100 dark:bg-gray-800 rounded-lg px-4 py-3 flex-row items-start gap-2">
-            {session.notes ? (
-              <>
-                <Text className="flex-1 text-base text-gray-900 dark:text-gray-50">
-                  {session.notes}
-                </Text>
-                <Pressable
-                  onPress={openEditNotes}
-                  accessibilityRole="button"
-                  accessibilityLabel="Redigera anteckning"
-                  hitSlop={8}
-                >
-                  <Ionicons name="pencil-outline" size={18} color={muted} />
-                </Pressable>
-              </>
-            ) : (
-              <Pressable
-                onPress={openEditNotes}
-                accessibilityRole="button"
-                accessibilityLabel="Lägg till anteckning"
-                hitSlop={8}
-                className="flex-row items-center gap-2 flex-1"
-              >
-                <Ionicons name="add-circle-outline" size={18} color={accent} />
-                <Text className="text-base text-gray-500 dark:text-gray-400">
-                  Lägg till anteckning
-                </Text>
-              </Pressable>
-            )}
-          </View>
+        {/* D-17 custom in-content Forge header — owns the safe-area top inset
+            now that the native Stack header is hidden. */}
+        <View
+          className="flex-row items-center justify-between px-4 pb-1"
+          style={{ paddingTop: insets.top + 8 }}
+        >
+          {/* Left — 40px circular back button */}
+          <Pressable
+            onPress={() => router.back()}
+            accessibilityRole="button"
+            accessibilityLabel={t("back")}
+            hitSlop={{ top: 11, bottom: 11, left: 11, right: 11 }}
+            className="w-10 h-10 rounded-forge-lg items-center justify-center border bg-forge-surface-light dark:bg-forge-surface border-forge-border-light dark:border-forge-border"
+            style={({ pressed }) => (pressed ? { opacity: 0.85 } : null)}
+          >
+            <Icon name="chevronLeft" size={18} color={ink} strokeWidth={2.2} />
+          </Pressable>
 
-          {/* Transient banner-error (rare — surfaces if eventual replay
-              fails after reconnect). Mirrors plans/[id].tsx convention. */}
-          {bannerError && (
-            <View className="flex-row items-start justify-between gap-2">
+          {/* Right — 40px circular ellipsis button (hosts the existing
+              overflow → delete flow) */}
+          <Pressable
+            onPress={() => setShowOverflowMenu(true)}
+            accessibilityRole="button"
+            accessibilityLabel={t("moreOptions")}
+            hitSlop={{ top: 11, bottom: 11, left: 11, right: 11 }}
+            className="w-10 h-10 rounded-forge-lg items-center justify-center border bg-forge-surface-light dark:bg-forge-surface border-forge-border-light dark:border-forge-border"
+            style={({ pressed }) => (pressed ? { opacity: 0.85 } : null)}
+          >
+            <Icon name="ellipsis" size={18} color={ink} />
+          </Pressable>
+        </View>
+
+        {/* Eyebrow + display date title */}
+        <View className="px-5 pt-3 pb-4">
+          <Text
+            className="text-[11px] font-semibold uppercase text-forge-text3-light dark:text-forge-text3"
+            style={{ letterSpacing: 1.5 }}
+            numberOfLines={1}
+          >
+            {eyebrow}
+          </Text>
+          <Text
+            className="mt-1 text-[32px] font-display-bold text-forge-text-light dark:text-forge-text"
+            style={{ letterSpacing: -1 }}
+          >
+            {formattedTitle}
+          </Text>
+        </View>
+
+        {/* 3-stat grid card — Set / kg·volym / min (D-15). 1fr·1fr·1fr with
+            cell dividers; tabular-nums; figures unit-converted (D-20). */}
+        <View className="px-4 pb-3.5">
+          <View className="flex-row rounded-forge-lg border bg-forge-surface-light dark:bg-forge-surface border-forge-border-light dark:border-forge-border">
+            <View className="flex-1 items-center py-[18px] px-3.5 border-r border-forge-border-light dark:border-forge-border">
               <Text
-                className="flex-1 text-base text-red-600 dark:text-red-400"
-                accessibilityLiveRegion="polite"
+                className="text-[28px] font-display-bold text-forge-text-light dark:text-forge-text"
+                style={{ fontVariant: ["tabular-nums"], letterSpacing: -0.6 }}
               >
-                {bannerError}
+                {setCount}
               </Text>
-              <Pressable
-                onPress={() => setBannerError(null)}
-                accessibilityRole="button"
-                accessibilityLabel="Stäng"
-                accessibilityHint="Tryck för att stänga"
-                className="px-2 py-1"
-                hitSlop={8}
+              <Text
+                className="mt-0.5 text-[10px] font-semibold uppercase text-forge-text3-light dark:text-forge-text3"
+                style={{ letterSpacing: 1 }}
               >
-                <Text className="text-base font-semibold text-red-600 dark:text-red-400">
-                  ✕
-                </Text>
-              </Pressable>
-            </View>
-          )}
-
-          {/* SummaryHeader — three chips: set-count, total-volume, duration
-              (D-09 + UI-SPEC §Session-detail summary-header). */}
-          <View className="flex-row gap-2 flex-wrap">
-            <View className="bg-gray-100 dark:bg-gray-800 rounded-full px-3 py-1">
-              <Text className="text-sm font-semibold text-gray-500 dark:text-gray-400">
-                {`${setCount} set`}
+                {t("sets")}
               </Text>
             </View>
-            <View className="bg-gray-100 dark:bg-gray-800 rounded-full px-3 py-1">
-              <Text className="text-sm font-semibold text-gray-500 dark:text-gray-400">
-                {`${formatNumber(totalVolumeKg)} kg`}
+            <View className="flex-1 items-center py-[18px] px-3.5 border-r border-forge-border-light dark:border-forge-border">
+              <Text
+                className="text-[28px] font-display-bold text-forge-text-light dark:text-forge-text"
+                style={{ fontVariant: ["tabular-nums"], letterSpacing: -0.6 }}
+              >
+                {totalVolumeDisplay}
+              </Text>
+              <Text
+                className="mt-0.5 text-[10px] font-semibold uppercase text-forge-text3-light dark:text-forge-text3"
+                style={{ letterSpacing: 1 }}
+              >
+                {`${volumeUnitLabel} · ${t("volume").toLowerCase()}`}
               </Text>
             </View>
-            <View className="bg-gray-100 dark:bg-gray-800 rounded-full px-3 py-1">
-              <Text className="text-sm font-semibold text-gray-500 dark:text-gray-400">
-                {durationLabel}
+            <View className="flex-1 items-center py-[18px] px-3.5">
+              <Text
+                className="text-[28px] font-display-bold text-forge-text-light dark:text-forge-text"
+                style={{ fontVariant: ["tabular-nums"], letterSpacing: -0.6 }}
+              >
+                {durationDisplay}
+              </Text>
+              <Text
+                className="mt-0.5 text-[10px] font-semibold uppercase text-forge-text3-light dark:text-forge-text3"
+                style={{ letterSpacing: 1 }}
+              >
+                {t("min")}
               </Text>
             </View>
           </View>
+        </View>
 
-          {/* Exercise-cards. Empty pass (D-13 — 0 sets but
-              finished_at IS NOT NULL) renders zero cards here; the summary
-              chips still surface `0 set · 0 kg · X min` and the user can
-              still delete via the overflow menu. */}
-          <View className="gap-2">
-            {Array.from(setsByExercise.entries()).map(([exerciseId, sets]) => (
-              <ExerciseCard
-                key={exerciseId}
-                exerciseId={exerciseId}
-                exerciseName={
-                  exerciseNameById.get(exerciseId) ?? "(övning saknas)"
-                }
-                sets={sets}
-                accent={accent}
-                onShowChart={() =>
-                  router.push(`/exercise/${exerciseId}/chart` as Href)
-                }
-              />
-            ))}
+        {/* F12 Notes block — accentSoft card + accent border + accent pencil
+            icon (FSessionDetail 701-715). Two modes: note present (verbatim
+            text + edit affordance) OR add-affordance (notes null). The note is
+            NEVER translated (F12). Both open edit-notes-overlay via openEditNotes. */}
+        <View className="px-4 pb-4">
+          <Pressable
+            onPress={openEditNotes}
+            accessibilityRole="button"
+            accessibilityLabel={session.notes ? t("editNote") : t("addNote")}
+            className="flex-row items-start gap-2.5 rounded-forge-md border bg-forge-accentSoft-light dark:bg-forge-accentSoft border-forge-accent-light/25 dark:border-forge-accent/25 px-4 py-3.5"
+            style={({ pressed }) => (pressed ? { opacity: 0.85 } : null)}
+          >
+            <View className="pt-0.5">
+              <Icon name="pencil" size={14} color={accentInk} />
+            </View>
+            {session.notes ? (
+              <Text className="flex-1 text-[13px] leading-5 text-forge-text2-light dark:text-forge-text2">
+                {session.notes}
+              </Text>
+            ) : (
+              <Text className="flex-1 text-[13px] leading-5 text-forge-text3-light dark:text-forge-text3">
+                {t("addNote")}
+              </Text>
+            )}
+          </Pressable>
+        </View>
+
+        {/* Transient banner-error (rare — surfaces if eventual replay fails
+            after reconnect). */}
+        {bannerError && (
+          <View className="px-4 pb-4 flex-row items-start justify-between gap-2">
+            <Text
+              className="flex-1 text-base text-forge-danger-light dark:text-forge-danger"
+              accessibilityLiveRegion="polite"
+            >
+              {bannerError}
+            </Text>
+            <Pressable
+              onPress={() => setBannerError(null)}
+              accessibilityRole="button"
+              accessibilityLabel={t("closeModal")}
+              className="px-2 py-1"
+              hitSlop={8}
+            >
+              <Text className="text-base font-semibold text-forge-danger-light dark:text-forge-danger">
+                ✕
+              </Text>
+            </Pressable>
           </View>
+        )}
+
+        {/* Exercises header */}
+        <View className="px-6 pt-2 pb-3">
+          <Text
+            className="text-[13px] font-semibold uppercase text-forge-text3-light dark:text-forge-text3"
+            style={{ letterSpacing: 1 }}
+          >
+            {t("exercisesHeader")}
+          </Text>
+        </View>
+
+        {/* D-15 HYBRID exercise-breakdown cards. Empty pass (D-13 — 0 sets but
+            finished_at IS NOT NULL) renders zero cards; the stat grid still
+            surfaces zeros and the user can still delete via the ellipsis. */}
+        <View className="px-4 gap-2">
+          {Array.from(setsByExercise.entries()).map(([exerciseId, sets]) => (
+            <ExerciseCard
+              key={exerciseId}
+              exerciseId={exerciseId}
+              exerciseName={
+                exerciseNameById.get(exerciseId) ?? t("errorGeneric")
+              }
+              sets={sets}
+              units={units}
+              // FIT-110: restore the session-detail → chart entry point dropped
+              // in the 12-07 re-skin. exerciseId is the setsByExercise Map key
+              // (the caller's own RLS-scoped sets). Typed-route literal; if
+              // experiments.typedRoutes trips on the cross-route reference, the
+              // `as Href` cast is the Phase-4-02 precedent (Href already imported).
+              onPress={() =>
+                router.push(`/exercise/${exerciseId}/chart` as Href)
+              }
+            />
+          ))}
         </View>
       </ScrollView>
 
-      {/* Overflow-menu overlay (UI-SPEC §Session-detail overflow-menu
-          overlay) — Phase 4 commit 954c480 inline-overlay-menu pattern.
-          Tap-outside scrim dismisses. */}
+      {/* Overflow-menu overlay — Phase 4 commit 954c480 inline-overlay-menu
+          pattern (NOT a Modal portal). Tap-outside scrim dismisses. */}
       {showOverflowMenu && (
         <Pressable
           style={{
@@ -445,24 +510,24 @@ export default function SessionDetailScreen() {
           }}
           onPress={() => setShowOverflowMenu(false)}
           accessibilityRole="button"
-          accessibilityLabel="Stäng meny"
+          accessibilityLabel={t("closeModal")}
         >
           <View
             style={{
               position: "absolute",
-              top: 4,
+              top: insets.top + 52,
               right: 16,
               minWidth: 200,
-              backgroundColor: isDark ? "#1F2937" : "#FFFFFF",
-              borderRadius: 12,
+              backgroundColor: surfaceHex,
+              borderRadius: 14,
               paddingVertical: 4,
               shadowColor: "#000",
               shadowOffset: { width: 0, height: 4 },
               shadowOpacity: 0.25,
               shadowRadius: 8,
               elevation: 8,
-              borderWidth: isDark ? 1 : 0,
-              borderColor: isDark ? "#374151" : "transparent",
+              borderWidth: 1,
+              borderColor: borderHex,
             }}
           >
             <Pressable
@@ -470,12 +535,11 @@ export default function SessionDetailScreen() {
                 setShowOverflowMenu(false);
                 // Open confirm overlay on next tick so the menu dismiss
                 // animation can finish first; stacked overlays on iOS can
-                // flicker otherwise (plans/[id].tsx commit 954c480
-                // precedent).
+                // flicker otherwise (plans/[id].tsx commit 954c480 precedent).
                 setTimeout(() => setShowDeleteConfirm(true), 50);
               }}
               accessibilityRole="button"
-              accessibilityLabel="Ta bort pass"
+              accessibilityLabel={t("deleteSession")}
               style={{
                 paddingHorizontal: 16,
                 paddingVertical: 12,
@@ -483,22 +547,21 @@ export default function SessionDetailScreen() {
             >
               <Text
                 style={{
-                  color: isDark ? "#F87171" : "#DC2626",
+                  color: dangerInk,
                   fontSize: 16,
                   fontWeight: "600",
                 }}
               >
-                Ta bort pass
+                {t("deleteSession")}
               </Text>
             </Pressable>
           </View>
         </Pressable>
       )}
 
-      {/* Inline-overlay delete-confirm (UI-SPEC §Session-detail
-          delete-confirm overlay) — Phase 4 commit e07029a pattern verbatim.
-          Tap-on-scrim DISMISSES (matches plans/[id].tsx archive-confirm —
-          UAT showed users expected scrim-tap to mean Avbryt). */}
+      {/* Inline-overlay delete-confirm — Phase 4 commit e07029a pattern verbatim.
+          Tap-on-scrim DISMISSES (matches plans/[id].tsx archive-confirm). The
+          confirm button is colored forge-danger (D-13/Color table). */}
       {showDeleteConfirm && (
         <Pressable
           style={{
@@ -515,14 +578,16 @@ export default function SessionDetailScreen() {
           }}
           onPress={() => setShowDeleteConfirm(false)}
           accessibilityRole="button"
-          accessibilityLabel="Stäng dialog"
+          accessibilityLabel={t("closeModal")}
         >
           <Pressable
             style={{
               width: "100%",
               maxWidth: 400,
-              backgroundColor: isDark ? "#1F2937" : "#FFFFFF",
-              borderRadius: 12,
+              backgroundColor: surfaceHex,
+              borderRadius: 20,
+              borderWidth: 1,
+              borderColor: borderHex,
               padding: 24,
               gap: 16,
             }}
@@ -532,19 +597,19 @@ export default function SessionDetailScreen() {
               style={{
                 fontSize: 18,
                 fontWeight: "600",
-                color: isDark ? "#F9FAFB" : "#111827",
+                color: ink,
               }}
               accessibilityRole="header"
             >
-              Ta bort detta pass?
+              {t("deleteSessionQ")}
             </Text>
             <Text
               style={{
                 fontSize: 16,
-                color: isDark ? "#9CA3AF" : "#6B7280",
+                color: muted2,
               }}
             >
-              {`${setCount} set och ${formatNumber(totalVolumeKg)} kg total volym försvinner permanent. Det går inte att ångra.`}
+              {t("cannotUndo")}
             </Text>
             <View
               style={{
@@ -557,32 +622,35 @@ export default function SessionDetailScreen() {
               <Pressable
                 onPress={() => setShowDeleteConfirm(false)}
                 accessibilityRole="button"
-                accessibilityLabel="Avbryt"
+                accessibilityLabel={t("cancel")}
                 style={{
                   paddingHorizontal: 16,
                   paddingVertical: 12,
-                  borderRadius: 8,
+                  borderRadius: 14,
                 }}
               >
                 <Text
                   style={{
                     fontSize: 16,
                     fontWeight: "600",
-                    color: isDark ? "#F9FAFB" : "#111827",
+                    color: ink,
                   }}
                 >
-                  Avbryt
+                  {t("cancel")}
                 </Text>
               </Pressable>
               <Pressable
                 onPress={onDeleteConfirm}
                 accessibilityRole="button"
-                accessibilityLabel="Ta bort pass"
+                accessibilityLabel={t("delete")}
+                // forge-danger fill (#D70015 → #FF453A) — box styling kept in
+                // this RN-StyleSheet branch because the whole overlay renders
+                // off the NativeWind tree (inline-overlay convention).
                 style={{
                   paddingHorizontal: 16,
                   paddingVertical: 12,
-                  borderRadius: 8,
-                  backgroundColor: isDark ? "#EF4444" : "#DC2626",
+                  borderRadius: 14,
+                  backgroundColor: dangerInk,
                 }}
               >
                 <Text
@@ -592,7 +660,7 @@ export default function SessionDetailScreen() {
                     color: "#FFFFFF",
                   }}
                 >
-                  Ta bort
+                  {t("delete")}
                 </Text>
               </Pressable>
             </View>
@@ -601,11 +669,10 @@ export default function SessionDetailScreen() {
       )}
 
       {/* F12 Edit-notes overlay — Phase 4 commit e07029a inline-overlay pattern
-          (NOT Modal portal — PATTERNS landmine #3). Uses direct keyboard
-          measurement (see keyboardHeight state above) instead of
-          KeyboardAvoidingView — KAV behaviors ("padding"/"height"/"position")
-          did not lift this card on iOS 26.4.2 inside an absolute-positioned,
-          flex-end-anchored backdrop (UAT bug reported 2026-05-16). */}
+          (NOT Modal portal). Uses direct keyboard measurement (keyboardHeight
+          state above) instead of KeyboardAvoidingView (KAV did not lift this
+          card on iOS 26.4.2 inside an absolute-positioned, flex-end-anchored
+          backdrop — UAT bug 2026-05-16). */}
       {showEditNotesOverlay && (
         <Pressable
           style={{
@@ -616,8 +683,7 @@ export default function SessionDetailScreen() {
             bottom: 0,
             alignItems: "center",
             // Center when keyboard is closed; lift to flex-end + paddingBottom
-            // = keyboardHeight + 16 when keyboard is open. Matches AvslutaOverlay
-            // (workout [sessionId].tsx) iter-3 fix.
+            // = keyboardHeight + 16 when keyboard is open.
             justifyContent: keyboardHeight > 0 ? "flex-end" : "center",
             backgroundColor: "rgba(0,0,0,0.5)",
             paddingHorizontal: 32,
@@ -626,64 +692,64 @@ export default function SessionDetailScreen() {
           }}
           onPress={() => setShowEditNotesOverlay(false)}
           accessibilityRole="button"
-          accessibilityLabel="Stäng dialog"
+          accessibilityLabel={t("closeModal")}
         >
           <Pressable
             style={{ width: "100%", maxWidth: 400 }}
             onPress={() => Keyboard.dismiss()}
           >
-              <View
-                className="bg-gray-100 dark:bg-gray-800 rounded-2xl p-6"
-                style={{ gap: 16 }}
+            <View
+              className="rounded-forge-lg border bg-forge-surface-light dark:bg-forge-surface border-forge-border-light dark:border-forge-border p-6"
+              style={{ gap: 16 }}
+            >
+              <Text
+                className="text-2xl font-display-semibold text-forge-text-light dark:text-forge-text"
+                accessibilityRole="header"
               >
-                <Text
-                  className="text-2xl font-semibold text-gray-900 dark:text-gray-50"
-                  accessibilityRole="header"
+                {t("editNote")}
+              </Text>
+              <TextInput
+                value={draftNotes}
+                onChangeText={setDraftNotes}
+                placeholder={t("notesPlaceholder")}
+                placeholderTextColor={isDark ? "rgba(255,255,255,0.38)" : "#8B8B8B"}
+                multiline
+                numberOfLines={3}
+                maxLength={500}
+                style={{ minHeight: 80, maxHeight: 160 }}
+                textAlignVertical="top"
+                autoFocus
+                accessibilityLabel={t("notes")}
+                className="rounded-forge-md bg-forge-surface2-light dark:bg-forge-surface2 border border-forge-border-light dark:border-forge-border px-3 py-2 text-base text-forge-text-light dark:text-forge-text"
+              />
+              <Text
+                className={`text-sm text-right ${draftNotes.length > 480 ? "text-forge-danger-light dark:text-forge-danger" : "text-forge-text3-light dark:text-forge-text3"}`}
+              >
+                {`${draftNotes.length}/500`}
+              </Text>
+              <View className="flex-row gap-3">
+                <Pressable
+                  onPress={() => setShowEditNotesOverlay(false)}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("cancel")}
+                  className="flex-1 py-4 rounded-forge-md bg-forge-surface3-light dark:bg-forge-surface3 items-center justify-center active:opacity-80"
                 >
-                  Redigera anteckning
-                </Text>
-                <TextInput
-                  value={draftNotes}
-                  onChangeText={setDraftNotes}
-                  placeholder="Anteckningar (valfri)"
-                  placeholderTextColor="#9CA3AF"
-                  multiline
-                  numberOfLines={3}
-                  maxLength={500}
-                  style={{ minHeight: 80, maxHeight: 160 }}
-                  textAlignVertical="top"
-                  autoFocus
-                  accessibilityLabel="Anteckningar för passet, valfri"
-                  className="rounded-md bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 px-3 py-2 text-base text-gray-900 dark:text-gray-50"
-                />
-                <Text
-                  className={`text-sm text-right ${draftNotes.length > 480 ? "text-red-600 dark:text-red-400" : "text-gray-500 dark:text-gray-400"}`}
+                  <Text className="text-base font-semibold text-forge-text-light dark:text-forge-text">
+                    {t("cancel")}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={onSaveNotes}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("save")}
+                  className="flex-1 py-4 rounded-forge-md bg-forge-accent-light dark:bg-forge-accent items-center justify-center active:opacity-80"
                 >
-                  {`${draftNotes.length}/500`}
-                </Text>
-                <View className="flex-row gap-3">
-                  <Pressable
-                    onPress={() => setShowEditNotesOverlay(false)}
-                    accessibilityRole="button"
-                    accessibilityLabel="Avbryt"
-                    className="flex-1 py-4 rounded-md bg-gray-200 dark:bg-gray-700 items-center justify-center active:opacity-80"
-                  >
-                    <Text className="text-base font-semibold text-gray-900 dark:text-gray-50">
-                      Avbryt
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={onSaveNotes}
-                    accessibilityRole="button"
-                    accessibilityLabel="Spara anteckning"
-                    className="flex-1 py-4 rounded-md bg-blue-600 dark:bg-blue-500 items-center justify-center active:opacity-80"
-                  >
-                    <Text className="text-base font-semibold text-white">
-                      Spara
-                    </Text>
-                  </Pressable>
-                </View>
+                  <Text className="text-base font-semibold text-forge-accentText-light dark:text-forge-accentText">
+                    {t("save")}
+                  </Text>
+                </Pressable>
               </View>
+            </View>
           </Pressable>
         </Pressable>
       )}
@@ -694,83 +760,108 @@ export default function SessionDetailScreen() {
 }
 
 // ---------------------------------------------------------------------------
-// ExerciseCard — read-only card. Header is a Pressable cross-link to the
-// F10 chart route (D-11 + D-25); the set list below is plain text.
+// ExerciseCard — D-15 hybrid: Forge frame with exercise name + right-aligned
+// max-weight stat AND the kept expanded per-set list (w × r + RPE per set).
+// PB trophy OMITTED (D-13). All weights unit-converted (D-20).
+//
+// FIT-110: tappable → /exercise/[exerciseId]/chart restored (the Phase-6
+// cross-link was dropped in the 12-07 re-skin, orphaning the chart route). The
+// Forge card frame is preserved (D-15) — only made Pressable + given a visible
+// chevronRight affordance; box-decoration stays in className (NativeWind), the
+// pressed-opacity is the documented style()-callback exception.
 // ---------------------------------------------------------------------------
 
 function ExerciseCard({
   exerciseId,
   exerciseName,
   sets,
-  accent,
-  onShowChart,
+  units,
+  onPress,
 }: {
   exerciseId: string;
   exerciseName: string;
   sets: SetRow[];
-  accent: string;
-  onShowChart: () => void;
+  units: UnitPref;
+  onPress: () => void;
 }) {
-  // Per-exercise aggregates for the header chip row (UI-SPEC §Session-detail
-  // exercise-card). max_weight is the top set's weight in this session for
-  // this exercise.
-  const setCount = sets.length;
-  const maxWeight = sets.reduce(
+  const { t } = useTranslation();
+  // Per-exercise max-weight = top set's weight in this session.
+  const maxWeightKg = sets.reduce(
     (max, s) => (s.weight_kg > max ? s.weight_kg : max),
     0,
   );
-  // void unused param to keep type-checker happy when exerciseId is not
-  // referenced elsewhere in this component (it's used only by the parent
-  // for keying + onShowChart routing).
+  // exerciseId is referenced for the a11y label routing context; the actual
+  // navigation is wired at the call site via onPress (router in scope there).
   void exerciseId;
 
   return (
-    <View className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 mb-2">
-      <Pressable
-        onPress={onShowChart}
-        accessibilityRole="button"
-        accessibilityLabel={`Visa graf för ${exerciseName}`}
-        className="flex-row items-start justify-between active:opacity-80"
-      >
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={t("viewExerciseChart", { exercise: exerciseName })}
+      className="rounded-forge-md border bg-forge-surface-light dark:bg-forge-surface border-forge-border-light dark:border-forge-border px-4 py-3.5"
+      style={({ pressed }) => (pressed ? { opacity: 0.85 } : null)}
+    >
+      <View className="flex-row items-start justify-between">
         <View className="flex-1 mr-3">
           <Text
-            className="text-2xl font-semibold text-gray-900 dark:text-gray-50"
+            className="text-[15px] font-semibold text-forge-text-light dark:text-forge-text"
+            style={{ letterSpacing: -0.2 }}
             numberOfLines={1}
           >
             {exerciseName}
           </Text>
-          <View className="flex-row gap-2 mt-1">
-            <View className="bg-gray-200 dark:bg-gray-700 rounded-full px-2 py-1">
-              <Text className="text-sm text-gray-500 dark:text-gray-400">
-                {`${setCount} set`}
-              </Text>
-            </View>
-            <View className="bg-gray-200 dark:bg-gray-700 rounded-full px-2 py-1">
-              <Text className="text-sm text-gray-500 dark:text-gray-400">
-                {`${maxWeight} kg`}
-              </Text>
-            </View>
+        </View>
+        {/* Right-aligned max-weight stat + a chevronRight "opens the chart" cue
+            (FIT-110 — the regression's harm was an invisible affordance). The
+            chevron sits to the right of the stat column with a small gap, the
+            Forge history-row convention (text-forge-text3 token). */}
+        <View className="flex-row items-center">
+          <View className="items-end">
+            <Text
+              className="text-[18px] font-display-bold text-forge-text-light dark:text-forge-text"
+              style={{ fontVariant: ["tabular-nums"], letterSpacing: -0.3 }}
+            >
+              {formatWeight(maxWeightKg, units)}
+            </Text>
+            <Text
+              className="text-[10px] font-semibold uppercase text-forge-text3-light dark:text-forge-text3"
+              style={{ letterSpacing: 0.5 }}
+            >
+              {t("maxWeight")}
+            </Text>
+          </View>
+          <View className="ml-2.5">
+            <Icon name="chevronRight" size={18} color="#9A9A9A" />
           </View>
         </View>
-        <Ionicons name="stats-chart" size={22} color={accent} />
-      </Pressable>
+      </View>
+
+      {/* Kept expanded per-set list (D-15 hybrid) — w × r + RPE per set,
+          re-skinned greys → forge-* tokens. Weights unit-converted (D-20). */}
       <View className="mt-3 gap-1">
         {sets.map((set) => (
           <View key={set.id} className="flex-row items-baseline">
-            <Text className="text-base text-gray-500 dark:text-gray-400">
-              {`Set ${set.set_number}: `}
+            <Text className="text-[13px] text-forge-text3-light dark:text-forge-text3">
+              {`${t("set")} ${set.set_number}: `}
             </Text>
-            <Text className="text-base font-semibold text-gray-900 dark:text-gray-50">
-              {`${set.weight_kg} × ${set.reps}`}
+            <Text
+              className="text-[13px] font-semibold text-forge-text2-light dark:text-forge-text2"
+              style={{ fontVariant: ["tabular-nums"] }}
+            >
+              {`${formatWeight(set.weight_kg, units)} × ${set.reps}`}
             </Text>
             {set.rpe != null && (
-              <Text className="text-base text-gray-500 dark:text-gray-400">
-                {` · RPE ${set.rpe}`}
+              <Text
+                className="text-[13px] text-forge-text3-light dark:text-forge-text3"
+                style={{ fontVariant: ["tabular-nums"] }}
+              >
+                {` · ${t("rpe")} ${set.rpe}`}
               </Text>
             )}
           </View>
         ))}
       </View>
-    </View>
+    </Pressable>
   );
 }

@@ -59,6 +59,7 @@ import {
   sessionsKeys,
   setsKeys,
   lastValueKeys,
+  dashboardKeys,
 } from "@/lib/query/keys";
 
 // ---------------------------------------------------------------------------
@@ -839,6 +840,11 @@ queryClient.setMutationDefaults(["session", "finish"], {
     void queryClient.invalidateQueries({
       queryKey: sessionsKeys.listInfinite(),
     });
+    // FIT-109 (D-03): refresh the shared dashboard slot so the Home ring +
+    // History card reflect this just-finished session without waiting for a
+    // remount/refocus. Broad ["dashboard"] prefix (matches lastValueKeys.all
+    // convention) stays robust if more dashboard slots are added later.
+    void queryClient.invalidateQueries({ queryKey: dashboardKeys.all });
   },
   retry: 1,
 });

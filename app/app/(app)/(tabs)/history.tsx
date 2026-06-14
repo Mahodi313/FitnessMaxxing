@@ -1,56 +1,58 @@
 // app/app/(app)/(tabs)/history.tsx
 //
-// Phase 6 Plan 06-01b: F9 client-tier vertical slice — Historik tab.
+// Phase 12 Plan 12-06 (SKIN-06 + DASH-03/DASH-04): Forge re-skin of the
+// Historik tab → FHistory (forge-screens.jsx 550-642). Three additions ABOVE
+// the preserved infinite list, all fed by useDashboardSummaryQuery():
 //
-// Replaces the Phase 4 placeholder with a cursor-paginated FlatList of
-// finished workout sessions consumed from useSessionsListInfiniteQuery
-// (sessions.ts) against the get_session_summaries RPC deployed in Plan
-// 06-01a (migration 0006). Each row: `Datum · Plan-namn · Set-count ·
-// Total-volym` (06-CONTEXT.md D-01).
+//   1. Lifetime eyebrow (D-09) — "{N} pass · {H} timmar" (uppercase micro).
+//   2. Weekly-volume overview card (D-05 — THIS is how DASH-03/DASH-04 are
+//      satisfied, on History, NOT Home): "Veckans volym" eyebrow + big volume
+//      numeral (formatVolume w/ the fm:units pref) + a forge-success delta chip
+//      ("+{N}%" vs prior week, up-arrow icon) + an animated Sparkline fed the
+//      weekly_volume_series mapped through toDisplayVolume (accent stroke).
+//   3. Forge session rows (D-16) — surface card radius 16, gap 14: a 44px
+//      surface2 date-badge (DD over MON) + plan name + meta "X set · Y kg ·
+//      Z min" + a trailing chevronRight. The PR trophy is OMITTED (D-13).
 //
-// Cursor pagination — page-size 20, cursor on started_at DESC, onEndReached
-// with threshold 0.5 (06-CONTEXT.md D-03 + 06-RESEARCH §Pattern 1). The
-// onEndReached callback guards `hasNextPage && !isFetchingNextPage` per
-// Pitfall 3 — without the guard, fetchNextPage fires in a loop once the
-// last page renders, bloating cache and battery.
+// The original v1 list plumbing is preserved VERBATIM (only the chrome is
+// re-skinned):
+//   - InfiniteQuery memo `data?.pages.flat()` (referentially-stable FlatList
+//     data prop).
+//   - onEndReached guard `hasNextPage && !isFetchingNextPage` (Pitfall 3 —
+//     infinite-refetch loop guard).
+//   - RefreshControl pull-to-refresh.
+//   - Post-delete toast read-and-clear (params.toast === "deleted" → 2.2s timer
+//     → router.setParams clear) + the unmount cleanup ref (WR-02).
+//   - Plan-name fallback (session.plan_name ?? t('noPlan')).
 //
-// Pull-to-refresh via RefreshControl — refetch() reissues page 1 with
-// cursor=null (06-CONTEXT.md D-03).
+// Units (D-20): every kg/volume figure routes through formatVolume — no raw
+// `kg` string literal in the rendered output. The fm:units pref is read via the
+// reactive useUnitStore selector (FIT-111) so a Settings unit toggle re-renders
+// every figure live (no app restart); metric default until boot hydration.
 //
-// Offline-friendly: the TanStack persister (Phase 4 D-07) hydrates the
-// listInfinite cache slot from AsyncStorage at cold-start so the list is
-// visible without a network round-trip (ROADMAP success #4).
+// i18n (D-21): all chrome strings are t()-keyed (live re-render on toggle); user
+// content (plan name) renders verbatim (D-16). All keys already exist at sv/en
+// parity from Plan 12-02.
 //
-// Empty state when 0 finished sessions exist: Ionicons time-outline + "Inga
-// pass än" + "Starta ditt första pass från en plan." + "Gå till planer"
-// CTA routing back to the planer tab (06-UI-SPEC §History empty-state).
+// Skia color rule (UI-SPEC §Color): NativeWind dark: classes do NOT apply inside
+// a Skia canvas, so the Sparkline takes a theme-derived accent hex from TOKENS
+// (the same split index.tsx uses), not a className.
 //
-// Plan-name fallback — when session.plan_name IS NULL (plan_id IS NULL via
-// ON DELETE SET NULL cascade), render "— ingen plan" (06-CONTEXT.md D-08).
+// NativeWind 4 (Phase 10 naked-render rule): box decoration (surface bg + border)
+// lives in className; off-scale optical numbers (radius 16/20, padding, 44px
+// badge) ride the inline style object on a static View — the idiom index.tsx /
+// session-detail already use.
 //
-// Theme — useColorScheme() drives the accent color (Phase 4 D-18 / Plan
-// 06-PATTERNS shared pattern): #60A5FA (blue-400) dark / #2563EB (blue-600)
-// light. RefreshControl tintColor + ActivityIndicator + Ionicons all bind
-// to this single source.
-//
-// Number formatting — formatNumber wraps Number.toLocaleString("sv-SE") so
-// 3240 renders as "3 240" (non-breaking-space thousands separator —
-// Swedish convention per 06-UI-SPEC).
-//
-// `as Href` on `/history/[sessionId]` — Plan 06-02 ships that route file;
-// until it lands, app.json experiments.typedRoutes flags the path literal
-// against an auto-generated router.d.ts that lacks the route. The cast is
-// the same pattern used in (tabs)/index.tsx for cross-plan route literals
-// (Phase 4 commit b87bddf). Once Plan 06-02 ships and the dev server
-// regenerates router.d.ts the cast can be dropped (V1.1 cleanup
-// breadcrumb).
+// F13 isolation (D-24): a read-only re-skin — no mutation defaults, query keys,
+// persister scope, or exercise_sets logging is touched. Task 2 gates it.
 //
 // References:
-//   - 06-PLAN.md Task 2 + acceptance criteria
-//   - 06-UI-SPEC.md §History-list row + §History-list FlatList container
-//     + §History empty-state
-//   - 06-CONTEXT.md D-01, D-03, D-08
-//   - 06-RESEARCH.md §Pattern 1, §Example 5, §Pitfall 3
+//   - 12-06-PLAN.md Task 1 + acceptance criteria
+//   - 12-UI-SPEC.md §07 (Layout Contract → History list) + Copywriting + Color
+//   - 12-PATTERNS.md §history.tsx + §index.tsx (TOKENS / composition idiom)
+//   - app/design v2/Sources/design/forge-screens.jsx FHistory 550-642 (OMIT
+//     row trophy 627-635 per D-13)
+//   - app/lib/queries/dashboard.ts (useDashboardSummaryQuery) + app/lib/units.ts
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocalSearchParams, useRouter, type Href } from "expo-router";
@@ -64,25 +66,62 @@ import {
 } from "react-native";
 import { useColorScheme } from "nativewind";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
+import { useTranslation } from "react-i18next";
 import { format } from "date-fns";
-import { sv } from "date-fns/locale";
+import { sv, enUS } from "date-fns/locale";
 import {
   useSessionsListInfiniteQuery,
   type SessionSummary,
 } from "@/lib/queries/sessions";
+import { useDashboardSummaryQuery } from "@/lib/queries/dashboard";
+import { Icon, Sparkline } from "@/components/ui";
+import { type UnitPref } from "@/lib/prefs";
+import { useUnitStore } from "@/lib/units-store";
+import { formatVolume, toDisplayVolume } from "@/lib/units";
 
-// Swedish non-breaking-space thousands separator: 3240 → "3 240".
-function formatNumber(n: number): string {
-  return n.toLocaleString("sv-SE");
-}
+// ── Forge token hexes (light / dark) ────────────────────────────────────────
+// Mirror the tailwind.config forge.* token pairs verbatim (UI-SPEC §Color), for
+// the inline-style optical containers + the Skia Sparkline stroke (the same
+// split index.tsx / session-detail use). Class-driven surfaces still use the
+// token classes.
+const TOKENS = {
+  light: {
+    text: "#0A0A0A",
+    text2: "#4D4D4D",
+    text3: "#8B8B8B",
+    surface: "#FFFFFF",
+    surface2: "#F2F1EC",
+    surface3: "#E8E7E1",
+    borderStrong: "rgba(0,0,0,0.14)",
+    accent: "#E14E10",
+    success: "#1E9E45",
+    successSoft: "rgba(30,158,69,0.12)",
+    border: "rgba(0,0,0,0.07)",
+  },
+  dark: {
+    text: "#FFFFFF",
+    text2: "rgba(255,255,255,0.62)",
+    text3: "rgba(255,255,255,0.38)",
+    surface: "#0E0E10",
+    surface2: "#18181B",
+    surface3: "#222226",
+    borderStrong: "rgba(255,255,255,0.16)",
+    accent: "#FF5A1F",
+    success: "#30D158",
+    successSoft: "rgba(48,209,88,0.15)",
+    border: "rgba(255,255,255,0.08)",
+  },
+} as const;
 
 export default function HistoryTab() {
   const { colorScheme } = useColorScheme();
-  const isDark = colorScheme === "dark";
-  const accent = isDark ? "#60A5FA" : "#2563EB";
+  const tk = TOKENS[colorScheme === "dark" ? "dark" : "light"];
+  const { t, i18n } = useTranslation();
   const router = useRouter();
+  // FIT-111: reactive unit selector — re-renders every formatVolume/
+  // toDisplayVolume figure on this screen the instant Settings toggles the unit.
+  const unit = useUnitStore((s) => s.unit);
 
   const {
     data,
@@ -136,30 +175,29 @@ export default function HistoryTab() {
   // Flatten the InfiniteQuery `{ pages, pageParams }` envelope. Memo keyed on
   // `data?.pages` so the FlatList data prop stays referentially stable
   // between renders when no new page has arrived.
-  const sessions = useMemo(
-    () => data?.pages.flat() ?? [],
-    [data?.pages],
-  );
+  const sessions = useMemo(() => data?.pages.flat() ?? [], [data?.pages]);
   const isEmpty = sessions.length === 0;
 
   return (
-    <SafeAreaView className="flex-1 bg-white dark:bg-gray-900">
-      {!isEmpty && (
-        <View className="px-4 pt-4 pb-2">
-          <Text className="text-3xl font-semibold text-gray-900 dark:text-gray-50">
-            Historik
-          </Text>
-        </View>
-      )}
-
+    <SafeAreaView
+      edges={["top"]}
+      className="flex-1 bg-forge-bg-light dark:bg-forge-bg"
+    >
       <FlatList
         data={sessions}
         keyExtractor={(s) => s.id}
         contentContainerStyle={{
-          paddingHorizontal: 16,
-          paddingBottom: 96,
+          paddingBottom: 100,
           flexGrow: 1,
         }}
+        ListHeaderComponent={
+          // Lifetime eyebrow (D-09) + screen title + weekly-volume card (D-05).
+          // Hidden entirely on the empty (no-sessions-ever) state so the
+          // empty-state column owns the full screen.
+          isEmpty && status !== "pending" ? null : (
+            <HistoryHeader tk={tk} unit={unit} />
+          )
+        }
         ItemSeparatorComponent={() => <View className="h-2" />}
         onEndReached={() => {
           // Pitfall 3 — guard against infinite refetch loop once last page
@@ -172,8 +210,8 @@ export default function HistoryTab() {
         onEndReachedThreshold={0.5}
         ListFooterComponent={
           isFetchingNextPage ? (
-            <View className="py-4">
-              <ActivityIndicator size="small" color={accent} />
+            <View className="py-4 items-center">
+              <ActivityIndicator size="small" color={tk.accent} />
             </View>
           ) : null
         }
@@ -181,32 +219,50 @@ export default function HistoryTab() {
           <RefreshControl
             refreshing={isRefetching}
             onRefresh={() => void refetch()}
-            tintColor={accent}
+            tintColor={tk.accent}
           />
         }
         ListEmptyComponent={
-          status === "pending" ? null : <HistoryEmptyState />
+          status === "pending" ? null : <HistoryEmptyState tk={tk} />
         }
-        renderItem={({ item }) => <HistoryListRow session={item} />}
+        renderItem={({ item }) => (
+          <View className="px-4">
+            <HistoryListRow session={item} tk={tk} unit={unit} lang={i18n.language} />
+          </View>
+        )}
       />
 
       {/* Post-delete toast (UI-SPEC §Post-delete toast) — Reanimated
-          FadeIn/FadeOut on Animated.View; bg-blue accent per UI-SPEC
-          (delete is neutral, not celebratory; success-green is reserved
-          for "Passet sparat ✓" in Phase 5). Surfaced here, not on the
-          detail screen, because router.replace synchronously blurs the
-          detail screen and a toast mounted there would never be visible
-          (WR-01 in 06-REVIEW.md). */}
+          FadeIn/FadeOut on Animated.View; neutral surface pill (delete is
+          neutral, not celebratory; success-green is reserved for "Passet
+          sparat ✓"). Surfaced here, not on the detail screen, because
+          router.replace synchronously blurs the detail screen and a toast
+          mounted there would never be visible (WR-01 in 06-REVIEW.md). Box
+          styling in className; inline style carries only position + shadow. */}
       {showToast && (
         <Animated.View
           entering={FadeIn.duration(200)}
           exiting={FadeOut.duration(300)}
-          className="absolute bottom-20 self-center bg-blue-600 dark:bg-blue-500 rounded-full px-6 py-3"
+          className="absolute self-center flex-row items-center px-6 py-3 rounded-full border bg-forge-surface-light dark:bg-forge-surface border-forge-border-light dark:border-forge-border"
+          style={{
+            bottom: 92,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 12 },
+            shadowOpacity: 0.25,
+            shadowRadius: 24,
+          }}
           accessibilityRole="alert"
           accessibilityLiveRegion="polite"
         >
-          <Text className="text-base font-semibold text-white">
-            Passet borttaget
+          <Text
+            style={{
+              fontSize: 15,
+              fontWeight: "700",
+              letterSpacing: -0.2,
+              color: tk.text,
+            }}
+          >
+            {t("sessionDeleted")}
           </Text>
         </Animated.View>
       )}
@@ -215,17 +271,241 @@ export default function HistoryTab() {
 }
 
 // ---------------------------------------------------------------------------
-// HistoryListRow — single session row per 06-UI-SPEC §History-list row.
-// Left col: date (primary) + plan-name (muted, D-08 fallback). Right col:
-// set count + total volume. Tap routes to /history/[sessionId] (owned by
-// Plan 06-02 — see `as Href` cast rationale in file header).
+// HistoryHeader — lifetime eyebrow (D-09) + screen title + weekly-volume
+// overview card (D-05 → DASH-03/DASH-04). All three fed by
+// useDashboardSummaryQuery(); rendered as the FlatList ListHeaderComponent so
+// it scrolls with the list and inherits pull-to-refresh.
 // ---------------------------------------------------------------------------
-function HistoryListRow({ session }: { session: SessionSummary }) {
+function HistoryHeader({
+  tk,
+  unit,
+}: {
+  tk: (typeof TOKENS)["light"] | (typeof TOKENS)["dark"];
+  unit: UnitPref;
+}) {
+  const { t } = useTranslation();
+  const { data } = useDashboardSummaryQuery();
+
+  const lifetimeSessions = data?.lifetime_sessions ?? 0;
+  const lifetimeHours = data?.lifetime_hours ?? 0;
+  const volumeThisWeek = data?.volume_this_week_kg ?? 0;
+  const volumePriorWeek = data?.volume_prior_week_kg ?? 0;
+  const series = data?.weekly_volume_series ?? [];
+
+  // Delta % vs prior week (D-05). Guard prior===0 (no baseline → no chip).
+  const hasDelta = volumePriorWeek > 0;
+  const deltaPct = hasDelta
+    ? Math.round(((volumeThisWeek - volumePriorWeek) / volumePriorWeek) * 100)
+    : 0;
+
+  // Sparkline series → display-unit values (D-20). Skia takes a plain number[].
+  const sparkData = series.map((p) => toDisplayVolume(p.volume_kg, unit));
+
+  // Volume-card empty copy — a brand-new user with no finished sessions yet has
+  // no trend to show (D-05 empty state).
+  const hasVolumeData = lifetimeSessions > 0 && sparkData.length >= 2;
+
+  return (
+    <View>
+      {/* Lifetime eyebrow (D-09) — uppercase micro-label "{N} pass · {H} timmar". */}
+      <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 4 }}>
+        <Text
+          style={{
+            fontSize: 11,
+            fontWeight: "600",
+            letterSpacing: 1.5,
+            textTransform: "uppercase",
+            color: tk.text3,
+            fontVariant: ["tabular-nums"],
+          }}
+        >
+          {t("lifetimeEyebrow", {
+            n: lifetimeSessions,
+            h: Math.round(lifetimeHours),
+          })}
+        </Text>
+      </View>
+
+      {/* Screen title — display 36px (FHistory 560). */}
+      <Text
+        style={{
+          fontSize: 36,
+          fontWeight: "700",
+          letterSpacing: -1.2,
+          marginHorizontal: 20,
+          marginTop: 4,
+          marginBottom: 16,
+          color: tk.text,
+        }}
+      >
+        {t("historyTitle")}
+      </Text>
+
+      {/* Volume-overview card (D-05 → DASH-03/DASH-04). Box bg/border via
+          className; optical radius/padding via inline style (NativeWind rule). */}
+      <View style={{ paddingHorizontal: 16, paddingBottom: 20 }}>
+        <View
+          className="bg-forge-surface-light dark:bg-forge-surface border border-forge-border-light dark:border-forge-border"
+          style={{ borderRadius: 20, padding: 20, paddingTop: 18 }}
+        >
+          {hasVolumeData ? (
+            <>
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "flex-start",
+                }}
+              >
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  {/* Card eyebrow */}
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      fontWeight: "600",
+                      letterSpacing: 1,
+                      textTransform: "uppercase",
+                      color: tk.text3,
+                    }}
+                  >
+                    {t("thisWeekVolume")}
+                  </Text>
+                  {/* Big volume numeral (D-20 — formatVolume, no raw kg literal). */}
+                  <Text
+                    style={{
+                      fontSize: 32,
+                      fontWeight: "700",
+                      letterSpacing: -1,
+                      color: tk.text,
+                      marginTop: 4,
+                      fontVariant: ["tabular-nums"],
+                    }}
+                    numberOfLines={1}
+                  >
+                    {formatVolume(volumeThisWeek, unit)}
+                  </Text>
+                </View>
+
+                {/* Success delta chip (D-05) — forge-success, up-arrow icon.
+                    Only when prior week has a baseline AND the delta is non-
+                    negative (a "+{N}%" success framing; a drop shows no chip
+                    rather than a red one — success-only per UI-SPEC). */}
+                {hasDelta && deltaPct >= 0 ? (
+                  <View
+                    className="flex-row items-center gap-[3px] rounded-lg"
+                    style={{
+                      paddingHorizontal: 8,
+                      paddingVertical: 4,
+                      backgroundColor: tk.successSoft,
+                    }}
+                  >
+                    <Icon
+                      name="arrowUp"
+                      size={11}
+                      color={tk.success}
+                      strokeWidth={2.5}
+                    />
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        fontWeight: "700",
+                        color: tk.success,
+                        fontVariant: ["tabular-nums"],
+                      }}
+                    >
+                      {t("volumeDeltaPct", { n: deltaPct })}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+
+              {/* Animated Sparkline (D-08/D-18) — accent stroke, draws in on
+                  mount. Fed the display-unit weekly series (D-20). */}
+              <View style={{ marginTop: 12 }}>
+                <Sparkline
+                  data={sparkData}
+                  width={320}
+                  height={56}
+                  color={tk.accent}
+                  strokeWidth={2.5}
+                />
+              </View>
+            </>
+          ) : (
+            // Volume-card empty copy (D-05) — no finished sessions yet.
+            <View>
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontWeight: "600",
+                  letterSpacing: 1,
+                  textTransform: "uppercase",
+                  color: tk.text3,
+                }}
+              >
+                {t("thisWeekVolume")}
+              </Text>
+              <Text
+                style={{
+                  fontSize: 15,
+                  color: tk.text2,
+                  marginTop: 8,
+                  lineHeight: 21,
+                }}
+              >
+                {t("volumeTrendEmpty")}
+              </Text>
+            </View>
+          )}
+        </View>
+      </View>
+    </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// HistoryListRow — Forge session row (D-16, FHistory 597-638). 44px surface2
+// date-badge (DD over MON) + plan name + meta "X set · Y kg · Z min" +
+// trailing chevronRight. The PR trophy (627-635) is OMITTED (D-13). Tap routes
+// to /history/[sessionId].
+// ---------------------------------------------------------------------------
+function HistoryListRow({
+  session,
+  tk,
+  unit,
+  lang,
+}: {
+  session: SessionSummary;
+  tk: (typeof TOKENS)["light"] | (typeof TOKENS)["dark"];
+  unit: UnitPref;
+  lang: string;
+}) {
   const router = useRouter();
-  const formattedDate = format(new Date(session.started_at), "d MMM yyyy", {
-    locale: sv,
-  });
-  const planLabel = session.plan_name ?? "— ingen plan";
+  const { t } = useTranslation();
+  const locale = lang.startsWith("en") ? enUS : sv;
+
+  const started = new Date(session.started_at);
+  // Date badge — DD over MON (date-fns; locale-aware month abbreviation).
+  const dayNum = format(started, "d", { locale });
+  const monthAbbr = format(started, "MMM", { locale });
+  // Full date for the a11y label.
+  const fullDate = format(started, "d MMM yyyy", { locale });
+
+  const planLabel = session.plan_name ?? t("noPlan");
+
+  // Duration (min) derived from finished_at − started_at. An unfinished or
+  // missing finish stamp yields 0 (defensive; finished sessions always carry
+  // finished_at via the list RPC's finished-only filter).
+  const durationMin = session.finished_at
+    ? Math.max(
+        0,
+        Math.round(
+          (new Date(session.finished_at).getTime() - started.getTime()) / 60000,
+        ),
+      )
+    : 0;
+
+  const volumeLabel = formatVolume(session.total_volume_kg, unit);
 
   return (
     <Pressable
@@ -236,65 +516,201 @@ function HistoryListRow({ session }: { session: SessionSummary }) {
         } as unknown as Href)
       }
       accessibilityRole="button"
-      accessibilityLabel={`Öppna pass från ${formattedDate}, ${planLabel}, ${session.set_count} set, ${formatNumber(session.total_volume_kg)} kg`}
-      className="flex-row items-center justify-between rounded-lg bg-gray-100 dark:bg-gray-800 px-4 py-4 active:opacity-80"
+      accessibilityLabel={`${fullDate}, ${planLabel}, ${session.set_count} ${t("sets")}, ${volumeLabel}, ${durationMin} ${t("min")}`}
+      // Box decoration (surface bg + border + radius) via className (NativeWind
+      // renders it); the inline style() callback carries ONLY pressed opacity.
+      // NativeWind 4: `gap` is a flex-container prop and must live in className
+      // alongside `flex-row` — set in the inline style() callback it never
+      // rendered (the date tile sat flush against the row text; UAT 2026-06-13).
+      // See feedback_nativewind_box_deco_via_classname. px/py stay inline (they
+      // are not flex-container props and do render).
+      // NativeWind 4: layout/box props (gap, padding) must live in className —
+      // in the inline style() callback they render naked (the chevron stayed
+      // flush to the edge when paddingRight was set inline; UAT 2026-06-13).
+      // pr-5 (20px) > pl-4 (16px) insets the trailing chevron from the card edge.
+      // See feedback_nativewind_box_deco_via_classname. style() keeps ONLY the
+      // pressed opacity.
+      className="flex-row items-center gap-4 pl-4 pr-5 py-3.5 rounded-2xl border bg-forge-surface-light dark:bg-forge-surface border-forge-border-light dark:border-forge-border"
+      style={({ pressed }) => (pressed ? { opacity: 0.85 } : null)}
     >
-      <View className="flex-1 mr-3">
+      {/* 44px date-badge — DD over MON (surface2 tile). */}
+      <View
+        style={{
+          width: 44,
+          height: 44,
+          borderRadius: 12,
+          flexShrink: 0,
+          // UAT 2026-06-13: surface2 (#18181B) on the surface (#0E0E10) row reads
+          // as merged on-device OLED. surface3 (#222226) gives the date tile a
+          // visible step so it reads as a distinct box, not run-on text.
+          backgroundColor: tk.surface3,
+          borderWidth: 1,
+          borderColor: tk.borderStrong,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
         <Text
-          className="text-base font-semibold text-gray-900 dark:text-gray-50"
-          numberOfLines={1}
+          style={{
+            fontSize: 16,
+            fontWeight: "700",
+            letterSpacing: -0.3,
+            lineHeight: 16,
+            color: tk.text,
+            fontVariant: ["tabular-nums"],
+          }}
         >
-          {formattedDate}
+          {dayNum}
         </Text>
         <Text
-          className="text-base text-gray-500 dark:text-gray-400"
+          style={{
+            fontSize: 9,
+            fontWeight: "600",
+            letterSpacing: 0.5,
+            textTransform: "uppercase",
+            marginTop: 2,
+            color: tk.text3,
+          }}
+        >
+          {monthAbbr}
+        </Text>
+      </View>
+
+      {/* Plan name + meta "X set · Y kg · Z min" (D-16). */}
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text
           numberOfLines={1}
+          style={{
+            fontSize: 16,
+            fontWeight: "600",
+            letterSpacing: -0.2,
+            color: tk.text,
+          }}
         >
           {planLabel}
         </Text>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 6,
+            marginTop: 3,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 12,
+              color: tk.text2,
+              fontVariant: ["tabular-nums"],
+            }}
+          >
+            {`${session.set_count} ${t("sets")}`}
+          </Text>
+          <MetaDot tk={tk} />
+          <Text
+            style={{
+              fontSize: 12,
+              color: tk.text2,
+              fontVariant: ["tabular-nums"],
+            }}
+          >
+            {volumeLabel}
+          </Text>
+          <MetaDot tk={tk} />
+          <Text
+            style={{
+              fontSize: 12,
+              color: tk.text2,
+              fontVariant: ["tabular-nums"],
+            }}
+          >
+            {`${durationMin} ${t("min")}`}
+          </Text>
+        </View>
       </View>
-      <View className="items-end">
-        <Text className="text-sm font-semibold text-gray-500 dark:text-gray-400">
-          {`${session.set_count} set`}
-        </Text>
-        <Text className="text-sm font-semibold text-gray-500 dark:text-gray-400">
-          {`${formatNumber(session.total_volume_kg)} kg`}
-        </Text>
-      </View>
+
+      {/* OMIT trophy (D-13). Trailing chevron only. */}
+      <Icon name="chevronRight" size={16} color={tk.text3} />
     </Pressable>
+  );
+}
+
+// MetaDot — 3px round separator between meta cells (FHistory 621/623).
+function MetaDot({
+  tk,
+}: {
+  tk: (typeof TOKENS)["light"] | (typeof TOKENS)["dark"];
+}) {
+  return (
+    <View
+      style={{ width: 3, height: 3, borderRadius: 2, backgroundColor: tk.text3 }}
+    />
   );
 }
 
 // ---------------------------------------------------------------------------
 // HistoryEmptyState — rendered when 0 finished sessions exist per
-// 06-UI-SPEC §History empty-state. The CTA routes back to the Planer tab
-// ((tabs)/index.tsx — `/(tabs)/` resolves to the index route).
+// UI-SPEC §History empty-state. The CTA routes back to the Planer tab
+// ((tabs)/index.tsx — `/(tabs)/` resolves to the index route). Re-skinned to
+// Forge tokens; box decoration on the CTA via className (NativeWind rule).
 // ---------------------------------------------------------------------------
-function HistoryEmptyState() {
+function HistoryEmptyState({
+  tk,
+}: {
+  tk: (typeof TOKENS)["light"] | (typeof TOKENS)["dark"];
+}) {
   const router = useRouter();
-  const { colorScheme } = useColorScheme();
-  const isDark = colorScheme === "dark";
-  const accent = isDark ? "#60A5FA" : "#2563EB";
+  const { t } = useTranslation();
 
   return (
     <View className="flex-1 items-center justify-center gap-6 px-4">
-      <Ionicons name="time-outline" size={64} color={accent} />
+      <View
+        style={{
+          width: 64,
+          height: 64,
+          borderRadius: 16,
+          backgroundColor: tk.surface2,
+          borderWidth: 1,
+          borderColor: tk.border,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Icon name="clock" size={28} color={tk.text2} strokeWidth={2} />
+      </View>
       <View className="gap-2 items-center">
-        <Text className="text-2xl font-semibold text-gray-900 dark:text-gray-50">
-          Inga pass än
+        <Text
+          style={{
+            fontSize: 22,
+            fontWeight: "700",
+            letterSpacing: -0.5,
+            color: tk.text,
+          }}
+        >
+          {t("noHistory")}
         </Text>
-        <Text className="text-base text-gray-500 dark:text-gray-400 text-center">
-          Starta ditt första pass från en plan.
+        <Text style={{ fontSize: 15, color: tk.text2, textAlign: "center" }}>
+          {t("noHistorySub")}
         </Text>
       </View>
       <Pressable
         onPress={() => router.push("/(tabs)" as Href)}
         accessibilityRole="button"
-        accessibilityLabel="Gå till planer"
-        className="rounded-lg bg-blue-600 dark:bg-blue-500 px-6 py-4 active:opacity-80"
+        accessibilityLabel={t("goToPlans")}
+        // Box decoration (accent fill + radius) via className so it renders;
+        // the style() callback keeps only the pressed overlay (NativeWind rule).
+        className="rounded-2xl px-6 py-4 bg-forge-accent-light dark:bg-forge-accent"
+        style={({ pressed }) => (pressed ? { opacity: 0.85 } : null)}
       >
-        <Text className="text-base font-semibold text-white">
-          Gå till planer
+        <Text
+          style={{
+            fontSize: 15,
+            fontWeight: "700",
+            letterSpacing: -0.2,
+            color: "#FFFFFF",
+          }}
+        >
+          {t("goToPlans")}
         </Text>
       </Pressable>
     </View>

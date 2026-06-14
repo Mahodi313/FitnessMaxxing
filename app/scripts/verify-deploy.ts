@@ -119,6 +119,49 @@ async function main() {
   }
 
   // -------------------------------------------------------------------------
+  // Phase 12 (Migration 0011) — assert both new aggregate RPC functions exist
+  // with SECURITY INVOKER (prosecdef = false) and search_path = '' (proconfig
+  // contains 'search_path=' substring). Same pg_proc check shape as Phase 6
+  // (D-23). These are the deploy-side locks for get_dashboard_summary +
+  // get_exercise_summary (DASH-05 / SKIN-06).
+  // -------------------------------------------------------------------------
+  console.log("\n=== Phase 12 RPC verification (Migration 0011) ===");
+  const phase12Functions = ["get_dashboard_summary", "get_exercise_summary"];
+  let phase12Failures = 0;
+  for (const fname of phase12Functions) {
+    const rows = await sql`
+      select proname, prosecdef, proconfig
+      from pg_proc
+      where pronamespace = 'public'::regnamespace
+        and proname = ${fname}
+    `;
+    if (rows.length === 0) {
+      console.log(`  FAIL: ${fname} — function not deployed`);
+      phase12Failures += 1;
+      continue;
+    }
+    const row = rows[0];
+    const cfg = Array.isArray(row.proconfig) ? row.proconfig.join(",") : (row.proconfig ?? "");
+    const hasSecurityInvoker = row.prosecdef === false;
+    const hasSearchPath = cfg.includes("search_path=");
+    if (hasSecurityInvoker && hasSearchPath) {
+      console.log(`  PASS: ${fname} — SECURITY INVOKER + search_path set`);
+    } else {
+      console.log(
+        `  FAIL: ${fname} — prosecdef=${row.prosecdef} proconfig=[${cfg}]`,
+      );
+      phase12Failures += 1;
+    }
+  }
+  if (phase12Failures > 0) {
+    console.error(
+      `\nPhase 12 verify-deploy FAILED — ${phase12Failures} function(s) missing or misconfigured`,
+    );
+    await sql.end();
+    process.exit(1);
+  }
+
+  // -------------------------------------------------------------------------
   // Phase 10 (Migration 0010) — assert the two additive columns landed AND the
   // workout_sessions → workout_plans FK is still ON DELETE SET NULL
   // (confdeltype = 'n'). D-06 + D-11. These are the regression locks for the

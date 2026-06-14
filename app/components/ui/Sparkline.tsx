@@ -1,15 +1,22 @@
 // app/components/ui/Sparkline.tsx
 //
-// Phase 8 (Forge Foundation), Plan 08-03 — DSGN-05 / D-08.
-// Minimal stroke sparkline with gradient fill + last-point dot, drawn STATICALLY
+// Phase 8 (Forge Foundation), Plan 08-03 — DSGN-05 / D-08 (static origin).
+// Phase 12 (Plan 12-03) — D-18: animated left→right draw-in on mount. The
+// Phase-8 static-only restriction is LIFTED here on purpose: this file now
+// imports react-native-reanimated (useSharedValue / useDerivedValue /
+// withSpring / withDelay / useReducedMotion) to drive the reveal on the UI
+// thread. Minimal stroke sparkline with gradient fill + last-point dot, drawn
 // with the already-installed @shopify/react-native-skia (no new charting dep).
 // Ported from the design source
 //   app/design v2/Sources/design/lib.jsx  (Sparkline, lines 457-488).
-// (08-RESEARCH.md §Pattern 5; 08-PATTERNS.md §ProgressRing/Sparkline; 08-UI-SPEC.md.)
+// (08-RESEARCH.md §Pattern 5; 12-RESEARCH.md §Mandate 3; 12-UI-SPEC.md §07.)
 //
-// STATIC ONLY (D-08): renders the full path immediately with NO draw-on-mount
-// animation (that is Phase 12 / MOTN-03). This file MUST NOT import
-// useSharedValue / useDerivedValue / withTiming.
+// ANIMATION (D-18, additive — no path math change): the line + area paths are
+// wrapped in a <Group clip={clipRect}> whose width tweens 0→full via a
+// `drawProgress` shared value on §07 spring (withSpring, damping 18 /
+// stiffness 220). The last-point dot fades/scales in at the END of the draw via
+// a delayed second shared value. useReducedMotion() (synchronous boolean) →
+// snap to full immediately.
 //
 // Port (SVG → Skia): lib.jsx normalizes min/max with `pad = strokeWidth + 2`,
 // builds a `moveTo`/`lineTo` line path, a closed fill path down to the baseline,
@@ -24,7 +31,23 @@
 // T-08-06 (DoS-render): empty / single-element `data` is guarded — no NaN from a
 // zero-length divisor or an undefined min/max.
 
-import { Canvas, Path, Circle, Skia, LinearGradient, vec } from "@shopify/react-native-skia";
+import { useEffect } from "react";
+import {
+  Canvas,
+  Circle,
+  Group,
+  LinearGradient,
+  Path,
+  Skia,
+  vec,
+} from "@shopify/react-native-skia";
+import {
+  useDerivedValue,
+  useReducedMotion,
+  useSharedValue,
+  withDelay,
+  withSpring,
+} from "react-native-reanimated";
 
 export type SparklineProps = {
   data: number[];
@@ -38,6 +61,11 @@ export type SparklineProps = {
   strokeWidth?: number;
 };
 
+// §07 motion spec (12-UI-SPEC.md §07): mount springs use damping 18 / stiffness 220.
+const SPRING = { damping: 18, stiffness: 220 } as const;
+// Dot reveal lands near the end of the draw.
+const DOT_DELAY_MS = 260;
+
 export function Sparkline({
   data,
   width = 200,
@@ -47,12 +75,28 @@ export function Sparkline({
   showDot = true,
   strokeWidth = 2,
 }: SparklineProps) {
+  // Reanimated hooks must run unconditionally (rules-of-hooks) — declare them
+  // BEFORE the early-return guard below.
+  const reduced = useReducedMotion();
+  const drawProgress = useSharedValue(0); // 0 → 1 left-to-right reveal
+  const dotProgress = useSharedValue(0); // 0 → 1 last-point dot fade/scale
+
+  useEffect(() => {
+    if (reduced) {
+      drawProgress.value = 1;
+      dotProgress.value = 1;
+    } else {
+      drawProgress.value = withSpring(1, SPRING);
+      dotProgress.value = withDelay(DOT_DELAY_MS, withSpring(1, SPRING));
+    }
+  }, [reduced, drawProgress, dotProgress, data]);
+
   // T-08-06: guard empty / single-point data (lib.jsx returns null on empty; a
   // single point has no line, and (length - 1) === 0 would divide by zero).
-  if (!data || data.length < 2) return null;
+  const valid = !!data && data.length >= 2;
 
-  const max = Math.max(...data);
-  const min = Math.min(...data);
+  const max = valid ? Math.max(...data) : 0;
+  const min = valid ? Math.min(...data) : 0;
   const range = max - min || 1;
 
   // Halo radius (lib.jsx: strokeWidth + 4.5). Pad the Canvas + offset all coords
@@ -64,11 +108,26 @@ export function Sparkline({
   // Inner padding matches lib.jsx `pad = strokeWidth + 2`, then everything is
   // shifted by `halo` to sit inside the padded Canvas.
   const pad = strokeWidth + 2;
-  const pts = data.map((val, i) => {
-    const x = halo + pad + (i / (data.length - 1)) * (width - pad * 2);
-    const y = halo + pad + (1 - (val - min) / range) * (height - pad * 2);
-    return [x, y] as const;
-  });
+  const pts = valid
+    ? data.map((val, i) => {
+        const x = halo + pad + (i / (data.length - 1)) * (width - pad * 2);
+        const y = halo + pad + (1 - (val - min) / range) * (height - pad * 2);
+        return [x, y] as const;
+      })
+    : [];
+
+  // D-18 animated clip: a left→right rect that grows to cover the whole padded
+  // canvas. Rebuilt reactively on the UI thread from drawProgress.
+  const clipRect = useDerivedValue(() =>
+    Skia.XYWHRect(0, 0, canvasW * drawProgress.value, canvasH),
+  );
+  // Dot fades + scales in at the end of the draw.
+  const dotR = useDerivedValue(() => (strokeWidth + 1.5) * dotProgress.value);
+  const haloR = useDerivedValue(() => (strokeWidth + 4.5) * dotProgress.value);
+  const dotOpacity = useDerivedValue(() => dotProgress.value);
+  const haloOpacity = useDerivedValue(() => 0.18 * dotProgress.value);
+
+  if (!valid) return null;
 
   // Line path.
   const line = Skia.Path.Make();
@@ -85,30 +144,34 @@ export function Sparkline({
 
   return (
     <Canvas style={{ width: canvasW, height: canvasH }}>
-      {fill && (
-        <Path path={area} style="fill">
-          {/* color@0.35 → transparent, top → bottom (lib.jsx vertical gradient). */}
-          <LinearGradient
-            start={vec(0, halo)}
-            end={vec(0, baseY)}
-            colors={[`${color}59`, `${color}00`]}
-          />
-        </Path>
-      )}
-      <Path
-        path={line}
-        style="stroke"
-        strokeWidth={strokeWidth}
-        strokeCap="round"
-        strokeJoin="round"
-        color={color}
-      />
+      {/* D-18: line + area draw in left→right under an animated-width clip. */}
+      <Group clip={clipRect}>
+        {fill && (
+          <Path path={area} style="fill">
+            {/* color@0.35 → transparent, top → bottom (lib.jsx vertical gradient). */}
+            <LinearGradient
+              start={vec(0, halo)}
+              end={vec(0, baseY)}
+              colors={[`${color}59`, `${color}00`]}
+            />
+          </Path>
+        )}
+        <Path
+          path={line}
+          style="stroke"
+          strokeWidth={strokeWidth}
+          strokeCap="round"
+          strokeJoin="round"
+          color={color}
+        />
+      </Group>
       {showDot && (
         <>
           {/* Halo first (under), then the solid dot (lib.jsx draws dot then halo;
-              order is reversed here so the opaque dot sits on top). */}
-          <Circle cx={last[0]} cy={last[1]} r={strokeWidth + 4.5} color={color} opacity={0.18} />
-          <Circle cx={last[0]} cy={last[1]} r={strokeWidth + 1.5} color={color} />
+              order is reversed here so the opaque dot sits on top). Both fade +
+              scale in via the delayed dotProgress (D-18). */}
+          <Circle cx={last[0]} cy={last[1]} r={haloR} color={color} opacity={haloOpacity} />
+          <Circle cx={last[0]} cy={last[1]} r={dotR} color={color} opacity={dotOpacity} />
         </>
       )}
     </Canvas>
