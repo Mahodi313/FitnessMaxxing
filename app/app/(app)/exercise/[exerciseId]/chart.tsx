@@ -94,9 +94,10 @@ import {
   type ChartMetric,
   type ChartRange,
 } from "@/lib/queries/exercise-chart";
+import { useExerciseSetsInRangeQuery } from "@/lib/queries/exercise-sets-in-range";
 import { SegmentedControl } from "@/components/segmented-control";
-import { type UnitPref } from "@/lib/prefs";
 import { useUnitStore } from "@/lib/units-store";
+import { epley1RM } from "@/lib/e1rm";
 import { formatVolume, formatWeight, toDisplayVolume, toDisplayWeight } from "@/lib/units";
 
 // ── Forge token hexes (light / dark) ────────────────────────────────────────
@@ -212,6 +213,18 @@ export default function ExerciseChartScreen() {
   const allTimeChartQuery = useExerciseChartQuery(exerciseId ?? "", metric, "All");
   const summaryQuery = useExerciseSummaryQuery(exerciseId ?? "", metric, range);
   const topSetsQuery = useExerciseTopSetsQuery(exerciseId ?? "", rangeAsWindow(range), 10);
+
+  // PR-05/D-16: raw working sets in the selected range feed the e1RM hero +
+  // range delta. rangeToSince returns an ISO string | null ("All" → null = full
+  // history); the hook takes Date | null, so wrap a non-null since in `new Date`.
+  // This is the canonical 3-state since-boundary (the same one the summary RPC
+  // uses), now actually consumed (it was previously only referenced to keep the
+  // import load-bearing).
+  const heroSince = rangeToSince(range);
+  const setsInRangeQuery = useExerciseSetsInRangeQuery(
+    exerciseId ?? "",
+    heroSince != null ? new Date(heroSince) : null,
+  );
 
   // WR-01 fix: the memo body reads BOTH `metric` and `units`, so they MUST be
   // in the dep array. `metric` lives in the chart queryKey (a change refetches →
@@ -336,17 +349,48 @@ export default function ExerciseChartScreen() {
   const sparseCaption = chartData.length === 1;
   const showTopSetsList = chartData.length > 0;
 
-  // Hero values (D-12): active-metric current best + range delta. For weight the
-  // delta is an absolute kg figure (formatWeight); for volume it's a percentage.
+  // summary still feeds the D-14 3-stat row below (top set / vol-per-session /
+  // avg RPE). The HERO no longer reads from it — D-16/PR-05 swaps the hero DATA
+  // to the estimated 1RM (the GEOMETRY at :410-451 is untouched).
   const summary = summaryQuery.data;
+
+  // Hero values (D-16/PR-05): the estimated 1RM is the MAX Epley e1RM among the
+  // WORKING sets in range, and the success delta is best-in-range −
+  // earliest-in-range (the e1RM of the chronologically-first set). e1RM is a
+  // weight figure (a 1RM estimate), so the hero is NOT metric-dependent — it
+  // always shows the estimated 1RM. Every numeral is computed in kg via
+  // lib/e1rm.ts (D-08 — the single formula source, never an inline `w*(1+r/30)`)
+  // then display-converted via toDisplayWeight + the reactive units pref (D-20).
+  const hero = useMemo(() => {
+    const sets = setsInRangeQuery.data;
+    if (!sets || sets.length === 0) return null;
+    // Chronological order for "earliest" (the RPC orders by completed_at; sort
+    // defensively in case the wire order ever changes).
+    const ordered = [...sets].sort((a, b) =>
+      a.completed_at < b.completed_at ? -1 : a.completed_at > b.completed_at ? 1 : 0,
+    );
+    let bestE1rmKg = 0;
+    for (const s of ordered) {
+      const e = epley1RM(s.weight_kg, s.reps);
+      if (e > bestE1rmKg) bestE1rmKg = e;
+    }
+    // No qualifying (weight>0 / reps>0) set → no hero numeral to show.
+    if (bestE1rmKg <= 0) return null;
+    const earliestE1rmKg = epley1RM(ordered[0].weight_kg, ordered[0].reps);
+    return { bestE1rmKg, earliestE1rmKg };
+  }, [setsInRangeQuery.data]);
+
   const heroNumeral =
-    summary != null
-      ? metric === "volume"
-        ? toDisplayVolume(summary.current_best, units).toLocaleString("sv-SE")
-        : String(toDisplayWeight(summary.current_best, units))
-      : "–";
+    hero != null ? String(toDisplayWeight(hero.bestE1rmKg, units)) : "–";
   const heroUnit = units === "imperial" ? "lb" : "kg";
-  const deltaChip = summary != null ? computeDelta(summary, metric, units, t) : null;
+  // Success-only delta chip (D-16, Phase 12 D-12 carry-forward): positive →
+  // "+{kg} kg" success chip; zero or negative → NO chip (never a red down-chip).
+  const heroDeltaKg =
+    hero != null ? hero.bestE1rmKg - hero.earliestE1rmKg : 0;
+  const deltaChip =
+    hero != null && heroDeltaKg > 0
+      ? `+${formatWeight(heroDeltaKg, units)}`
+      : null;
 
   return (
     <SafeAreaView
@@ -407,15 +451,17 @@ export default function ExerciseChartScreen() {
           </Text>
         </View>
 
-        {/* D-12 hero stat — current best (52px numeral) + range-delta success
-            chip. REAL data, NOT e1RM (D-13). */}
+        {/* D-16/PR-05 hero stat — estimated 1RM (52px numeral) + best-in-range −
+            earliest-in-range success delta chip. The GEOMETRY (52/18/11/13 type
+            scale, ratified Forge tokens) is UNCHANGED from the Phase 12 D-12
+            hero; only the DATA + the eyebrow key swap (currentBest → estimated1RM). */}
         <View className="flex-row items-end px-5 pt-2 pb-1">
           <View>
             <Text
               className="text-[11px] font-semibold uppercase text-forge-text3-light dark:text-forge-text3"
               style={{ letterSpacing: 1 }}
             >
-              {t("currentBest")}
+              {t("estimated1RM")}
             </Text>
             <View className="flex-row items-baseline gap-2">
               <Text
@@ -643,38 +689,10 @@ function rangeAsWindow(range: ChartRange): "1M" | "3M" | "All" {
       return "All";
   }
 }
-// Reference rangeToSince so the import is load-bearing (documents the exact
-// 3-state since-boundary the summary RPC uses; D-11 / 12-04 contract).
-void rangeToSince;
-
-// ---------------------------------------------------------------------------
-// computeDelta — D-12 range-delta chip text.
-//
-// Weight: absolute kg figure via formatWeight (e.g. "+15.5 kg").
-// Volume: percentage vs the range-first value (e.g. "+12%").
-// Returns null when there is no meaningful positive-or-zero delta to show
-// (the chip is informational; the design only shows the success-tinted up chip).
-// ---------------------------------------------------------------------------
-function computeDelta(
-  summary: { current_best: number; range_first_value: number },
-  metric: ChartMetric,
-  units: UnitPref,
-  t: (k: string, opts?: Record<string, unknown>) => string,
-): string | null {
-  const { current_best, range_first_value } = summary;
-  if (metric === "volume") {
-    if (range_first_value <= 0) return null;
-    const pct = Math.round(
-      ((current_best - range_first_value) / range_first_value) * 100,
-    );
-    if (pct <= 0) return null;
-    return t("volumeDeltaPct", { n: pct });
-  }
-  // weight: absolute delta in display units, suffixed.
-  const deltaKg = current_best - range_first_value;
-  if (deltaKg <= 0) return null;
-  return `+${formatWeight(deltaKg, units)}`;
-}
+// `rangeToSince` is now load-bearing — it resolves the e1RM hero's since-
+// boundary (PR-05/D-16) for useExerciseSetsInRangeQuery, so the prior
+// `void rangeToSince;` keep-alive (and the D-12 computeDelta helper, replaced by
+// the inline best-in-range − earliest-in-range success delta) are removed.
 
 // ---------------------------------------------------------------------------
 // FChartStat — D-14 stat card (label + display numeral). Forge surface frame,
