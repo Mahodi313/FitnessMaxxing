@@ -478,11 +478,20 @@ export default function SessionDetailScreen() {
           {Array.from(setsByExercise.entries()).map(([exerciseId, sets]) => (
             <ExerciseCard
               key={exerciseId}
+              exerciseId={exerciseId}
               exerciseName={
                 exerciseNameById.get(exerciseId) ?? t("errorGeneric")
               }
               sets={sets}
               units={units}
+              // FIT-110: restore the session-detail → chart entry point dropped
+              // in the 12-07 re-skin. exerciseId is the setsByExercise Map key
+              // (the caller's own RLS-scoped sets). Typed-route literal; if
+              // experiments.typedRoutes trips on the cross-route reference, the
+              // `as Href` cast is the Phase-4-02 precedent (Href already imported).
+              onPress={() =>
+                router.push(`/exercise/${exerciseId}/chart` as Href)
+              }
             />
           ))}
         </View>
@@ -754,19 +763,27 @@ export default function SessionDetailScreen() {
 // ---------------------------------------------------------------------------
 // ExerciseCard — D-15 hybrid: Forge frame with exercise name + right-aligned
 // max-weight stat AND the kept expanded per-set list (w × r + RPE per set).
-// PB trophy OMITTED (D-13). All weights unit-converted (D-20). No chart
-// cross-link in this re-skin (the chart route is reached from the chart screen
-// per the Phase-12 IA; the breakdown card is informational only).
+// PB trophy OMITTED (D-13). All weights unit-converted (D-20).
+//
+// FIT-110: tappable → /exercise/[exerciseId]/chart restored (the Phase-6
+// cross-link was dropped in the 12-07 re-skin, orphaning the chart route). The
+// Forge card frame is preserved (D-15) — only made Pressable + given a visible
+// chevronRight affordance; box-decoration stays in className (NativeWind), the
+// pressed-opacity is the documented style()-callback exception.
 // ---------------------------------------------------------------------------
 
 function ExerciseCard({
+  exerciseId,
   exerciseName,
   sets,
   units,
+  onPress,
 }: {
+  exerciseId: string;
   exerciseName: string;
   sets: SetRow[];
   units: UnitPref;
+  onPress: () => void;
 }) {
   const { t } = useTranslation();
   // Per-exercise max-weight = top set's weight in this session.
@@ -774,9 +791,18 @@ function ExerciseCard({
     (max, s) => (s.weight_kg > max ? s.weight_kg : max),
     0,
   );
+  // exerciseId is referenced for the a11y label routing context; the actual
+  // navigation is wired at the call site via onPress (router in scope there).
+  void exerciseId;
 
   return (
-    <View className="rounded-forge-md border bg-forge-surface-light dark:bg-forge-surface border-forge-border-light dark:border-forge-border px-4 py-3.5">
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={t("viewExerciseChart", { exercise: exerciseName })}
+      className="rounded-forge-md border bg-forge-surface-light dark:bg-forge-surface border-forge-border-light dark:border-forge-border px-4 py-3.5"
+      style={({ pressed }) => (pressed ? { opacity: 0.85 } : null)}
+    >
       <View className="flex-row items-start justify-between">
         <View className="flex-1 mr-3">
           <Text
@@ -787,20 +813,28 @@ function ExerciseCard({
             {exerciseName}
           </Text>
         </View>
-        {/* Right-aligned max-weight stat */}
-        <View className="items-end">
-          <Text
-            className="text-[18px] font-display-bold text-forge-text-light dark:text-forge-text"
-            style={{ fontVariant: ["tabular-nums"], letterSpacing: -0.3 }}
-          >
-            {formatWeight(maxWeightKg, units)}
-          </Text>
-          <Text
-            className="text-[10px] font-semibold uppercase text-forge-text3-light dark:text-forge-text3"
-            style={{ letterSpacing: 0.5 }}
-          >
-            {t("maxWeight")}
-          </Text>
+        {/* Right-aligned max-weight stat + a chevronRight "opens the chart" cue
+            (FIT-110 — the regression's harm was an invisible affordance). The
+            chevron sits to the right of the stat column with a small gap, the
+            Forge history-row convention (text-forge-text3 token). */}
+        <View className="flex-row items-center">
+          <View className="items-end">
+            <Text
+              className="text-[18px] font-display-bold text-forge-text-light dark:text-forge-text"
+              style={{ fontVariant: ["tabular-nums"], letterSpacing: -0.3 }}
+            >
+              {formatWeight(maxWeightKg, units)}
+            </Text>
+            <Text
+              className="text-[10px] font-semibold uppercase text-forge-text3-light dark:text-forge-text3"
+              style={{ letterSpacing: 0.5 }}
+            >
+              {t("maxWeight")}
+            </Text>
+          </View>
+          <View className="ml-2.5">
+            <Icon name="chevronRight" size={18} color="#9A9A9A" />
+          </View>
         </View>
       </View>
 
@@ -829,6 +863,6 @@ function ExerciseCard({
           </View>
         ))}
       </View>
-    </View>
+    </Pressable>
   );
 }
