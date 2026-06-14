@@ -10,6 +10,8 @@ export { Logo, type LogoProps, type LogoVariant } from "./Logo";
 export { AppIcon, type AppIconProps } from "./AppIcon";
 export { ProgressRing, type ProgressRingProps } from "./ProgressRing";
 export { Sparkline, type SparklineProps } from "./Sparkline";
+export { PrTrophy, type PrTrophyProps } from "./PrTrophy";
+export { PrBanner, type PrBannerProps } from "./PrBanner";
 
 export {
   ForgeButton,
