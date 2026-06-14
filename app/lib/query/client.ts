@@ -60,6 +60,7 @@ import {
   setsKeys,
   lastValueKeys,
   dashboardKeys,
+  bestE1rmKeys,
 } from "@/lib/query/keys";
 
 // ---------------------------------------------------------------------------
@@ -845,6 +846,11 @@ queryClient.setMutationDefaults(["session", "finish"], {
     // remount/refocus. Broad ["dashboard"] prefix (matches lastValueKeys.all
     // convention) stays robust if more dashboard slots are added later.
     void queryClient.invalidateQueries({ queryKey: dashboardKeys.all });
+    // Phase 13 (13-03, D-06): refresh the offline-first all-time-best reference
+    // so live PR detection in a back-to-back session judges against the set
+    // this just-finished session may have established. ADDITIVE read-side
+    // invalidate only (D-17 HARD LINE — no mutation-default/onMutate/scope edit).
+    void queryClient.invalidateQueries({ queryKey: bestE1rmKeys.all });
   },
   retry: 1,
 });
