@@ -591,12 +591,41 @@ function ExerciseCard({
 
   const addSet = useAddSet(sessionId);
 
-  // PR-02/D-12/D-13: ids of THIS card's sets that were a PR at log time. The
-  // row for an id in this Set swaps its green check for a gradient trophy. D-12
-  // historical honesty: a later higher set does NOT remove an earlier trophy —
-  // ids are only ADDED, never pruned. Set state (not array) so re-logging the
-  // same id is idempotent.
-  const [prSetIds, setPrSetIds] = useState<Set<string>>(() => new Set());
+  // PR-02/D-12/D-13: ids of THIS card's sets that were a PR. DERIVED (not
+  // ephemeral state) so the trophies PERSIST across navigation: ExerciseCard
+  // unmounts when the user leaves the workout screen, so any imperative
+  // accumulation is lost and previously-PR rows revert to the green check on
+  // return (FIT-116). Instead we replay the running-max over the in-session
+  // working sets against the cached all-time baseline — reproducible on every
+  // remount from persisted data (no query/network; D-17 budget untouched).
+  //
+  // Behaviour matches the prior onKlart detection exactly: D-12 historical
+  // honesty (a later higher set never removes an earlier trophy — running-max
+  // replay keeps earlier ids), D-05 strict `>`, D-04 weight_kg > 0,
+  // D-02 (the first-ever baseline-setting set is never a PR).
+  const prSetIds = useMemo(() => {
+    const ids = new Set<string>();
+    const best = bestE1rm[planExercise.exercise_id];
+    // Baseline = all-time best e1RM (finished sessions, cached). With no
+    // baseline AND no earlier in-session set, the first set is not a PR (D-02).
+    let runningMax = best ? epley1RM(best.weight_kg, best.reps) : 0;
+    let hasPrior = !!best;
+    // setsForThisExercise is already sorted by set_number (the monotonic
+    // per-exercise ordinal). completed_at can be null (schema), so set_number
+    // is the reliable chronological key — re-sort defensively in case the
+    // upstream ordering ever changes.
+    const ordered = [...setsForThisExercise].sort(
+      (a, b) => a.set_number - b.set_number,
+    );
+    for (const s of ordered) {
+      const e = epley1RM(s.weight_kg, s.reps);
+      const isPr = s.weight_kg > 0 && e > 0 && hasPrior && e > runningMax; // D-04/D-05 strict >
+      if (isPr) ids.add(s.id);
+      if (e > runningMax) runningMax = e;
+      hasPrior = true; // after the first set there is always a prior reference (D-07)
+    }
+    return ids;
+  }, [setsForThisExercise, bestE1rm, planExercise.exercise_id]);
 
   const onKlart = (input: SetFormOutput) => {
     // D-16 SUPERSEDED by Plan 05-04: server-side trigger assigns set_number;
@@ -679,19 +708,18 @@ function ExerciseCard({
       input.weight_kg > 0 && cand > 0 && hasPriorReference && cand > priorBest;
 
     if (isPR) {
-      // (1) D-12/D-13: tag this set's row for the trophy swap (additive).
-      setPrSetIds((prev) => {
-        const next = new Set(prev);
-        next.add(setId);
-        return next;
-      });
-      // (2) D-11: spawn a FRESH floating banner for this set (lifted overlay).
+      // D-12/D-13: the trophy swap for this set's row is now DERIVED (see the
+      // prSetIds useMemo above) — the optimistic onMutate appends this set to
+      // setsForThisExercise, the memo recomputes, and the row trophies
+      // immediately. No imperative tag needed here (FIT-116).
+      //
+      // (1) D-11: spawn a FRESH floating banner for this set (lifted overlay).
       onPr({
         weightKg: input.weight_kg,
         reps: input.reps,
         setNumber: candidateSetNumber,
       });
-      // (3) D-18: the PR haptic — `notificationSuccess`, through the SAME
+      // (2) D-18: the PR haptic — `notificationSuccess`, through the SAME
       // fm:haptics gate as the set-logged haptic above. Silent when haptics off;
       // still fires under reduce-motion (D-19 governs animation, not haptics).
       void getPref("fm:haptics").then((on) => {
