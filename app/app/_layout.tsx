@@ -51,6 +51,12 @@ import i18n from "@/lib/i18n";
 import { resolveLanguage } from "@/lib/i18n";
 import { usePersistenceStore } from "@/lib/persistence-store";
 import { useFontStore } from "@/lib/font-store";
+// FIT-111: live display-unit store + boot hydration. UnitsBootstrap reads
+// fm:units once at boot and mirrors it into useUnitStore so every read-side
+// screen re-renders on a Settings unit toggle (no restart). fm:units stays the
+// durable source via getPref/setPref.
+import { useUnitStore } from "@/lib/units-store";
+import { getPref } from "@/lib/prefs";
 
 // Importing useAuthStore here triggers the module-scope onAuthStateChange listener
 // + getSession() init flow registered in app/lib/auth-store.ts. Order does not
@@ -183,6 +189,22 @@ function LocaleBootstrap() {
 }
 
 /**
+ * FIT-111: reads fm:units during the splash-hold window and mirrors it into
+ * useUnitStore so the read-side screens render the correct unit from the first
+ * frame. ThemeBootstrap precedent — fires in parallel with the auth-status
+ * splash gate and does NOT block splash hiding (the "metric" default renders
+ * fine pre-hydration; the correct unit flips in on the next tick, so this is
+ * NOT added to the splash-ready gate). getPref is corrupt-tolerant
+ * (z.enum(...).catch("metric")) so a tampered fm:units never throws.
+ */
+function UnitsBootstrap() {
+  useEffect(() => {
+    void getPref("fm:units").then((u) => useUnitStore.getState().hydrate(u));
+  }, []);
+  return null;
+}
+
+/**
  * Stack.Protected gates (app) and (auth) groups by session presence.
  * While status === 'loading', renders null so the native splash continues to
  * cover the screen (RESEARCH.md Pitfall §5 — prevents the empty-navigator
@@ -265,6 +287,7 @@ export default function RootLayout() {
         <ThemeBootstrap />
         <FontBootstrap />
         <LocaleBootstrap />
+        <UnitsBootstrap />
         <SplashScreenController />
         <RootNavigator />
         <StatusBar style={isDark ? "light" : "dark"} />
