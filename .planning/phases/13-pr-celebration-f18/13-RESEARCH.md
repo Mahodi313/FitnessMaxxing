@@ -436,19 +436,22 @@ void getPref("fm:haptics").then((on) => {                       // D-18 gate
 | A6 | Banner sweep = animate Skia `LinearGradient` start/end via `useDerivedValue` | Pattern 4 | Low — exact Sparkline mechanism; alternative (animated Reanimated LinearGradient) also viable |
 | A7 | Scale spring may need `withTiming` fallback if it "pops" on device | Pattern 4 | Low — device-UAT decision; check-icon precedent already did this |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **History-row PR aggregation: per-exercise RPC + JS fold vs a dedicated session-level RPC?**
    - What we know: `get_exercise_pr_history` per exercise gives `was_pr` per set; history needs "any PR set in session X."
    - What's unclear: whether one aggregating RPC (`get_session_pr_flags`) is cleaner than N per-exercise calls in `history.tsx`.
    - Recommendation: ship the per-exercise window-function engine + a thin session-level aggregating RPC so `history.tsx` does one call. Planner decides (CONTEXT "RPC shape" discretion).
+   - **RESOLVED:** dedicated session-level RPC `get_session_pr_flags(p_session_ids uuid[])` shipped in plan 13-02 (`bool_or` over the same window engine, boolean only — preserves D-08); consumed via `useSessionPrFlags` (13-03) in one hooks-legal call. The per-exercise-loop path was rejected (rules-of-hooks).
 
 2. **Chart hero: new raw-sets RPC vs extend `get_exercise_summary`?**
    - What we know: `get_exercise_summary` returns aggregates only, not per-set rows; e1RM hero/delta need per-set e1RM via `lib/e1rm.ts`.
    - What's unclear: cost of a new RPC vs adding SQL-side `best_e1rm`/`first_e1rm` columns.
    - Recommendation: NEW raw-sets-in-range RPC; compute e1RM in JS (honors D-08 single-formula). Avoid SQL-side display e1RM.
+   - **RESOLVED:** new `get_exercise_sets_in_range` RPC shipped in 13-02 (raw sets only); `get_exercise_summary` explicitly NOT extended (would re-open a 2nd formula home, violating D-08). e1RM computed in JS via `lib/e1rm.ts`.
 
 3. **`pbSetSuffix` set-ordinal source.** UI-SPEC fixes the key name + string (`"· set {{n}}"`); `{{n}}` is the 1-based set ordinal within the session. The candidate set's `set_number` (server-assigned) is the natural source — confirm it's available at banner-mount time (it is, post-optimistic-append). Low risk.
+   - **RESOLVED:** `{{n}}` = the candidate set's `set_number` (available post-optimistic-append); key added at sv/en parity in 13-04.
 
 ## Environment Availability
 
