@@ -193,7 +193,7 @@ Items acknowledged for later:
 Last session: 2026-06-14T19:07:59.806Z
 Stopped at: Phase 14 UI-SPEC approved
 Resume file: .planning/phases/14-rest-timer-f19-research-flagged/14-UI-SPEC.md
-Next: Orchestrator runs Phase 13 closeout — `/gsd-secure-phase 13` (close threat register T-13-* against implementation; produce 13-SECURITY.md with threats_open: 0) → `/gsd-verify-work 13` (write 13-VERIFICATION.md with all 3 success criteria MET) → `/gsd-code-review` (post-phase audit) → phase.complete (advance ROADMAP Phase 13 → ✓ Complete). Then plan Phase 14 (Rest Timer — F19, RESEARCH-FLAGGED). NOTE: FIT-116 (workout-trophy persistence) was fixed inline during 13-05 UAT; close it when merging the phase PR.
+Next: Phase 13 closeout — ✓ `/gsd-secure-phase 13` DONE (13-SECURITY.md, 14/14 threats CLOSED, threats_open: 0 — originally run on the gsd/phase-13 branch at 1e612cf, restored onto the phase-14 branch 2026-06-14); ✓ `/gsd-verify-work 13` DONE (13-VERIFICATION.md, VERIFIED, device-UAT approved); ✓ `/gsd-code-review` DONE (13-REVIEW.md, WR-01…06 non-blocking). Remaining: phase.complete (advance ROADMAP Phase 13 → ✓ Complete). Phase 14 is now PLANNED (4 plans, 3 waves) → next is `/gsd:execute-phase 14`. NOTE: FIT-116 (workout-trophy persistence) was fixed inline during 13-05 UAT; close it when merging the phase PR.
 
 ## Operator Next Steps
 
