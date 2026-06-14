@@ -49,7 +49,7 @@
 
 ### PR Celebration (PR)
 
-- [ ] **PR-01**: A logged set that beats the prior best e1RM (Epley) for that exercise is detected as a personal best, computed client-side so it works offline
+- [x] **PR-01**: A logged set that beats the prior best e1RM (Epley) for that exercise is detected as a personal best, computed client-side so it works offline
 - [ ] **PR-02**: A PR set is marked with a trophy in the active-workout set list
 - [ ] **PR-03**: A PR shows a celebration banner (with gradient-sweep animation) during the workout
 - [ ] **PR-04**: PR sessions are marked with a trophy in history; session detail and chart surface PR/e1RM
@@ -144,7 +144,7 @@
 | DASH-05 | Phase 12 | Complete |
 | MOTN-02 | Phase 12 | Complete |
 | MOTN-03 | Phase 12 | Complete |
-| PR-01 | Phase 13 | Pending |
+| PR-01 | Phase 13 | Complete |
 | PR-02 | Phase 13 | Pending |
 | PR-03 | Phase 13 | Pending |
 | PR-04 | Phase 13 | Pending |

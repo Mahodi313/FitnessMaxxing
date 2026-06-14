@@ -4,13 +4,13 @@ milestone: v2.0
 milestone_name: — Forge Redesign
 status: executing
 stopped_at: Phase 13 UI-SPEC approved
-last_updated: "2026-06-14T09:50:17.327Z"
-last_activity: 2026-06-14 -- Phase 13 planning complete
+last_updated: "2026-06-14T14:32:58.088Z"
+last_activity: 2026-06-14
 progress:
   total_phases: 8
   completed_phases: 5
   total_plans: 33
-  completed_plans: 28
+  completed_plans: 29
   percent: 63
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-09)
 
 **Core value:** Logga ett set och omedelbart se vad jag tog senast på samma övning — utan att tappa data, någonsin.
-**Current focus:** Phase 13 — pr celebration (f18)
+**Current focus:** Phase 13 — pr-celebration-f18
 
 ## Current Position
 
-Phase: 13
-Plan: Not started
+Phase: 13 (pr-celebration-f18) — EXECUTING
+Plan: 2 of 5
 Status: Ready to execute
-Last activity: 2026-06-14 -- Phase 13 planning complete
+Last activity: 2026-06-14
 
 ## Performance Metrics
 
@@ -90,6 +90,7 @@ Last activity: 2026-06-14 -- Phase 13 planning complete
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- **2026-06-14 [13-01]**: D-08 — `app/lib/e1rm.ts` is the SINGLE Epley e1RM source. `epley1RM(weightKg, reps) = weightKg × (1 + reps/30)`, pure number→number in canonical kg, with non-finite + weight≤0 (D-04) + reps≤0 guards all returning 0 (T-13-03 — never NaN/Infinity into a PR compare). D-01 worked example asserted: `epley1RM(90,10)=120 > epley1RM(100,5)≈116.67`. D-02 (first-set baseline) / D-03 (set_type='working' filter) kept as CALLER concerns, OUT of the formula. e1RM is a kg figure (not its own unit) — callers display-convert via toDisplayWeight/formatWeight + useUnitStore (D-20). Wave-2 consumers (live PR detection, chart hero, session-detail e1RM, range delta) all import it. New `test:e1rm` npm script (9 cases, DB-free, <1s, exit-coded). tsc + lint clean; 0 deviations. Mirrors lib/units.ts pure-module structure.
 - **2026-06-13 (11-03)**: D-16 — draft-resume End-session button är en danger ghost (ForgeButton destructive); data-loss-adjacent är enda stället rött är rätt
 - **2026-06-13 (11-03)**: D-11/MOTN-04 — §07 overlay-spring (damping 18 / stiffness 220) på draft-resume; saved-toast behöll FadeIn/FadeOut; båda inline (D-15, ingen Modal-portal)
 - **2026-05-07**: F13 offline-stöd bumpat från Bör → Måste (driver offline-first från Phase 4)
@@ -181,9 +182,9 @@ Items acknowledged for later:
 
 ## Session Continuity
 
-Last session: 2026-06-14T08:58:38.465Z
+Last session: 2026-06-14T14:32:58.078Z
 Stopped at: Phase 13 UI-SPEC approved
-Resume file: .planning/phases/13-pr-celebration-f18/13-UI-SPEC.md
+Resume file: None
 Next: Orchestrator runs phase-level closeout — `/gsd-secure-phase 4` (close threat register T-04-01 … T-04-12 against implementation; produce 04-SECURITY.md with threats_open: 0) → `/gsd-verify-work 4` (write 04-VERIFICATION.md with all 5 success criteria MET) → `/gsd-code-review` (post-phase audit) → phase.complete (advance ROADMAP Phase 4 → ✓ Complete). Then plan Phase 5 (Active Workout Hot Path — F13 lives or dies).
 
 ## Operator Next Steps
