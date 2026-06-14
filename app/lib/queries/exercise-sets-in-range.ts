@@ -43,9 +43,16 @@ export function useExerciseSetsInRangeQuery(
       // types, but the SQL body guards NULL via `(p_since is null or ...)`.
       // Cast `null` at the call boundary — same documented type-gen limitation
       // as exercise-chart.ts.
+      //
+      // An EXPLICIT `null` (not `undefined`) is REQUIRED for the "All" range:
+      // `since?.toISOString()` yields `undefined` when `since` is null, and
+      // supabase-js drops undefined keys during JSON serialization → PostgREST
+      // sees only `{p_exercise_id}`, fails to resolve the 2-arg signature, and
+      // returns 404 PGRST202 (the throw blanks the chart hero). Passing `null`
+      // resolves the 2-arg signature and the SQL guard returns full history.
       const { data, error } = await supabase.rpc("get_exercise_sets_in_range", {
         p_exercise_id: exerciseId,
-        p_since: since?.toISOString() as unknown as string,
+        p_since: (since ? since.toISOString() : null) as unknown as string,
       });
       if (error) throw error;
       return (data ?? []).map((row: unknown) => SetInRangeRowSchema.parse(row));
