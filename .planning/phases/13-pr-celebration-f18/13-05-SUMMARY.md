@@ -167,6 +167,17 @@ None — no external service configuration required.
 - Ready for phase-level closeout: `/gsd-secure-phase 13` (close T-13-* register) → `/gsd-verify-work 13` → `/gsd-code-review` → advance ROADMAP Phase 13 → Complete.
 - FIT-116 (workout-trophy persistence) was fixed inline during this UAT; no open blocker carries into Phase 14.
 
+## Self-Check: PASSED
+
+- `13-05-SUMMARY.md` — FOUND
+- Commit `eb3f140` (Task 1) — FOUND
+- Commit `3d481db` (Task 2) — FOUND
+- Commit `b909da6` (fix loop A) — FOUND
+- Commit `b73eb8f` (fix loop B) — FOUND
+- Commit `baf408e` (FIT-116) — FOUND
+- Commit `11be088` (SUMMARY docs) — FOUND
+- `npx tsc --noEmit` from `app/` — exit 0
+
 ---
 *Phase: 13-pr-celebration-f18*
 *Completed: 2026-06-14*

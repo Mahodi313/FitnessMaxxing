@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: — Forge Redesign
 status: executing
-stopped_at: Completed 13-03-PLAN.md
-last_updated: "2026-06-14T15:41:15.706Z"
+stopped_at: Completed 13-05-PLAN.md
+last_updated: "2026-06-14T16:35:00.000Z"
 last_activity: 2026-06-14
 progress:
   total_phases: 8
   completed_phases: 5
   total_plans: 33
-  completed_plans: 32
-  percent: 63
+  completed_plans: 33
+  percent: 65
 ---
 
 # Project State
@@ -26,8 +26,8 @@ See: .planning/PROJECT.md (updated 2026-06-09)
 ## Current Position
 
 Phase: 13 (pr-celebration-f18) — EXECUTING
-Plan: 5 of 5
-Status: Ready to execute
+Plan: 5 of 5 (all plans complete — phase ready for closeout)
+Status: All 5 plans executed; phase-level closeout pending
 Last activity: 2026-06-14
 
 ## Performance Metrics
@@ -85,6 +85,7 @@ Last activity: 2026-06-14
 | Phase 13 P02 | 18min | 3 tasks | 4 files |
 | Phase 13 P03 | 8min | 2 tasks | 6 files |
 | Phase 13 P13-04 | ~25min | 2 tasks | 6 files |
+| Phase 13 P13-05 | ~50min | 2 tasks + 3 UAT fixes | 6 files |
 
 ## Accumulated Context
 
@@ -157,6 +158,7 @@ Recent decisions affecting current work:
 - [Phase ?]: 2026-06-13 [12-01]: Migration 0011 deployed live — get_dashboard_summary (combined 8-col single-row aggregate) + get_exercise_summary (chart hero/3-stat). Both security invoker + stable + search_path='' + set_type='working', finished-only. Streak <=2 in-progress-week island boundary LOCKED (D-07); local Mon-Sun bucketing via date_trunc('week', started_at at time zone p_tz) (D-06). Proven by test:dashboard.
 - [Phase ?]: 2026-06-14 [13-02]: Migration 0012 live — four read-only SECURITY INVOKER PR RPCs (search_path='', set_type=working D-03, weight_kg>0 D-04, finished-only). get_exercise_pr_history flags was_pr PR-at-log-time via strictly-prior window frame (rows between unbounded preceding and 1 preceding, Pitfall 1) + order by completed_at,set_id tiebreak (Pitfall 2) + first-set baseline false (D-02) + strict > so tie is not a PR (D-05). get_best_working_sets = all-time-best per exercise distinct-on ordered by internal e1RM (offline baseline D-06). get_exercise_sets_in_range = raw range sets for chart hero+delta (D-16). get_session_pr_flags = SAME engine partition by exercise_id + bool_or to session has_pr (D-14, history-list trophy aggregator, RESEARCH Open Q1). Internal SQL e1RM (float div) is ordering/flagging ONLY, never returned (D-08); RAW sets returned, JS recomputes via lib/e1rm.ts. phase13Functions deploy gate + test-rls cross-user + was_pr/has_pr fixture all green. 0 deviations.
 - [Phase ?]: 2026-06-14 [13-03]: Wave-2 PR read-side query layer. useBestE1rmQuery offline-first Record<exerciseId,{weight_kg,reps}> over get_best_working_sets (single dashboardKeys.summary()-style slot, NO per-exercise arg; Record-not-Map persister-safe; userId belt-and-braces; 15-min staleTime mirroring last-value.ts) = the live PR-detection baseline (D-06/PR-01). usePrHistoryQuery (was_pr-per-set, D-14/D-15) + useExerciseSetsInRangeQuery (raw range sets, since=null omits p_since so PostgREST defaults NULL, D-16) + useSessionPrFlags (ONE get_session_pr_flags call over the visible session-id array -> Record<session_id,has_pr>, hooks-legal history-LIST aggregator replacing a per-exercise hook loop, D-14/RESEARCH-OpenQ1; key sorts an id-list copy for order-independent cache). All four Zod-parse every RPC row (T-13-06); raw weight/reps returned, JS owns e1RM via lib/e1rm.ts (D-08). ONE additive bestE1rmKeys.all invalidate in the existing session-finish onSettled (D-17 hard line). tsc+test:f13-brutal green; 0 deviations.
+- [Phase ?]: **2026-06-14 [13-05]**: PR-04/05 — read-side PR surfaces. History-list session-row PrTrophy gated on ONE useSessionPrFlags(sessionIds) aggregator (D-14, no per-exercise hook loop). Session-detail per-exercise e1RM (epley1RM of top working set → formatWeight) + 18px PR-at-the-time trophy (was_pr set with session_id===thisSession via usePrHistoryQuery, hooks-legal on the fixed detail card, D-15). Chart hero DATA-swapped current_best→max(epley1RM) over useExerciseSetsInRangeQuery + estimated1RM eyebrow + success-only range delta (best−earliest, negative=no chip never red, D-16/PR-05); GEOMETRY + line draw-on-mount (MOTN-03) untouched. Every numeral via lib/e1rm.ts (D-08), reactive via useUnitStore (D-20); read-only, no v1 factory mutation (D-24). 3 device-UAT Rule-1 fixes: (A b909da6) chart hero blank on "Allt" — useExerciseSetsInRangeQuery sent p_since:undefined (JSON-dropped → PGRST202 404 → query threw); fixed by explicit p_since:null (migration-free, live-REST verified undefined→404/null→200). (B b73eb8f) hero showed unrounded 17-digit float (266.66666666666663 for 200×10) — raw String(toDisplayWeight()) on the metric passthrough; fixed via new shared units.ts formatWeightValue (integer as-is else 1 decimal); session-detail already-correct (formatWeight). (baf408e, FIT-116 — a 13-04-surface defect found here) active-workout PR trophies were ephemeral useState and vanished on navigation → now derived from persisted sets + baseline via running-max replay (D-02/D-05/D-12 preserved). tsc 0, lint clean, device UAT approved; test:f13-brutal amber = known FIT-107 count precondition (read-only, not a regression). 3 deviations (all Rule 1).
 - [Phase ?]: **2026-06-14 [13-04]**: PR-01/02/03 — live offline-safe PR detection wired fire-and-forget AFTER addSet.mutate in workout/[sessionId].tsx (never awaited, beside the existing fm:haptics gate, D-17/Pitfall 5). epley1RM(candidate via lib/e1rm.ts D-08) > max(allTimeBest from useBestE1rmQuery D-06, in-session max from useSetsForSessionQuery D-07), strict > (D-05) + weight_kg>0 (D-04) + hasPriorReference (first-set baseline excluded, D-02). On PR: record set id into prSetIds Set so its row swaps the green checkCircle for PrTrophy size=24 (D-13 replaces never stacks, D-12 a later higher PR never removes an earlier trophy), push a per-PR-set banner descriptor (D-11) mounting a fresh PrBanner, fire notificationSuccess through the SAME getPref('fm:haptics') gate (D-18). PrBanner = floating absolute overlay (no Modal portal D-22/D-09 — set list/input row/Klart never move), Skia gradient sweep via useDerivedValue mirroring Sparkline §07 + scale 0.96->1 withSpring, useReducedMotion snap (D-19), ~3.5s auto-dismiss; numerals via useUnitStore+formatWeight (D-20). ONE new key pbSetSuffix at sv/en parity. UAT loop-1 fix (6f61c39): transparent banner wash bled the card title through — fixed with an opaque Forge-surface base + outer/inner view split so the float shadow renders un-clipped while the wash stays clipped to the 16px radius. Zero new deps (T-13-SC). addSet write path byte-untouched (D-17); test:f13-brutal green; device UAT approved. 1 deviation (Rule 1 banner transparency).
 
 ### Pending Todos
@@ -188,10 +190,10 @@ Items acknowledged for later:
 
 ## Session Continuity
 
-Last session: 2026-06-14T15:40:29.280Z
-Stopped at: Completed 13-03-PLAN.md
+Last session: 2026-06-14T16:35:00.000Z
+Stopped at: Completed 13-05-PLAN.md (Phase 13 all 5 plans done)
 Resume file: None
-Next: Orchestrator runs phase-level closeout — `/gsd-secure-phase 4` (close threat register T-04-01 … T-04-12 against implementation; produce 04-SECURITY.md with threats_open: 0) → `/gsd-verify-work 4` (write 04-VERIFICATION.md with all 5 success criteria MET) → `/gsd-code-review` (post-phase audit) → phase.complete (advance ROADMAP Phase 4 → ✓ Complete). Then plan Phase 5 (Active Workout Hot Path — F13 lives or dies).
+Next: Orchestrator runs Phase 13 closeout — `/gsd-secure-phase 13` (close threat register T-13-* against implementation; produce 13-SECURITY.md with threats_open: 0) → `/gsd-verify-work 13` (write 13-VERIFICATION.md with all 3 success criteria MET) → `/gsd-code-review` (post-phase audit) → phase.complete (advance ROADMAP Phase 13 → ✓ Complete). Then plan Phase 14 (Rest Timer — F19, RESEARCH-FLAGGED). NOTE: FIT-116 (workout-trophy persistence) was fixed inline during 13-05 UAT; close it when merging the phase PR.
 
 ## Operator Next Steps
 

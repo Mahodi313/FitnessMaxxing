@@ -185,7 +185,7 @@ Plans:
 2. PR sets show a trophy in the workout set list and a celebration banner (with sweep animation) appears
 3. History marks PR sessions; session detail and the chart surface PR / estimated 1RM with the range delta
 
-**Plans:** 4/5 plans executed
+**Plans:** 5/5 plans complete
 Plans:
 **Wave 1**
 
@@ -199,7 +199,7 @@ Plans:
 **Wave 3** *(blocked on Wave 2)*
 
 - [x] 13-04-PLAN.md — in-workout fire-and-forget detection + floating gradient-sweep banner + set-row trophy + pbSetSuffix key (PR-01/02/03)
-- [ ] 13-05-PLAN.md — read-side surfacing: history session trophy + session-detail e1RM/trophy + chart estimated-1RM hero swap (PR-04/05)
+- [x] 13-05-PLAN.md — read-side surfacing: history session trophy + session-detail e1RM/trophy + chart estimated-1RM hero swap (PR-04/05)
 
 #### Phase 14: Rest Timer (F19) — RESEARCH-FLAGGED
 
@@ -248,7 +248,7 @@ Deferred to a later milestone (needs Apple Developer license + tooling). Mapped 
 | 10. Plans & Exercises Re-skin                 | v2.0 | 6/6 | Complete    | 2026-06-12 |
 | 11. Active Workout Re-skin (F13 risk)         | v2.0 | 3/3 | Complete   | 2026-06-13 |
 | 12. History, Detail, Chart & Dashboard        | v2.0 | 11/11 | Complete    | 2026-06-14 |
-| 13. PR Celebration (F18)                      | v2.0 | 4/5 | In Progress|  |
+| 13. PR Celebration (F18)                      | v2.0 | 5/5 | Complete   | 2026-06-14 |
 | 14. Rest Timer (F19)                          | v2.0 | 0/? | ○ Planned  | — |
 | 15. Bilingual & Release Hardening             | v2.0 | 0/? | ○ Planned  | — |
 
