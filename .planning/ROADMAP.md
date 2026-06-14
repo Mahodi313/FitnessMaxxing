@@ -150,7 +150,7 @@ Plans:
 3. Dashboard aggregates come from RLS-scoped read-side RPCs with a clean empty state for new users
 4. The chart line draws on mount
 
-**Plans:** 8/8 base plans complete + 3 gap-closure plans (device-UAT fixes: FIT-109/110/111)
+**Plans:** 11/11 plans complete
 Plans:
 **Wave 1**
 
@@ -231,7 +231,7 @@ Deferred to a later milestone (needs Apple Developer license + tooling). Mapped 
 | 9. Auth, Settings & Preferences               | v2.0 | 3/3 | Complete   | 2026-06-11 |
 | 10. Plans & Exercises Re-skin                 | v2.0 | 6/6 | Complete    | 2026-06-12 |
 | 11. Active Workout Re-skin (F13 risk)         | v2.0 | 3/3 | Complete   | 2026-06-13 |
-| 12. History, Detail, Chart & Dashboard        | v2.0 | 8/8 | Complete   | 2026-06-13 |
+| 12. History, Detail, Chart & Dashboard        | v2.0 | 11/11 | Complete    | 2026-06-14 |
 | 13. PR Celebration (F18)                      | v2.0 | 0/? | ○ Planned  | — |
 | 14. Rest Timer (F19)                          | v2.0 | 0/? | ○ Planned  | — |
 | 15. Bilingual & Release Hardening             | v2.0 | 0/? | ○ Planned  | — |

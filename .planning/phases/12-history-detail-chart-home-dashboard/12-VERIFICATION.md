@@ -1,7 +1,9 @@
 ---
 phase: 12-history-detail-chart-home-dashboard
 verified: 2026-06-13T18:10:00Z
-status: human_needed
+human_verified: 2026-06-14
+human_verified_via: 12-UAT.md (7/7 passed, incl. gap re-tests FIT-109/110/111)
+status: verified
 score: 8/8 must-haves verified (code-level)
 overrides_applied: 0
 human_verification:

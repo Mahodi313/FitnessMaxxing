@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: — Forge Redesign
-status: executing
-stopped_at: Completed 12-11-PLAN.md (gap-closure FIT-111 — reactive useUnitStore so a kg↔lbs Settings toggle re-renders every read-side figure live, no app restart)
-last_updated: "2026-06-14T06:48:18.000Z"
+status: ready_to_plan
+stopped_at: Phase 12 complete (11/11) — ready to discuss Phase 13
+last_updated: 2026-06-14T07:40:20.373Z
 last_activity: 2026-06-14
 progress:
   total_phases: 8
   completed_phases: 4
   total_plans: 25
-  completed_plans: 25
-  percent: 56
+  completed_plans: 28
+  percent: 50
 ---
 
 # Project State
@@ -21,20 +21,20 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-09)
 
 **Core value:** Logga ett set och omedelbart se vad jag tog senast på samma övning — utan att tappa data, någonsin.
-**Current focus:** Phase 12 — history-detail-chart-home-dashboard
+**Current focus:** Phase 13 — pr celebration (f18)
 
 ## Current Position
 
-Phase: 12 (history-detail-chart-home-dashboard) — EXECUTING
-Plan: 11 (gap-closure FIT-111) of 8 planned + 3 device-UAT gap plans (FIT-109/110/111) — ALL gap plans now executed
-Status: Plan 12-11 complete (gap-closure FIT-111 — kg↔lbs toggle was not re-rendering already-displayed figures until app restart; conversion VALUES were correct, only reactivity was missing. Root cause: every consumer read fm:units with a non-reactive local useState seeded once by useEffect(getPref("fm:units").then(setUnit)) — no subscription — and settings' setPref write notified nobody. Fix: ONE reactive Zustand source of truth, useUnitStore (font-store/persistence-store precedent — plain create, no persist middleware; D-08), holding the live UnitPref; default "metric". hydrate(u) sets state only (boot), setUnit(u) sets state AND persists via setPref (Settings write path). UnitsBootstrap in _layout.tsx hydrates from fm:units at boot (ThemeBootstrap precedent), NOT on the splash gate. Settings units row reads the store selector + onUnitsChange calls setUnit (mirrors the language control's live i18n.changeLanguage). 4 read-side consumers (history/index-HomeHero/[sessionId]/chart) swapped local useState+getPref for the selector; useUnitPref hook deleted from history.tsx; no getPref("fm:units") remains in any of the 4. chart.tsx memo dep array keeps units (WR-01 — store source is what makes the toggle redraw the line+y-axis live). D-20 (storage canonical kg, display-only conversion) + D-24 (no mutation/queryKey/persister/exercise_sets touched) intact; FIT-110 cross-link preserved. tsc+lint clean; test:units-store 7/7; test:f13-brutal exit 0 (no-recent-session no-op, FIT-107 window). [prior] Plan 12-09 complete (gap-closure FIT-109 — finishing a session now invalidates dashboardKeys.all inside the EXISTING ['session','finish'] onSettled, after listInfinite. Home activity ring + sessions-this-week count + History weekly-volume card + lifetime eyebrow refresh on the next online tick without waiting for a remount/refocus or a new-session start. Root cause: the finish onSettled invalidated active/detail/last-value/listInfinite but never dashboardKeys, so get_dashboard_summary's cache stayed stale until an unrelated refetch. Broad ["dashboard"] prefix (D-03 shared slot, matches lastValueKeys.all convention). D-24 intact: mutationFn/onMutate/onError/retry/scope byte-unchanged, no await added to the finish write — fire-and-forget post-settle side effect. tsc+lint clean; non-comment dashboardKeys.all count=1; test:f13-brutal exit 0 via the no-recent-session no-op branch (FIT-107 fixture window, not a regression). [prior] Plan 12-08 complete (Chart re-skinned to FChart: D-17 custom Forge header — 40px circular back + symmetric ellipsis, FLAG-1 a11y, native Stack header hidden; D-11 3-state range selector 30d/90d-default/All replacing the v1 5-state WINDOW_OPTIONS; D-12 real current-best 52px hero + forge-success range-delta chip from useExerciseSummaryQuery — NOT e1RM, D-13 omitted; D-10 metric toggle preserved as Forge SegmentedControl surface3-neutral; D-14 3-stat row top-set/vol-per-session/avg-RPE '-' on null + preserved Senaste-10 source-session routing BLOCKER-2; MOTN-03 line draws left->right on mount via Reanimated->Skia <Group clip>, snaps under reduce-motion; D-20 every figure via formatWeight/formatVolume incl. plotted line + y-axis; D-21 i18n. matchFont FIT-67 + memo contract + tooltip SharedValue mirror preserved verbatim. rangeAsWindow D-24 bridge keeps v1 ChartWindow factories untouched. tsc+lint clean). F13 brutal gate amber on the FIT-107 fixture precondition (count-only fail; all set-integrity/contiguity/FIFO assertions PASS; read-only re-skin, D-24 intact). ALL 8 phase-12 plans now executed.
-Last activity: 2026-06-13
+Phase: 13
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-06-14
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 47 (3 in Phase 1, 6 in Phase 2, 4 in Phase 3, 4 in Phase 4, 7 in Phase 5)
+- Total plans completed: 58 (3 in Phase 1, 6 in Phase 2, 4 in Phase 3, 4 in Phase 4, 7 in Phase 5)
 - Phases complete: 5 of 7
 - Total execution time: ~7 active days (2026-05-07 → 2026-05-14)
 
