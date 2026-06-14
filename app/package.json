@@ -13,6 +13,7 @@
     "test:rls": "tsx --env-file-if-exists=.env.local scripts/test-rls.ts",
     "test:auth-schemas": "tsx scripts/test-auth-schemas.ts",
     "test:units": "tsx scripts/test-units.ts",
+    "test:e1rm": "tsx scripts/test-e1rm.ts",
     "test:units-store": "tsx scripts/test-units-store.ts",
     "test:locale-resolve": "tsx scripts/test-locale-resolve.ts",
     "test:plan-schemas": "tsx scripts/test-plan-schemas.ts",

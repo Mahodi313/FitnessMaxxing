@@ -105,6 +105,7 @@
   "deleteSet": "Delete",
   "personalBest": "New personal best",
   "pbSub": "{{kg}} kg × {{reps}} reps",
+  "pbSetSuffix": "· set {{n}}",
 
   "kg": "kg",
   "min": "min",

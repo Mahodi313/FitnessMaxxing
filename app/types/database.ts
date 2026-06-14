@@ -271,6 +271,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_best_working_sets: {
+        Args: never
+        Returns: {
+          exercise_id: string
+          reps: number
+          weight_kg: number
+        }[]
+      }
       get_dashboard_summary: {
         Args: { p_tz?: string }
         Returns: {
@@ -291,6 +299,25 @@ export type Database = {
           value: number
         }[]
       }
+      get_exercise_pr_history: {
+        Args: { p_exercise_id: string }
+        Returns: {
+          completed_at: string
+          reps: number
+          session_id: string
+          set_id: string
+          was_pr: boolean
+          weight_kg: number
+        }[]
+      }
+      get_exercise_sets_in_range: {
+        Args: { p_exercise_id: string; p_since: string }
+        Returns: {
+          completed_at: string
+          reps: number
+          weight_kg: number
+        }[]
+      }
       get_exercise_summary: {
         Args: { p_exercise_id: string; p_metric: string; p_since: string }
         Returns: {
@@ -309,6 +336,13 @@ export type Database = {
           reps: number
           session_id: string
           weight_kg: number
+        }[]
+      }
+      get_session_pr_flags: {
+        Args: { p_session_ids: string[] }
+        Returns: {
+          has_pr: boolean
+          session_id: string
         }[]
       }
       get_session_summaries: {

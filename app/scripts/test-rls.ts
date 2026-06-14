@@ -1110,6 +1110,270 @@ async function main() {
     }
   }
 
+  // =========================================================================
+  // Phase 13 extension (Migration 0012) — cross-user isolation per new read-only
+  // PR RPC + was_pr / has_pr correctness on a seeded A-owned progression
+  // fixture. Threat-register IDs T-13-01 (RLS inheritance). All four RPCs are
+  // SECURITY INVOKER → the caller's JWT flows into the 0001 RLS policies, so B's
+  // data must NEVER surface in A's results. (CLAUDE.md "cross-user verification
+  // is a gate".)
+  // =========================================================================
+  console.log(
+    "[test-rls] Phase 13 extension — PR RPC cross-user gates + was_pr/has_pr correctness…",
+  );
+
+  // ---- get_exercise_pr_history cross-user RPC (T-13-01) --------------------
+  // A calls it with B's exercise_id — RLS on exercise_sets + workout_sessions
+  // scopes via parent-FK EXISTS, so result is empty (not error).
+  {
+    const { data: prHistAsA, error: prHistErr } =
+      await clientA.rpc("get_exercise_pr_history", { p_exercise_id: exB.id });
+    if (prHistErr) {
+      fail(
+        "Phase 13 extension: get_exercise_pr_history RPC returned error for A on B's exercise",
+        { error: prHistErr },
+      );
+    } else if (prHistAsA && prHistAsA.length > 0) {
+      fail(
+        "Phase 13 extension: A's get_exercise_pr_history leaked B's exercise sets",
+        { count: prHistAsA.length },
+      );
+    } else {
+      pass(
+        "Phase 13 extension: A's get_exercise_pr_history on B's exercise returns empty (RLS-filtered)",
+      );
+    }
+  }
+
+  // ---- get_exercise_sets_in_range cross-user RPC (T-13-01) -----------------
+  {
+    const { data: rangeAsA, error: rangeErr } =
+      await clientA.rpc("get_exercise_sets_in_range", {
+        p_exercise_id: exB.id,
+        p_since: null as unknown as string,
+      });
+    if (rangeErr) {
+      fail(
+        "Phase 13 extension: get_exercise_sets_in_range RPC returned error for A on B's exercise",
+        { error: rangeErr },
+      );
+    } else if (rangeAsA && rangeAsA.length > 0) {
+      fail(
+        "Phase 13 extension: A's get_exercise_sets_in_range leaked B's exercise sets",
+        { count: rangeAsA.length },
+      );
+    } else {
+      pass(
+        "Phase 13 extension: A's get_exercise_sets_in_range on B's exercise returns empty (RLS-filtered)",
+      );
+    }
+  }
+
+  // ---- get_session_pr_flags cross-user RPC (T-13-01) ----------------------
+  // A passes B's session_ids — the ranked CTE only ever sees A's own sets
+  // (INVOKER RLS), so B's sessions return ZERO rows for A (not an error).
+  {
+    const { data: flagsAsA, error: flagsErr } =
+      await clientA.rpc("get_session_pr_flags", {
+        p_session_ids: [sessB.id, sessBFinishedId],
+      });
+    if (flagsErr) {
+      fail(
+        "Phase 13 extension: get_session_pr_flags RPC returned error for A on B's sessions",
+        { error: flagsErr },
+      );
+    } else if (
+      flagsAsA?.some(
+        (r: { session_id: string }) =>
+          r.session_id === sessB.id || r.session_id === sessBFinishedId,
+      )
+    ) {
+      fail(
+        "Phase 13 extension: A's get_session_pr_flags leaked B's session flags",
+        { rows: flagsAsA },
+      );
+    } else {
+      pass(
+        "Phase 13 extension: A's get_session_pr_flags on B's session_ids returns no B rows (RLS-filtered)",
+      );
+    }
+  }
+
+  // ---- get_best_working_sets cross-user RPC (T-13-01) ---------------------
+  // No args — A's result must contain none of B's exercise ids (B's finished
+  // session/set was seeded above as leak bait).
+  {
+    const { data: bestAsA, error: bestErr } =
+      await clientA.rpc("get_best_working_sets");
+    if (bestErr) {
+      fail(
+        "Phase 13 extension: get_best_working_sets RPC returned error for A",
+        { error: bestErr },
+      );
+    } else if (
+      bestAsA?.some((r: { exercise_id: string }) => r.exercise_id === exB.id)
+    ) {
+      fail(
+        "Phase 13 extension: A's get_best_working_sets leaked B's exercise",
+        { exBId: exB.id, rows: bestAsA },
+      );
+    } else {
+      pass(
+        "Phase 13 extension: A's get_best_working_sets contains none of B's exercises (RLS-filtered)",
+      );
+    }
+  }
+
+  // ---- was_pr / has_pr correctness on a seeded A-owned progression --------
+  // Seed ONE A-owned exercise across THREE finished sessions:
+  //   S1 (oldest):  100 kg × 5  → e1RM 116.67 → first set → was_pr = false (D-02)
+  //   S2 (middle):  110 kg × 5  → e1RM 128.33 > 116.67    → was_pr = true  (D-05 strict >)
+  //   S3 (newest):  110 kg × 5  → e1RM 128.33 (TIE)       → was_pr = false (D-05 tie is NOT a PR)
+  // Then get_session_pr_flags([S1,S2,S3]) → S1=false, S2=true, S3=false (D-14:
+  // a session has_pr iff ANY of its working sets was_pr). All fixtures are
+  // A-owned (seeded via clientA) so they are cleaned up by the user-cascade in
+  // the finally block (FK on delete cascade purges the sessions + sets).
+  {
+    const { data: prExA, error: prExErr } = await clientA
+      .from("exercises")
+      .insert({ user_id: userA.id, name: "rls-test-a-pr-progression" })
+      .select()
+      .single();
+    if (prExErr || !prExA) throw new Error(`seed A PR-fixture exercise: ${prExErr?.message}`);
+
+    // Three finished sessions, chronologically separated so completed_at orders
+    // them deterministically (S1 oldest → S3 newest).
+    const now = Date.now();
+    const sessionSpecs = [
+      { startOffsetMin: 180, weight_kg: 100, reps: 5 }, // S1 baseline
+      { startOffsetMin: 120, weight_kg: 110, reps: 5 }, // S2 higher (PR)
+      { startOffsetMin: 60, weight_kg: 110, reps: 5 }, // S3 tie (no PR)
+    ];
+    const sessionIds: string[] = [];
+    for (const spec of sessionSpecs) {
+      const sid = randomUUID();
+      const startedAt = new Date(now - spec.startOffsetMin * 60 * 1000);
+      const finishedAt = new Date(now - (spec.startOffsetMin - 30) * 60 * 1000);
+      {
+        const { error } = await clientA.from("workout_sessions").insert({
+          id: sid,
+          user_id: userA.id,
+          plan_id: null,
+          started_at: startedAt.toISOString(),
+          finished_at: finishedAt.toISOString(),
+        });
+        if (error) throw new Error(`seed A PR-fixture session: ${error.message}`);
+      }
+      {
+        const { error } = await clientA.from("exercise_sets").insert({
+          session_id: sid,
+          exercise_id: prExA.id,
+          set_number: 1,
+          reps: spec.reps,
+          weight_kg: spec.weight_kg,
+          set_type: "working",
+          completed_at: finishedAt.toISOString(),
+        });
+        if (error) throw new Error(`seed A PR-fixture set: ${error.message}`);
+      }
+      sessionIds.push(sid);
+    }
+    const [s1, s2, s3] = sessionIds;
+
+    // (i) get_exercise_pr_history was_pr correctness (chronological order).
+    {
+      const { data: hist, error: histErr } = await clientA.rpc(
+        "get_exercise_pr_history",
+        { p_exercise_id: prExA.id },
+      );
+      if (histErr) {
+        fail("Phase 13 extension: get_exercise_pr_history errored on A's fixture", {
+          error: histErr,
+        });
+      } else if (!hist || hist.length !== 3) {
+        fail("Phase 13 extension: get_exercise_pr_history returned wrong row count", {
+          count: hist?.length,
+        });
+      } else {
+        // hist is ordered by completed_at asc → [baseline, higher, tie].
+        const [r1, r2, r3] = hist as { was_pr: boolean }[];
+        if (r1.was_pr === false && r2.was_pr === true && r3.was_pr === false) {
+          pass(
+            "Phase 13 extension: was_pr = [false(baseline,D-02), true(higher,D-05), false(tie,D-05)]",
+          );
+        } else {
+          fail("Phase 13 extension: was_pr sequence incorrect", {
+            was_pr: [r1.was_pr, r2.was_pr, r3.was_pr],
+          });
+        }
+      }
+    }
+
+    // (ii) get_session_pr_flags has_pr consistency with the per-set engine.
+    {
+      const { data: flags, error: flagsErr } = await clientA.rpc(
+        "get_session_pr_flags",
+        { p_session_ids: [s1, s2, s3] },
+      );
+      if (flagsErr) {
+        fail("Phase 13 extension: get_session_pr_flags errored on A's fixture", {
+          error: flagsErr,
+        });
+      } else {
+        const byId = new Map(
+          (flags as { session_id: string; has_pr: boolean }[]).map((r) => [
+            r.session_id,
+            r.has_pr,
+          ]),
+        );
+        if (
+          byId.get(s1) === false &&
+          byId.get(s2) === true &&
+          byId.get(s3) === false
+        ) {
+          pass(
+            "Phase 13 extension: get_session_pr_flags has_pr = S1:false, S2:true, S3:false (D-14)",
+          );
+        } else {
+          fail("Phase 13 extension: get_session_pr_flags has_pr incorrect", {
+            s1: byId.get(s1),
+            s2: byId.get(s2),
+            s3: byId.get(s3),
+          });
+        }
+      }
+    }
+
+    // (iii) get_best_working_sets returns the all-time best for A's fixture
+    //       exercise (110 × 5 — the heavier set, not the 100 baseline).
+    {
+      const { data: best, error: bestErr } = await clientA.rpc(
+        "get_best_working_sets",
+      );
+      const row = (best as { exercise_id: string; weight_kg: number; reps: number }[] | null)?.find(
+        (r) => r.exercise_id === prExA.id,
+      );
+      if (bestErr) {
+        fail("Phase 13 extension: get_best_working_sets errored on A's fixture", {
+          error: bestErr,
+        });
+      } else if (!row) {
+        fail("Phase 13 extension: get_best_working_sets missing A's fixture exercise", {
+          best,
+        });
+      } else if (Number(row.weight_kg) === 110 && Number(row.reps) === 5) {
+        pass(
+          "Phase 13 extension: get_best_working_sets returns A's all-time best (110 × 5, D-06)",
+        );
+      } else {
+        fail("Phase 13 extension: get_best_working_sets returned wrong best set", {
+          weight_kg: row.weight_kg,
+          reps: row.reps,
+        });
+      }
+    }
+  }
+
   // ---- Defense-in-depth: B's session survives A's delete attempt -----------
   console.log(
     "[test-rls] Phase 6 extension — defense-in-depth: B's session survives…",

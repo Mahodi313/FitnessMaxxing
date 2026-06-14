@@ -78,9 +78,11 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
-import { ForgeButton, Icon } from "@/components/ui";
+import { ForgeButton, Icon, PrBanner, PrTrophy } from "@/components/ui";
 import { getPref } from "@/lib/prefs";
 import { randomUUID } from "@/lib/utils/uuid";
+import { epley1RM } from "@/lib/e1rm";
+import { useBestE1rmQuery } from "@/lib/queries/best-e1rm";
 
 import { useFinishSession, useSessionQuery } from "@/lib/queries/sessions";
 import {
@@ -339,6 +341,16 @@ function WorkoutHeader({
 // WorkoutBody — exercise-card list + KeyboardAvoidingView + defensive empty
 // ---------------------------------------------------------------------------
 
+// PR-03 (Plan 13-04): one descriptor per floating celebration banner. `key`
+// makes each banner a fresh mount (D-11 — a later, higher PR set in the same
+// session spawns a NEW banner, it does not update an existing one).
+type PrBannerDescriptor = {
+  key: string;
+  weightKg: number;
+  reps: number;
+  setNumber: number;
+};
+
 function WorkoutBody({ session }: { session: SessionRow }) {
   const router = useRouter();
   const { t } = useTranslation();
@@ -347,6 +359,27 @@ function WorkoutBody({ session }: { session: SessionRow }) {
   const { data: planExercises } = usePlanExercisesQuery(session.plan_id ?? "");
   const { data: setsData } = useSetsForSessionQuery(session.id);
   const { data: exercises } = useExercisesQuery();
+
+  // PR-01/PR-03 (Plan 13-04): the all-time-best e1RM reference, mounted ONCE
+  // here at the body root. Cached + persister-hydrated (D-06) — NO fresh fetch
+  // in the hot path; it is the offline-first baseline live detection compares
+  // against. `{}` until synced → first-set-on-an-exercise is silently a
+  // non-PR (D-02). Passed down to each ExerciseCard.
+  const { data: bestE1rm } = useBestE1rmQuery();
+
+  // PR-03 floating-banner state (D-09/D-11): a fresh descriptor per PR set, so
+  // a NEW PrBanner mounts each time (D-11 — banners never merge). Lifted to the
+  // body so the overlay floats OVER the whole scroll list, never inside the flex
+  // flow (the set list / input row / Klart button must not shift, Pitfall 4).
+  // Width is measured from the body so the Skia wash canvas has a concrete size.
+  const [banners, setBanners] = useState<PrBannerDescriptor[]>([]);
+  const [overlayWidth, setOverlayWidth] = useState(0);
+  const pushBanner = useCallback((d: Omit<PrBannerDescriptor, "key">) => {
+    setBanners((prev) => [...prev, { ...d, key: randomUUID() }]);
+  }, []);
+  const dismissBanner = useCallback((key: string) => {
+    setBanners((prev) => prev.filter((b) => b.key !== key));
+  }, []);
 
   // Exercise-name lookup via Map<id, name> per Phase 4 Plan 04-04 commit
   // 3bfaba8 (avoids a join in the queryFn; exercises cache is hot from
@@ -400,6 +433,7 @@ function WorkoutBody({ session }: { session: SessionRow }) {
     <KeyboardAvoidingView
       className="flex-1"
       behavior={Platform.OS === "ios" ? "padding" : undefined}
+      onLayout={(e) => setOverlayWidth(e.nativeEvent.layout.width)}
     >
       <ScrollView
         contentContainerStyle={{
@@ -419,9 +453,42 @@ function WorkoutBody({ session }: { session: SessionRow }) {
             }
             sessionId={session.id}
             allSets={setsData ?? []}
+            bestE1rm={bestE1rm ?? {}}
+            onPr={pushBanner}
           />
         ))}
       </ScrollView>
+
+      {/* PR-03 floating celebration banner stack (D-09): position: absolute over
+          the scroll list — NOT in the flex flow, NO Modal portal (D-22), NO
+          backdrop. The set list, input row, and "Klart" button NEVER shift
+          (Pitfall 4). Pinned near the top of the body; one banner per PR set
+          (D-11), each auto-dismissing (~3.5s). pointerEvents="box-none" so taps
+          fall through to the scroll list beneath (the banner is non-interactive,
+          D-10). */}
+      {banners.length > 0 && overlayWidth > 0 && (
+        <View
+          pointerEvents="box-none"
+          style={{
+            position: "absolute",
+            top: 12,
+            left: 16,
+            right: 16,
+          }}
+        >
+          {banners.map((b) => (
+            <View key={b.key} style={{ marginBottom: 8 }}>
+              <PrBanner
+                weightKg={b.weightKg}
+                reps={b.reps}
+                setNumber={b.setNumber}
+                width={overlayWidth - 32}
+                onDismiss={() => dismissBanner(b.key)}
+              />
+            </View>
+          ))}
+        </View>
+      )}
     </KeyboardAvoidingView>
   );
 }
@@ -435,11 +502,17 @@ function ExerciseCard({
   exerciseName,
   sessionId,
   allSets,
+  bestE1rm,
+  onPr,
 }: {
   planExercise: PlanExerciseRow;
   exerciseName: string;
   sessionId: string;
   allSets: SetRow[];
+  // PR-01: all-time-best working-set reference per exercise_id (D-06, cached).
+  bestE1rm: Record<string, { weight_kg: number; reps: number }>;
+  // PR-03: push a fresh floating banner descriptor (lifted to WorkoutBody).
+  onPr: (d: { weightKg: number; reps: number; setNumber: number }) => void;
 }) {
   const { t } = useTranslation();
   const accentTextInk = "#FFFFFF"; // forge-accentText (light & dark are both white)
@@ -518,13 +591,56 @@ function ExerciseCard({
 
   const addSet = useAddSet(sessionId);
 
+  // PR-02/D-12/D-13: ids of THIS card's sets that were a PR. DERIVED (not
+  // ephemeral state) so the trophies PERSIST across navigation: ExerciseCard
+  // unmounts when the user leaves the workout screen, so any imperative
+  // accumulation is lost and previously-PR rows revert to the green check on
+  // return (FIT-116). Instead we replay the running-max over the in-session
+  // working sets against the cached all-time baseline — reproducible on every
+  // remount from persisted data (no query/network; D-17 budget untouched).
+  //
+  // Behaviour matches the prior onKlart detection exactly: D-12 historical
+  // honesty (a later higher set never removes an earlier trophy — running-max
+  // replay keeps earlier ids), D-05 strict `>`, D-04 weight_kg > 0,
+  // D-02 (the first-ever baseline-setting set is never a PR).
+  const prSetIds = useMemo(() => {
+    const ids = new Set<string>();
+    const best = bestE1rm[planExercise.exercise_id];
+    // Baseline = all-time best e1RM (finished sessions, cached). With no
+    // baseline AND no earlier in-session set, the first set is not a PR (D-02).
+    let runningMax = best ? epley1RM(best.weight_kg, best.reps) : 0;
+    let hasPrior = !!best;
+    // setsForThisExercise is already sorted by set_number (the monotonic
+    // per-exercise ordinal). completed_at can be null (schema), so set_number
+    // is the reliable chronological key — re-sort defensively in case the
+    // upstream ordering ever changes.
+    const ordered = [...setsForThisExercise].sort(
+      (a, b) => a.set_number - b.set_number,
+    );
+    for (const s of ordered) {
+      const e = epley1RM(s.weight_kg, s.reps);
+      const isPr = s.weight_kg > 0 && e > 0 && hasPrior && e > runningMax; // D-04/D-05 strict >
+      if (isPr) ids.add(s.id);
+      if (e > runningMax) runningMax = e;
+      hasPrior = true; // after the first set there is always a prior reference (D-07)
+    }
+    return ids;
+  }, [setsForThisExercise, bestE1rm, planExercise.exercise_id]);
+
   const onKlart = (input: SetFormOutput) => {
     // D-16 SUPERSEDED by Plan 05-04: server-side trigger assigns set_number;
     // client omits it on payload. Optimistic UI uses provisional value
     // computed in setMutationDefaults onMutate.
+    // The optimistic onMutate appends a row with THIS id; capture it so PR
+    // detection below can tag the matching row for the trophy swap.
+    const setId = randomUUID();
+    // 1-based session set ordinal for this exercise (used by the banner suffix +
+    // PR baseline). This set lands AFTER the ones already logged.
+    const candidateSetNumber = loggedCount + 1;
+
     addSet.mutate(
       {
-        id: randomUUID(),
+        id: setId,
         session_id: sessionId,
         exercise_id: planExercise.exercise_id,
         weight_kg: input.weight_kg,
@@ -560,6 +676,59 @@ function ExerciseCard({
     void getPref("fm:haptics").then((on) => {
       if (on) void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     });
+
+    // ── PR-01 live detection (Plan 13-04) — fire-and-forget, AFTER the mutate,
+    // NEVER awaited, NEVER preceding it (D-17 / Pitfall 5 / T-13-09). All inputs
+    // are already in memory (cached bestE1rm + in-session setsForThisExercise),
+    // so this is pure CPU off the write path — the ≤3s log budget is untouched
+    // and `npm run test:f13-brutal` stays green.
+    //
+    // A candidate is a PR (D-01/D-04/D-05/D-02) when:
+    //   weight_kg > 0 (D-04) AND its e1RM > 0 (guards 0-rep/non-finite, lib/e1rm)
+    //   AND there is a PRIOR reference (all-time-best OR an earlier in-session
+    //   working set — D-02: the FIRST-EVER set on an exercise is never a PR)
+    //   AND cand strictly > max(allTimeBest, sessionMax)  (D-05 strict >).
+    const cand = epley1RM(input.weight_kg, input.reps);
+
+    // All-time-best reference for this exercise (D-06, cached). e1RM via the
+    // single lib/e1rm source (D-08) — never an inline formula.
+    const best = bestE1rm[planExercise.exercise_id];
+    const allTimeBest = best ? epley1RM(best.weight_kg, best.reps) : 0;
+
+    // D-07: the best e1RM among EARLIER working sets THIS session (warmups
+    // already excluded — every onKlart logs set_type 'working').
+    const sessionMax = setsForThisExercise.reduce(
+      (mx, s) => Math.max(mx, epley1RM(s.weight_kg, s.reps)),
+      0,
+    );
+
+    const hasPriorReference = !!best || setsForThisExercise.length > 0;
+    const priorBest = Math.max(allTimeBest, sessionMax);
+    const isPR =
+      input.weight_kg > 0 && cand > 0 && hasPriorReference && cand > priorBest;
+
+    if (isPR) {
+      // D-12/D-13: the trophy swap for this set's row is now DERIVED (see the
+      // prSetIds useMemo above) — the optimistic onMutate appends this set to
+      // setsForThisExercise, the memo recomputes, and the row trophies
+      // immediately. No imperative tag needed here (FIT-116).
+      //
+      // (1) D-11: spawn a FRESH floating banner for this set (lifted overlay).
+      onPr({
+        weightKg: input.weight_kg,
+        reps: input.reps,
+        setNumber: candidateSetNumber,
+      });
+      // (2) D-18: the PR haptic — `notificationSuccess`, through the SAME
+      // fm:haptics gate as the set-logged haptic above. Silent when haptics off;
+      // still fires under reduce-motion (D-19 governs animation, not haptics).
+      void getPref("fm:haptics").then((on) => {
+        if (on)
+          void Haptics.notificationAsync(
+            Haptics.NotificationFeedbackType.Success,
+          );
+      });
+    }
   };
 
   // D-10 (device-UAT revision) auto-submit: a blank field falls back to its
@@ -656,6 +825,7 @@ function ExerciseCard({
               key={set.id}
               set={set}
               sessionId={sessionId}
+              isPr={prSetIds.has(set.id)}
             />
           ))}
         </View>
@@ -839,9 +1009,13 @@ function SetProgressDots({
 function LoggedSetRow({
   set,
   sessionId,
+  isPr,
 }: {
   set: SetRow;
   sessionId: string;
+  // PR-02/D-13: this row's set was a PR at log time → render the gradient
+  // trophy INSTEAD of the green check (replaces, never stacks).
+  isPr: boolean;
 }) {
   const { t } = useTranslation();
   const { colorScheme } = useColorScheme();
@@ -961,11 +1135,17 @@ function LoggedSetRow({
             <Text className="text-forge-text3-light dark:text-forge-text3">–</Text>
           )}
         </Text>
-        {/* Success check (plain checkCircle — no trophy, D-06). MOTN-01: the
-            icon scales 0.8→1 on mount (ungated visual). */}
+        {/* PR-02/D-13: a PR-at-log-time row swaps the green check for a 24px
+            gradient trophy (replaces, never stacks — the 36px column holds
+            exactly one glyph). A normal row keeps the checkCircle. MOTN-01: the
+            glyph scales 0.8→1 on mount (ungated visual) either way. */}
         <View style={{ width: 36 }} className="items-center">
           <Animated.View style={checkStyle}>
-            <Icon name="checkCircle" size={20} color={successInk} />
+            {isPr ? (
+              <PrTrophy size={24} />
+            ) : (
+              <Icon name="checkCircle" size={20} color={successInk} />
+            )}
           </Animated.View>
         </View>
       </Pressable>

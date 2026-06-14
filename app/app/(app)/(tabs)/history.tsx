@@ -75,7 +75,9 @@ import {
   type SessionSummary,
 } from "@/lib/queries/sessions";
 import { useDashboardSummaryQuery } from "@/lib/queries/dashboard";
+import { useSessionPrFlags } from "@/lib/queries/session-pr-flags";
 import { Icon, Sparkline } from "@/components/ui";
+import { PrTrophy } from "@/components/ui/PrTrophy";
 import { type UnitPref } from "@/lib/prefs";
 import { useUnitStore } from "@/lib/units-store";
 import { formatVolume, toDisplayVolume } from "@/lib/units";
@@ -178,6 +180,18 @@ export default function HistoryTab() {
   const sessions = useMemo(() => data?.pages.flat() ?? [], [data?.pages]);
   const isEmpty = sessions.length === 0;
 
+  // D-14/PR-04: history session-row trophy. Collect the visible session-id list
+  // and make ONE useSessionPrFlags call at the screen level — this is the
+  // hooks-legal aggregator (the `get_session_pr_flags` RPC, 13-02) that folds
+  // every session's exercises down to a single `has_pr` boolean per session.
+  // We MUST NOT call usePrHistoryQuery (single-exercise) in a loop over rows —
+  // that is a rules-of-hooks violation, which is precisely why the session-level
+  // aggregator exists. The Record<session_id, has_pr> is indexed per row below;
+  // an absent/false entry renders NO glyph (UI-SPEC empty state — no placeholder).
+  // Trophies are PR-at-log-time and never migrate (D-14).
+  const sessionIds = useMemo(() => sessions.map((s) => s.id), [sessions]);
+  const { data: prFlags } = useSessionPrFlags(sessionIds);
+
   return (
     <SafeAreaView
       edges={["top"]}
@@ -227,7 +241,13 @@ export default function HistoryTab() {
         }
         renderItem={({ item }) => (
           <View className="px-4">
-            <HistoryListRow session={item} tk={tk} unit={unit} lang={i18n.language} />
+            <HistoryListRow
+              session={item}
+              tk={tk}
+              unit={unit}
+              lang={i18n.language}
+              hasPr={prFlags?.[item.id] === true}
+            />
           </View>
         )}
       />
@@ -474,11 +494,16 @@ function HistoryListRow({
   tk,
   unit,
   lang,
+  hasPr,
 }: {
   session: SessionSummary;
   tk: (typeof TOKENS)["light"] | (typeof TOKENS)["dark"];
   unit: UnitPref;
   lang: string;
+  // D-14/PR-04: true when ANY set in this session was a PR at the moment it was
+  // logged (from the screen-level useSessionPrFlags aggregator). Renders a 24px
+  // gradient trophy as a non-interactive status glyph; false = no glyph.
+  hasPr: boolean;
 }) {
   const router = useRouter();
   const { t } = useTranslation();
@@ -516,7 +541,7 @@ function HistoryListRow({
         } as unknown as Href)
       }
       accessibilityRole="button"
-      accessibilityLabel={`${fullDate}, ${planLabel}, ${session.set_count} ${t("sets")}, ${volumeLabel}, ${durationMin} ${t("min")}`}
+      accessibilityLabel={`${fullDate}, ${planLabel}, ${session.set_count} ${t("sets")}, ${volumeLabel}, ${durationMin} ${t("min")}${hasPr ? `, ${t("personalBest")}` : ""}`}
       // Box decoration (surface bg + border + radius) via className (NativeWind
       // renders it); the inline style() callback carries ONLY pressed opacity.
       // NativeWind 4: `gap` is a flex-container prop and must live in className
@@ -629,7 +654,21 @@ function HistoryListRow({
         </View>
       </View>
 
-      {/* OMIT trophy (D-13). Trailing chevron only. */}
+      {/* D-14/PR-04: 24px gradient trophy on rows where any set was a PR-at-log-
+          time (from the screen-level useSessionPrFlags aggregator). Non-
+          interactive status glyph inside the existing ≥44px row — no new tap
+          target (PrTrophy is a LinearGradient, not a Pressable). PrTrophy owns
+          its own gradient fill + circle size/radius (the LinearGradient
+          component's own sizing, not a NativeWind box — the Pitfall-6 box-deco
+          rule does not apply to it). Rendered just before the chevron; rows with
+          no PR show no glyph (no placeholder). */}
+      {hasPr ? (
+        <View style={{ marginRight: 8 }}>
+          <PrTrophy size={24} />
+        </View>
+      ) : null}
+
+      {/* Trailing chevron. */}
       <Icon name="chevronRight" size={16} color={tk.text3} />
     </Pressable>
   );
