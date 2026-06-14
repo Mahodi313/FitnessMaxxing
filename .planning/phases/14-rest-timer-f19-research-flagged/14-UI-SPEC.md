@@ -35,7 +35,7 @@ created: 2026-06-14
 | Preset | not applicable |
 | Component library | Forge primitives in `app/components/ui/*` — reuse `ForgeButton`, `Icon`, `SettingsRow`, `SettingsSection`. Banner composed from `View` + Forge tokens (PR-banner precedent). |
 | Icon library | in-house Forge `Icon` (`react-native-svg`); banner + rows use `clock` (timer), `bell` (master gate). `skip-forward`/`plus` (or text labels) for the two banner controls — planner's call within the Forge icon set. |
-| Font | Inter Display (display/stat numerals) + System body (D-04) + JetBrains Mono (`font-mono`) for the live countdown numeral (tabular). Families: `font-display`, `font-display-semibold`, `font-display-bold`, `font-mono`. |
+| Font | Inter Display (display/stat numerals) + System body (D-04) + JetBrains Mono (`font-mono`) for the live countdown numeral (tabular). This phase uses exactly **two** weights — Inter 400 (`font-display`) and Inter 700 (`font-display-bold`). The countdown numeral renders in the mono family at weight 700; all other roles map to the two Inter weights below. |
 
 ---
 
@@ -62,15 +62,14 @@ Exceptions:
 
 ## Typography
 
-Verbatim from `Forge Design Spec.html` type specimen (do not re-derive). Exactly the families/weights already loaded in Phase 8.
+Verbatim from `Forge Design Spec.html` type specimen (do not re-derive). **Exactly 4 sizes and exactly 2 weights** (Inter 400 + Inter 700) — the families/weights already loaded in Phase 8. Where the Forge specimen uses an intermediate weight, this phase rounds to the nearest of the two surviving weights (regular text → 400; focal/emphasis text → 700).
 
 | Role | Size | Weight | Tracking / Line Height | Usage this phase |
 |------|------|--------|------------------------|------------------|
-| Countdown numeral (stat) | 32px | Inter Display 700 (`font-display-bold`) | -1px tracking · **tabular-nums** (`fontVariantNumeric: tabular-nums` + `fontFeatureSettings: '"tnum","ss01"'`) | The live `M:SS` remaining-time figure in the banner (DSGN-03 — figures must not jitter as digits change) |
-| Card / banner title | 17px | Inter 600 | -0.3px tracking | Banner heading ("Vila" / "Rest") if used; Settings row label |
-| Body | 15px | Inter 400 | 0 tracking · 1.4 lh | Banner control labels, permission-denied helper line |
-| Caption / meta | 13px | Inter 500 | -0.1px tracking | Settings row value ("På · 2 min"), secondary banner text |
-| Eyebrow / label | 11px | Inter 600 uppercase | 1.5px tracking | Optional "VILA" eyebrow above the numeral |
+| Countdown numeral (stat) | 32px | Inter 700 (`font-display-bold`, mono family for the figure) | -1px tracking · **tabular-nums** (`fontVariantNumeric: tabular-nums` + `fontFeatureSettings: '"tnum","ss01"'`) | The live `M:SS` remaining-time figure in the banner (DSGN-03 — figures must not jitter as digits change) |
+| Title / label | 17px | Inter 700 (`font-display-bold`) | -0.3px tracking · 1.3 lh | Banner heading ("Vila" / "Rest") if used; Settings row label. Also serves the optional "VILA" eyebrow role (no separate eyebrow size — reuse this row, uppercase + tracking applied inline if used). |
+| Body / control | 15px | Inter 400 (`font-display`) | 0 tracking · 1.4 lh | Banner control labels (`Hoppa över`, `+30 s`), permission-denied helper line |
+| Caption / value | 13px | Inter 400 (`font-display`) | -0.1px tracking · 1.3 lh | Settings row value ("På · 2 min"), secondary banner text |
 
 **Mandatory:** the countdown numeral MUST render tabular (`tnum`/`ss01`) so the `M:SS` width is fixed and the banner does not reflow each second. The existing stat-numeral idiom (`numStyle`, Phase 8/12) is the reuse target.
 
@@ -123,7 +122,7 @@ All strings flat-keyed (Phase 8 D-10), sv + en at parity (D-15/D-21). Existing k
 | Element | sv | en | Key (proposed — planner finalizes) |
 |---------|----|----|------------------------------------|
 | Primary CTA (banner — extend) | `+30 s` | `+30 s` | `restAdd30` |
-| Banner control (skip / early-cancel, TIMER-05) | `Hoppa över` | `Skip` | `restSkip` |
+| Banner control (skip / early-cancel, TIMER-05) | `Hoppa över` | `Skip rest` | `restSkip` |
 | Banner eyebrow/heading (optional) | `Vila` | `Rest` | `restLabel` |
 | Live countdown format | `M:SS` (e.g. `1:30`) | `M:SS` | rendered, not a key |
 | Settings row value (on) | `På · {dur}` (e.g. `På · 2 min`) | `On · {dur}` | reuse `on`/`off` + duration formatter |
