@@ -17,11 +17,6 @@ export {
   type RestTimerBannerProps,
   type RestNotificationContent,
 } from "./RestTimerBanner";
-export {
-  RestDurationSheet,
-  type RestDurationSheetProps,
-  type RestDurationOption,
-} from "./RestDurationSheet";
 
 export {
   ForgeButton,

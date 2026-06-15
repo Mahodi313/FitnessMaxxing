@@ -55,7 +55,9 @@ import Animated, {
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
+  withRepeat,
   withSpring,
+  withTiming,
 } from "react-native-reanimated";
 import { useColorScheme } from "nativewind";
 import { useTranslation } from "react-i18next";
@@ -113,11 +115,22 @@ export function RestTimerBanner({ content }: RestTimerBannerProps) {
   const [now, setNow] = useState(() => Date.now());
   const forceTick = () => setNow(Date.now());
 
+  // Total rest length for the depleting progress rail (UI-SPEC §Color line 95 /
+  // §Motion line 112). Captured as the remaining time the moment endTs changes —
+  // the store does not expose a duration (D-24: store logic unchanged), so the
+  // snapshot at each transition is the rail's denominator. A fresh rest resets it
+  // to the full duration; a +30s extend grows endTs so the snapshot refills the
+  // rail proportionally. Reactive state → the width recomputes under the compiler.
+  const [totalMs, setTotalMs] = useState(0);
+
   // MOTION (PrBanner precedent). Hooks run unconditionally (rules-of-hooks) —
   // the early `endTs === null` return happens AFTER all hooks.
   const reduced = useReducedMotion();
   const translateY = useSharedValue(24); // 24 → 0 entry (UI-SPEC §Motion)
   const scale = useSharedValue(0.96); // 0.96 → 1 entry
+  // Live "rest in progress" pulse on the eyebrow dot (calm 1.6s breathe). Static
+  // under reduce-motion (D-19).
+  const pulse = useSharedValue(1);
 
   useEffect(() => {
     if (reduced) {
@@ -138,6 +151,24 @@ export function RestTimerBanner({ content }: RestTimerBannerProps) {
     return () => clearInterval(id);
   }, [endTs]);
 
+  // Capture the rail's total when the rest's endTs changes (new rest / +30s).
+  useEffect(() => {
+    if (endTs == null) {
+      setTotalMs(0);
+      return;
+    }
+    setTotalMs(Math.max(0, endTs - Date.now()));
+  }, [endTs]);
+
+  // Eyebrow dot pulse: opacity 1 → 0.4 → 1 over 1.6s, looped. Reduce-motion → 1.
+  useEffect(() => {
+    if (reduced) {
+      pulse.value = 1;
+    } else {
+      pulse.value = withRepeat(withTiming(0.4, { duration: 800 }), -1, true);
+    }
+  }, [reduced, pulse]);
+
   // AppState reconcile (TIMER-02): a return-from-background forces one re-render
   // so the numeral re-derives from endTs (the JS interval may have been
   // suspended while backgrounded). globalThis-sentinel teardown is unnecessary
@@ -152,6 +183,7 @@ export function RestTimerBanner({ content }: RestTimerBannerProps) {
   const bannerStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }, { scale: scale.value }],
   }));
+  const dotStyle = useAnimatedStyle(() => ({ opacity: pulse.value }));
 
   // No rest running → no banner (TIMER-02). AFTER all hooks (rules-of-hooks).
   if (endTs == null) return null;
@@ -162,20 +194,21 @@ export function RestTimerBanner({ content }: RestTimerBannerProps) {
   // caller concern, but we still render "0:00" gracefully until then.
   const remaining = remainingMs(endTs, now);
   const figure = formatMSS(remaining);
+  // Depleting rail fraction (clamped 0..1). totalMs is the captured start length.
+  const progress =
+    totalMs > 0 ? Math.min(1, Math.max(0, remaining / totalMs)) : 0;
 
   return (
     // OUTER surface (box-decoration rule): OPAQUE Forge card bg + 20px radius
     // (forge-lg) in className; border + float shadow + animated transform in the
     // inline style. The opaque fill stops the card title behind it bleeding
     // through (FIT-116 / Phase 13 D-04).
+    // OUTER wrapper: float shadow + 20px radius (for the shadow shape) + the
+    // animated transform. No bg/overflow here so the shadow is never clipped.
     <Animated.View
-      className="rounded-[20px] bg-forge-surface-light dark:bg-forge-surface"
       style={[
         {
-          borderWidth: 1,
-          borderColor: isDark
-            ? "rgba(255,255,255,0.08)"
-            : "rgba(0,0,0,0.07)", // forge-border hairline
+          borderRadius: 20,
           shadowColor: "#000",
           shadowOpacity: isDark ? 0.4 : 0.12,
           shadowRadius: 12,
@@ -187,24 +220,40 @@ export function RestTimerBanner({ content }: RestTimerBannerProps) {
       accessibilityRole="timer"
       accessibilityLabel={`${t("restLabel")} ${figure}`}
     >
+      {/* INNER clipped surface (box-decoration rule): OPAQUE Forge bg + 20px
+          radius in className; overflow-hidden so the bottom progress rail clips
+          to the rounded corners; hairline border inline. */}
       <View
-        className="flex-row items-center"
-        style={{ paddingVertical: 12, paddingHorizontal: 20, gap: 16 }}
+        className="overflow-hidden rounded-[20px] bg-forge-surface-light dark:bg-forge-surface"
+        style={{
+          borderWidth: 1,
+          borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.07)",
+        }}
       >
-        {/* Left: eyebrow + the live M:SS numeral. */}
-        <View style={{ flex: 1 }}>
-          {/* Eyebrow "VILA" — reuses the 17/700 label role, uppercased + tracked
-              inline (UI-SPEC §Typography). Muted forge-text2. */}
-          <Text
-            className="font-display-bold text-forge-text2-light dark:text-forge-text2"
-            style={{
-              fontSize: 11,
-              letterSpacing: 1.5,
-              textTransform: "uppercase",
-            }}
-          >
-            {t("restLabel")}
-          </Text>
+        <View
+          className="flex-row items-center"
+          style={{ paddingVertical: 12, paddingHorizontal: 20, gap: 16 }}
+        >
+          {/* Left: eyebrow (pulsing live-dot + VILA) + the live M:SS numeral. */}
+          <View style={{ flex: 1 }}>
+            {/* Eyebrow row — a calm pulsing accent dot signals "rest running",
+                then the uppercased tracked "VILA" label (muted forge-text2). */}
+            <View className="flex-row items-center" style={{ gap: 6 }}>
+              <Animated.View
+                className="rounded-full bg-forge-accent-light dark:bg-forge-accent"
+                style={[{ width: 7, height: 7 }, dotStyle]}
+              />
+              <Text
+                className="font-display-bold text-forge-text2-light dark:text-forge-text2"
+                style={{
+                  fontSize: 11,
+                  letterSpacing: 1.5,
+                  textTransform: "uppercase",
+                }}
+              >
+                {t("restLabel")}
+              </Text>
+            </View>
           {/* Countdown numeral — 32px mono 700, tabular so M:SS width never
               reflows each second (DSGN-03 / UI-SPEC §Typography). React Native
               locks tabular figures via `fontVariant: ["tabular-nums"]` (the web
@@ -227,14 +276,15 @@ export function RestTimerBanner({ content }: RestTimerBannerProps) {
         {/* Right: the two controls. [Hoppa över] (neutral ghost) then [+30s]
             (accent-soft affirmative). Both 44px hit-target via hitSlop. */}
         <View className="flex-row items-center" style={{ gap: 8 }}>
-          {/* [Hoppa över] — neutral GHOST (forge-text2 on forge-surface2),
-              NEVER danger red (UI-SPEC §Color: skipping is a calm exit). */}
+          {/* [Hoppa över] — OUTLINE ghost (transparent fill + forge-borderStrong
+              hairline), NEVER danger red (UI-SPEC §Color: skipping is a calm
+              exit). Border in className per the NativeWind-4 box-decoration rule. */}
           <Pressable
             onPress={() => useRestTimerStore.getState().skip()}
             hitSlop={HIT_SLOP}
             accessibilityRole="button"
             accessibilityLabel={t("restSkip")}
-            className="rounded-full bg-forge-surface2-light dark:bg-forge-surface2"
+            className="rounded-full border border-forge-borderStrong-light dark:border-forge-borderStrong"
             style={({ pressed }) => [
               { paddingVertical: 9, paddingHorizontal: 14 },
               pressed ? { opacity: 0.7 } : null,
@@ -267,6 +317,21 @@ export function RestTimerBanner({ content }: RestTimerBannerProps) {
               {t("restAdd30")}
             </Text>
           </Pressable>
+        </View>
+        </View>
+
+        {/* Depleting progress rail (UI-SPEC §Color line 95 / §Motion line 112):
+            a 3px track in forge-border with an accent fill of width =
+            remaining/total. Re-derived each tick; the inner overflow-hidden clips
+            it to the card's rounded bottom corners. */}
+        <View
+          className="bg-forge-border-light dark:bg-forge-border"
+          style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 3 }}
+        >
+          <View
+            className="bg-forge-accent-light dark:bg-forge-accent"
+            style={{ height: 3, width: `${progress * 100}%` }}
+          />
         </View>
       </View>
     </Animated.View>

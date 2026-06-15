@@ -116,7 +116,7 @@ blocked: 0
       issue: "openRestDurationSheet använde ActionSheetIOS"
   missing:
     - "Custom Forge-bottom-sheet: mörk yta, grabber, riktiga rader, accent-check på vald tid, Anpassad-rad"
-  fix_applied: "Ny app/components/ui/RestDurationSheet.tsx — inline-overlay (no Modal, D-22), backdrop-fade + card-spring (damping 18/220, reduce-motion-snap), grabber, accent-check på vald, Anpassad→numerisk entry. settings.tsx: showRestSheet-state ersätter ActionSheetIOS. tsc 0, lint 0. Awaiting device verify."
+  fix_applied: "ITERATION 2 (user-spec): inline quick-pick chips ersätter sheeten helt — 5 mono+tabular preset-chips (vald=forge-accent fyll), 'Anpassad tid' streckad knapp→Alert.prompt (visar 'Anpassad · X' accent när custom). SettingsRow.icon valfri behålls; master-toggle fick subtitle 'Räkna ner vilan mellan set'; 'Avisering när vilan är slut'-toggle nästlad under chipsen, bell-rad när av. RestDurationSheet.tsx BORTTAGEN (redundant). tsc 0, lint 0, i18n 205/205. Awaiting device verify."
   debug_session: ""
 
 - truth: "VILA-countdown-bannern håller produktklass design"
@@ -129,6 +129,6 @@ blocked: 0
     - path: "app/components/ui/RestTimerBanner.tsx"
       issue: "Ingen progressindikator; platt hierarki"
   missing:
-    - "Uttunnande accent-progressbar (UI-SPEC rad 95/112) + stramare hierarki — NÄSTA iteration efter tidsväljaren"
-  fix_applied: ""
+    - "Uttunnande accent-progressbar (UI-SPEC rad 95/112) + stramare hierarki"
+  fix_applied: "RestTimerBanner.tsx: pulsande forge-accent live-prick (7×7, 1.6s, reduce-motion-static) före VILA-eyebrow; uttunnande 3px progressrail i botten (forge-border-spår + forge-accent-fyll = remaining/total, total fångas vid endTs-byte, clipas av inner overflow-hidden via outer/inner wrapper så skuggan inte klipps); 'Hoppa över' → outline-ghost (forge-borderStrong, transparent); '+30 s' behåller accentSoft. tsc 0, lint 0. Awaiting device verify."
   debug_session: ""

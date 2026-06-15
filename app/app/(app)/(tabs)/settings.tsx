@@ -76,7 +76,6 @@ import { SegmentedControl } from "@/components/segmented-control";
 import { SettingsRow, SettingsSection } from "@/components/ui/SettingsRow";
 import { ForgeButton } from "@/components/ui/ForgeButton";
 import { Icon } from "@/components/ui/Icon";
-import { RestDurationSheet } from "@/components/ui/RestDurationSheet";
 
 type ThemePref = "system" | "light" | "dark";
 
@@ -250,8 +249,6 @@ export default function SettingsTab() {
   const [restTimerEnabled, setRestTimerEnabled] = useState(false);
   const [restSeconds, setRestSeconds] = useState(120);
   const [permState, setPermState] = useState<PermissionState>("denied");
-  // Custom Forge duration sheet visibility (replaces the native ActionSheetIOS).
-  const [showRestSheet, setShowRestSheet] = useState(false);
   // ---- Profile (SET-02) + Weekly goal (SET-04). ----
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [goal, setGoal] = useState(3);
@@ -408,18 +405,6 @@ export default function SettingsTab() {
       "number-pad",
     );
   };
-
-  // Rest-duration picker → custom Forge bottom sheet (RestDurationSheet), NOT the
-  // raw iOS ActionSheet (device-UAT 2026-06-15: the native sheet read as generic
-  // system pills, off-brand). Presets map to 60/90/120/180/300s (RESEARCH Open-Q2);
-  // the sheet's "Anpassad" row opens the numeric custom entry.
-  const openRestDurationSheet = () => setShowRestSheet(true);
-
-  // Preset rows for the sheet — seconds + their formatted label ("1 min"/"1:30").
-  const restDurationOptions = REST_PRESETS.map((seconds) => ({
-    seconds,
-    label: formatRestLabel(seconds),
-  }));
 
   // Weekly-goal stepper: clamp 1..7 (D-05), optimistic local set, then persist
   // own-row to profiles.weekly_goal (T-09-07 — .eq id + verify returned row).
@@ -592,57 +577,145 @@ export default function SettingsTab() {
           <SettingsRow
             icon="clock"
             label={t("restTimer")}
+            subtitle={t("restSubtitle")}
             toggle
             toggleValue={restTimerEnabled}
             onToggle={onRestTimerToggle}
           />
-          {/* Revealed only when enabled: the duration as a NESTED value+chevron
-              row (icon-less → indented under Vilotimer). Tapping the row opens the
-              presets/Anpassad sheet (the whole row is the target, not a cramped
-              chip). */}
           {restTimerEnabled ? (
+            <>
+              {/* Inline quick-pick duration chips (TIMER-04) — change the rest
+                  time with ONE tap, no sheet. Mono + tabular-nums so the figures
+                  never reflow. Selected = forge-accent fill + accentText; others
+                  = forge-surface2. Tap → applyRestSeconds (persists fm:restSeconds
+                  immediately). */}
+              <View
+                className="border-b border-forge-border-light dark:border-forge-border"
+                style={{ paddingHorizontal: 16, paddingVertical: 14, gap: 10 }}
+              >
+                <View className="flex-row" style={{ gap: 8 }}>
+                  {REST_PRESETS.map((sec) => {
+                    const selected = restSeconds === sec;
+                    return (
+                      <Pressable
+                        key={sec}
+                        onPress={() => applyRestSeconds(sec)}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected }}
+                        accessibilityLabel={formatRestLabel(sec)}
+                        className={`flex-1 items-center justify-center rounded-full ${
+                          selected
+                            ? "bg-forge-accent-light dark:bg-forge-accent"
+                            : "bg-forge-surface2-light dark:bg-forge-surface2"
+                        }`}
+                        style={({ pressed }) => [
+                          { height: 38 },
+                          pressed ? { opacity: 0.7 } : null,
+                        ]}
+                      >
+                        <Text
+                          className={`font-mono ${
+                            selected
+                              ? "text-forge-accentText-light dark:text-forge-accentText"
+                              : "text-forge-text-light dark:text-forge-text"
+                          }`}
+                          style={{ fontSize: 13, fontVariant: ["tabular-nums"] }}
+                        >
+                          {formatRestLabel(sec)}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                {/* Anpassad tid — dashed outline (forge-borderStrong). When the
+                    current duration is NOT a preset, the button reads
+                    "Anpassad · {label}" in accent to surface the active custom
+                    value. Opens the numeric Alert.prompt (openRestCustomEntry). */}
+                {(() => {
+                  const isPreset = (
+                    REST_PRESETS as readonly number[]
+                  ).includes(restSeconds);
+                  return (
+                    <Pressable
+                      onPress={openRestCustomEntry}
+                      accessibilityRole="button"
+                      accessibilityLabel={t("restCustomTime")}
+                      className={`items-center justify-center rounded-forge-md border border-dashed ${
+                        isPreset
+                          ? "border-forge-borderStrong-light dark:border-forge-borderStrong"
+                          : "border-forge-accent-light dark:border-forge-accent"
+                      }`}
+                      style={({ pressed }) => [
+                        { height: 40 },
+                        pressed ? { opacity: 0.7 } : null,
+                      ]}
+                    >
+                      <Text
+                        className={
+                          isPreset
+                            ? "text-forge-text2-light dark:text-forge-text2"
+                            : "font-mono text-forge-accent-light dark:text-forge-accent"
+                        }
+                        style={{
+                          fontSize: 14,
+                          ...(isPreset
+                            ? null
+                            : { fontVariant: ["tabular-nums"] }),
+                        }}
+                      >
+                        {isPreset
+                          ? t("restCustomTime")
+                          : `${t("restCustom")} · ${formatRestLabel(restSeconds)}`}
+                      </Text>
+                    </Pressable>
+                  );
+                })()}
+              </View>
+              {/* Avisering toggle — nested under the chips (icon-less). This is the
+                  fm:notifications master gate, contextualized to the rest timer
+                  (the only OS notification this app sends, SET-07 / D-14). */}
+              <SettingsRow
+                label={t("restNotify")}
+                toggle
+                toggleValue={notifications}
+                onToggle={onNotificationsToggle}
+                last={permState === "granted"}
+              />
+              {/* D-12 denied-permission helper: muted caption (NOT danger red),
+                  indented under the rows. Blocked → tappable → iOS Settings. */}
+              {permState !== "granted" ? (
+                <Pressable
+                  onPress={
+                    permState === "blocked"
+                      ? () => {
+                          void Linking.openSettings();
+                        }
+                      : undefined
+                  }
+                  disabled={permState !== "blocked"}
+                  accessibilityRole={permState === "blocked" ? "button" : "text"}
+                  style={({ pressed }) =>
+                    pressed && permState === "blocked" ? { opacity: 0.6 } : null
+                  }
+                  className="flex-row items-center gap-3 py-[10px] pl-4 pr-4"
+                >
+                  <View className="h-7 w-7" />
+                  <Text className="flex-1 text-[13px] text-forge-text2-light dark:text-forge-text2">
+                    {t("restNoPermission")}
+                  </Text>
+                </Pressable>
+              ) : null}
+            </>
+          ) : (
             <SettingsRow
-              label={t("restDuration")}
-              value={formatRestLabel(restSeconds)}
-              chevron
-              onPress={openRestDurationSheet}
+              icon="bell"
+              label={t("notifications")}
+              last
+              toggle
+              toggleValue={notifications}
+              onToggle={onNotificationsToggle}
             />
-          ) : null}
-          {/* D-12 denied-permission helper: a NESTED muted caption (NOT danger
-              red), indented to align under the rows above. When blocked, the line
-              is tappable → iOS Settings (RESEARCH Pattern 4). Only shown once the
-              timer is enabled and the OS has not granted permission. */}
-          {restTimerEnabled && permState !== "granted" ? (
-            <Pressable
-              onPress={
-                permState === "blocked"
-                  ? () => {
-                      void Linking.openSettings();
-                    }
-                  : undefined
-              }
-              disabled={permState !== "blocked"}
-              accessibilityRole={permState === "blocked" ? "button" : "text"}
-              style={({ pressed }) =>
-                pressed && permState === "blocked" ? { opacity: 0.6 } : null
-              }
-              className="flex-row items-center gap-3 border-b border-forge-border-light py-[10px] pl-4 pr-4 dark:border-forge-border"
-            >
-              {/* Spacer aligns the caption under the icon'd rows' labels. */}
-              <View className="h-7 w-7" />
-              <Text className="flex-1 text-[13px] text-forge-text2-light dark:text-forge-text2">
-                {t("restNoPermission")}
-              </Text>
-            </Pressable>
-          ) : null}
-          <SettingsRow
-            icon="bell"
-            label={t("notifications")}
-            last
-            toggle
-            toggleValue={notifications}
-            onToggle={onNotificationsToggle}
-          />
+          )}
         </SettingsSection>
 
         {/* ── Sign-out (SET-09, D-16) — verbatim chain, no confirm ── */}
@@ -669,21 +742,6 @@ export default function SettingsTab() {
           onPress={signOut}
         />
       </ScrollView>
-
-      {/* Custom Forge duration sheet (replaces the native ActionSheetIOS). Inline
-          overlay (no Modal portal, D-22) — mounted only while open so it animates
-          in on mount and unmounts on pick / backdrop-tap. */}
-      {showRestSheet ? (
-        <RestDurationSheet
-          selectedSeconds={restSeconds}
-          options={restDurationOptions}
-          title={t("restDuration")}
-          customLabel={t("restCustom")}
-          onSelect={applyRestSeconds}
-          onCustom={openRestCustomEntry}
-          onClose={() => setShowRestSheet(false)}
-        />
-      ) : null}
     </SafeAreaView>
   );
 }
