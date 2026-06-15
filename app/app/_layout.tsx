@@ -3,7 +3,8 @@ import "../global.css";
 import { useEffect } from "react";
 import { useColorScheme } from "nativewind";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Stack } from "expo-router";
+import { Stack, router } from "expo-router";
+import * as Notifications from "expo-notifications";
 import { z } from "zod";
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
@@ -80,6 +81,58 @@ SplashScreen.preventAutoHideAsync().catch(() => {
 
 // focusManager + onlineManager + onlineManager.subscribe(resumePausedMutations)
 // are wired in @/lib/query/network.ts (imported above for side-effects).
+
+// ---- Rest-timer notifications (Phase 14, Plan 14-02) ----------------------
+// FOREGROUND HANDLER (RESEARCH §Pattern 5): how a delivered notification is
+// presented while the app is foregrounded. Uses the CURRENT field names
+// (shouldShowBanner / shouldShowList) — NOT the deprecated single-alert field
+// (expo-notifications ~0.29+; CLAUDE/RESEARCH §State of the Art). D-14 gating
+// (timer ON && fm:notifications ON && permission granted) is enforced at
+// SCHEDULE time in the store/caller, so an unwanted notification is never
+// scheduled in the first place — the handler just decides presentation.
+// Module scope (NOT a useEffect) so it is set exactly once before any JSX
+// renders, like the network.ts AppState blocks.
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
+
+// TAP → DEEP-LINK (D-15 / M4 anti-phishing, T-14-03). The tap response routes
+// ONLY into the in-app authenticated `(app)/workout/[sessionId]` route — never
+// `Linking.openURL` of an external URL. `data.sessionId` is VALIDATED as a
+// non-empty string before `router.push`; a missing/garbage payload is ignored.
+//
+// FAST-REFRESH GUARD (Pitfall 7): module-scope side-effects re-run on every hot
+// reload, so `addNotificationResponseReceivedListener` would STACK — N taps
+// firing N route pushes after N reloads. Same globalThis sentinel teardown
+// pattern as APPSTATE_BGFLUSH_KEY in lib/query/network.ts: remove the prior
+// subscription before registering a fresh one.
+const NOTIF_RESPONSE_SUB_KEY = "__fitnessmaxxing_notif_response_sub__";
+const globalNotifRef = globalThis as unknown as Record<
+  string,
+  { remove: () => void } | undefined
+>;
+if (globalNotifRef[NOTIF_RESPONSE_SUB_KEY]) {
+  globalNotifRef[NOTIF_RESPONSE_SUB_KEY].remove();
+}
+const notifResponseSub = Notifications.addNotificationResponseReceivedListener(
+  (response) => {
+    const data = response.notification.request.content.data as {
+      sessionId?: unknown;
+    };
+    const sessionId = data?.sessionId;
+    // M4: validate the routing token is a non-empty string before navigating;
+    // route only into the authenticated (app) group, never an external URL.
+    if (typeof sessionId === "string" && sessionId.length > 0) {
+      router.push(`/(app)/workout/${sessionId}`);
+    }
+  },
+);
+globalNotifRef[NOTIF_RESPONSE_SUB_KEY] = notifResponseSub;
 
 /**
  * Render-side splash hide controller. When status flips out of 'loading',
