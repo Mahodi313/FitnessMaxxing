@@ -213,7 +213,7 @@ Plans:
 3. A local notification fires when rest ends, even backgrounded; starting the next set or dismissing early cancels it
 4. The default rest duration and timer enable/disable are configurable in Settings (gated by notification permission)
 
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 
 Plans:
 **Wave 1**
@@ -227,7 +227,7 @@ Plans:
 **Wave 3** *(blocked on Wave 2 completion)*
 
 - [x] 14-03-PLAN.md — Settings restTimer row + duration picker + in-context permission prompt (TIMER-04)
-- [ ] 14-04-PLAN.md — floating countdown banner + fire-and-forget auto-start after addSet.mutate (TIMER-01/02/05)
+- [x] 14-04-PLAN.md — floating countdown banner + fire-and-forget auto-start after addSet.mutate (TIMER-01/02/05)
 
 #### Phase 15: Bilingual & Release Hardening
 
@@ -266,7 +266,7 @@ Deferred to a later milestone (needs Apple Developer license + tooling). Mapped 
 | 11. Active Workout Re-skin (F13 risk)         | v2.0 | 3/3 | Complete   | 2026-06-13 |
 | 12. History, Detail, Chart & Dashboard        | v2.0 | 11/11 | Complete    | 2026-06-14 |
 | 13. PR Celebration (F18)                      | v2.0 | 5/5 | Complete   | 2026-06-14 |
-| 14. Rest Timer (F19)                          | v2.0 | 3/4 | In Progress|  |
+| 14. Rest Timer (F19)                          | v2.0 | 4/4 | Complete   | 2026-06-15 |
 | 15. Bilingual & Release Hardening             | v2.0 | 0/? | ○ Planned  | — |
 
 **v1.0:** 7/7 phases · 33/33 plans · 15/15 requirements validated · 79 STRIDE threats SECURED.
