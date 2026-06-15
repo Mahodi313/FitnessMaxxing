@@ -612,7 +612,7 @@ export default function SettingsTab() {
                             : "bg-forge-surface2-light dark:bg-forge-surface2"
                         }`}
                         style={({ pressed }) => [
-                          { height: 44 }, // iOS 44pt tap-target floor
+                          { height: 52 }, // chunky tap target (device-UAT)
                           pressed ? { opacity: 0.7 } : null,
                         ]}
                       >
@@ -622,7 +622,7 @@ export default function SettingsTab() {
                               ? "text-forge-accentText-light dark:text-forge-accentText"
                               : "text-forge-text-light dark:text-forge-text"
                           }`}
-                          style={{ fontSize: 13, fontVariant: ["tabular-nums"] }}
+                          style={{ fontSize: 15, fontVariant: ["tabular-nums"] }}
                         >
                           {formatRestLabel(sec)}
                         </Text>
@@ -649,7 +649,7 @@ export default function SettingsTab() {
                           : "border-forge-accent-light dark:border-forge-accent"
                       }`}
                       style={({ pressed }) => [
-                        { height: 48 },
+                        { height: 52 },
                         pressed ? { opacity: 0.7 } : null,
                       ]}
                     >
@@ -660,7 +660,7 @@ export default function SettingsTab() {
                             : "font-mono text-forge-accent-light dark:text-forge-accent"
                         }
                         style={{
-                          fontSize: 14,
+                          fontSize: 15,
                           ...(isPreset
                             ? null
                             : { fontVariant: ["tabular-nums"] }),
