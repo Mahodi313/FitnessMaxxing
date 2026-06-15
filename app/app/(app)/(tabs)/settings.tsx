@@ -363,6 +363,73 @@ export default function SettingsTab() {
     setPref("fm:notifications", next);
   };
 
+  // Rest-timer enable toggle WITH the in-context permission prompt (D-13). On
+  // ENABLE we fire the OS prompt once, reflect granted/denied/blocked into the
+  // row, then ALWAYS enable the timer regardless of the grant — D-12: the in-app
+  // countdown works even when notifications are denied (it only loses the
+  // backgrounded ping). On DISABLE we just persist OFF (no prompt).
+  const onRestTimerToggle = async (next: boolean) => {
+    if (next) {
+      const state = await ensureNotificationPermission(); // D-13 in-context ask
+      setPermState(state);
+    }
+    setRestTimerEnabled(next);
+    setPref("fm:restTimerEnabled", next);
+  };
+
+  // Persist a chosen duration (preset or custom) to fm:restSeconds. The catch-
+  // parse schema (14-01) clamps any out-of-range stored value on READ, so this
+  // only ever writes a positive integer second-count (T-14-08).
+  const applyRestSeconds = (sec: number) => {
+    setRestSeconds(sec);
+    setPref("fm:restSeconds", sec);
+  };
+
+  // Custom ("Anpassad") entry (D-08). Alert.prompt is iOS-only (V1 is iOS-locked,
+  // same constraint as the ActionSheet pickers above). The numeric input is
+  // interpreted as MINUTES (the duration picker speaks in minutes); we coerce to
+  // seconds, guard non-finite / <=0, and clamp to a sane 1..60 min ceiling before
+  // persisting — defence-in-depth on top of the read-side catch-parse (T-14-08).
+  const openRestCustomEntry = () => {
+    Alert.prompt(
+      t("restCustom"),
+      t("restDuration"),
+      (raw) => {
+        const minutes = Number((raw ?? "").replace(",", ".").trim());
+        if (!Number.isFinite(minutes) || minutes <= 0) return; // ignore garbage
+        const clampedMin = Math.min(60, minutes);
+        applyRestSeconds(Math.round(clampedMin * 60));
+      },
+      "plain-text",
+      "",
+      "number-pad",
+    );
+  };
+
+  // Rest-duration picker → iOS ActionSheet (clones openUnitsSheet). Presets map
+  // 0-4 → 60/90/120/180/300s (RESEARCH Open-Q2); index 5 → custom entry.
+  const openRestDurationSheet = () => {
+    ActionSheetIOS.showActionSheetWithOptions(
+      {
+        title: t("restDuration"),
+        options: [
+          "1 min",
+          "1:30",
+          "2 min",
+          "3 min",
+          "5 min",
+          t("restCustom"),
+          t("cancel"),
+        ],
+        cancelButtonIndex: 6,
+      },
+      (index) => {
+        if (index >= 0 && index <= 4) applyRestSeconds(REST_PRESETS[index]);
+        else if (index === 5) openRestCustomEntry();
+      },
+    );
+  };
+
   // Weekly-goal stepper: clamp 1..7 (D-05), optimistic local set, then persist
   // own-row to profiles.weekly_goal (T-09-07 — .eq id + verify returned row).
   const onGoalChange = (next: number) => {
@@ -518,7 +585,7 @@ export default function SettingsTab() {
           />
         </SettingsSection>
 
-        {/* ── Notifications (haptics + notifications) ── */}
+        {/* ── Notifications (haptics + notifications + rest timer) ── */}
         <SettingsSection label={t("notifications")}>
           <SettingsRow
             icon="spark"
@@ -527,6 +594,60 @@ export default function SettingsTab() {
             toggleValue={haptics}
             onToggle={onHapticsToggle}
           />
+          {/* Rest timer (TIMER-04). Enable Toggle + a tappable duration disclosure
+              (value "1:30"/"2 min" + chevron → presets/Anpassad sheet). The
+              duration sub-control lives in the `control` slot as a Pressable so it
+              coexists with the enable Toggle (the row-level onPress is suppressed
+              when toggle is set). */}
+          <SettingsRow
+            icon="clock"
+            label={t("restTimer")}
+            toggle
+            toggleValue={restTimerEnabled}
+            onToggle={onRestTimerToggle}
+            control={
+              <Pressable
+                onPress={openRestDurationSheet}
+                accessibilityRole="button"
+                accessibilityLabel={t("restDuration")}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                className="flex-row items-center gap-1"
+                style={({ pressed }) => (pressed ? { opacity: 0.6 } : null)}
+              >
+                <Text className="text-[15px] text-forge-text2-light dark:text-forge-text2">
+                  {restTimerEnabled
+                    ? `${t("on")} · ${formatRestLabel(restSeconds)}`
+                    : t("off")}
+                </Text>
+                <Icon name="chevronRight" size={18} color="#8B8B8B" />
+              </Pressable>
+            }
+          />
+          {/* D-12 denied-permission helper: muted forge-text2 (NOT danger red),
+              informational only. When blocked, the line is tappable → iOS Settings
+              (RESEARCH Pattern 4). Only shown once the timer is enabled and the OS
+              has not granted permission. */}
+          {restTimerEnabled && permState !== "granted" ? (
+            <Pressable
+              onPress={
+                permState === "blocked"
+                  ? () => {
+                      void Linking.openSettings();
+                    }
+                  : undefined
+              }
+              disabled={permState !== "blocked"}
+              accessibilityRole={permState === "blocked" ? "button" : "text"}
+              style={({ pressed }) =>
+                pressed && permState === "blocked" ? { opacity: 0.6 } : null
+              }
+              className="border-t border-forge-border-light px-4 py-[10px] dark:border-forge-border"
+            >
+              <Text className="text-[13px] text-forge-text2-light dark:text-forge-text2">
+                {t("restNoPermission")}
+              </Text>
+            </Pressable>
+          ) : null}
           <SettingsRow
             icon="bell"
             label={t("notifications")}
