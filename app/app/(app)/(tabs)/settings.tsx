@@ -603,13 +603,16 @@ export default function SettingsTab() {
                         accessibilityRole="button"
                         accessibilityState={{ selected }}
                         accessibilityLabel={formatRestLabel(sec)}
+                        // Vertical-only hitSlop (no horizontal — chips are
+                        // adjacent; horizontal slop would overlap neighbours).
+                        hitSlop={{ top: 8, bottom: 8 }}
                         className={`flex-1 items-center justify-center rounded-full ${
                           selected
                             ? "bg-forge-accent-light dark:bg-forge-accent"
                             : "bg-forge-surface2-light dark:bg-forge-surface2"
                         }`}
                         style={({ pressed }) => [
-                          { height: 38 },
+                          { height: 44 }, // iOS 44pt tap-target floor
                           pressed ? { opacity: 0.7 } : null,
                         ]}
                       >
@@ -646,7 +649,7 @@ export default function SettingsTab() {
                           : "border-forge-accent-light dark:border-forge-accent"
                       }`}
                       style={({ pressed }) => [
-                        { height: 40 },
+                        { height: 48 },
                         pressed ? { opacity: 0.7 } : null,
                       ]}
                     >

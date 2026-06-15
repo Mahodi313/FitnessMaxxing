@@ -68,10 +68,10 @@ import { useRestTimerStore } from "@/lib/rest-timer-store";
 // §07 motion spec — damping 18 / stiffness 220 (PrBanner.tsx:71, Forge §07).
 const SPRING = { damping: 18, stiffness: 220 } as const;
 
-// 44px touch-target hit-slop (UI-SPEC §Spacing exception; SettingsRow.tsx:70
-// idiom). The visual chip is ~32px tall → 6px slop on each axis lifts the
-// tappable area to the iOS 44px floor.
-const HIT_SLOP = { top: 6, bottom: 6, left: 6, right: 6 } as const;
+// Generous touch target (device-UAT: controls too small for wider fingers). The
+// visual chip is ~42px tall with the padding below; 10px slop on each axis lifts
+// the tappable area well past the iOS 44px floor.
+const HIT_SLOP = { top: 10, bottom: 10, left: 10, right: 10 } as const;
 
 /**
  * Notification content forwarded to the store's `extend()` so the reschedule
@@ -286,7 +286,7 @@ export function RestTimerBanner({ content }: RestTimerBannerProps) {
             accessibilityLabel={t("restSkip")}
             className="rounded-full border border-forge-borderStrong-light dark:border-forge-borderStrong"
             style={({ pressed }) => [
-              { paddingVertical: 9, paddingHorizontal: 14 },
+              { paddingVertical: 12, paddingHorizontal: 18 },
               pressed ? { opacity: 0.7 } : null,
             ]}
           >
@@ -306,7 +306,7 @@ export function RestTimerBanner({ content }: RestTimerBannerProps) {
             accessibilityLabel={t("restAdd30")}
             className="rounded-full bg-forge-accentSoft-light dark:bg-forge-accentSoft"
             style={({ pressed }) => [
-              { paddingVertical: 9, paddingHorizontal: 14 },
+              { paddingVertical: 12, paddingHorizontal: 18 },
               pressed ? { opacity: 0.7 } : null,
             ]}
           >
