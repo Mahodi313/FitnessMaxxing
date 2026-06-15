@@ -10,14 +10,15 @@
 // display-only tick, and the two interactive controls differ.
 //
 // COUNTDOWN MECHANIC (TIMER-02 — the one rule that matters):
-//   The M:SS numeral is RE-DERIVED every render from the stored absolute endTs:
-//   `formatMSS(remainingMs(endTs, Date.now()))`. It is NEVER a decrementing
-//   second-counter held in state. A display-only 1s setInterval bumps a
-//   `tick` state purely to FORCE a re-render — the value itself comes from the
-//   clock-vs-endTs delta, so a backgrounded JS thread that misses ticks
-//   reconciles instantly on the next render. An AppState 'active' listener forces
-//   one extra re-render on foreground so the numeral is correct the moment the
-//   app returns from background (the backgrounded-suspension reconcile).
+//   The M:SS numeral is RE-DERIVED every render as `formatMSS(remainingMs(endTs,
+//   now))`, where `now` is reactive STATE refreshed by a 1s setInterval. It is
+//   NEVER a decrementing second-counter — the value is always the clock-vs-endTs
+//   delta, so a backgrounded JS thread that misses ticks reconciles instantly on
+//   the next refresh. `now` is held in state (not a bare `Date.now()` read) so
+//   the React Compiler tracks the clock as a reactive dependency and recomputes
+//   the figure each tick — see the inline note at the `now` declaration. An
+//   AppState 'active' listener refreshes `now` on foreground so the numeral is
+//   correct the moment the app returns from background (the suspension reconcile).
 //
 // MOTION (§07 / UI-SPEC §Motion): spring damping 18 / stiffness 220 (the Forge
 // §07 default, PrBanner :70). Enter = translateY 24→0 + scale 0.96→1 (PrBanner
@@ -98,11 +99,19 @@ export function RestTimerBanner({ content }: RestTimerBannerProps) {
   const endTs = useRestTimerStore((s) => s.endTs);
 
   // Display-only re-render driver (RESEARCH §Pattern 2 / §Pitfall 2): a 1s
-  // interval bumps `tick` ONLY to force a re-render; `remaining` is recomputed
-  // from endTs each render. There is intentionally NO stored decrementing
-  // second-count — the figure is always derived, never mutated.
-  const [, setTick] = useState(0);
-  const forceTick = () => setTick((n) => n + 1);
+  // interval refreshes `now` so the figure re-derives against the live clock.
+  // There is intentionally NO stored decrementing second-count — the figure is
+  // always `endTs − now`, derived, never mutated.
+  //
+  // CRITICAL — React Compiler (app.json experiments.reactCompiler: true):
+  // `now` MUST be reactive STATE, not an unused tick + `Date.now()` read inside
+  // render. The compiler memoizes the figure keyed on its reactive inputs only;
+  // a bare `Date.now()` is a non-reactive constant, so an unused-tick re-render
+  // would serve the CACHED figure (frozen at the start value, FIT device-UAT).
+  // Storing `now` in state makes the clock a tracked dependency → recomputes
+  // every tick under the compiler AND without it.
+  const [now, setNow] = useState(() => Date.now());
+  const forceTick = () => setNow(Date.now());
 
   // MOTION (PrBanner precedent). Hooks run unconditionally (rules-of-hooks) —
   // the early `endTs === null` return happens AFTER all hooks.
@@ -151,7 +160,7 @@ export function RestTimerBanner({ content }: RestTimerBannerProps) {
   // decrementing counter (Pitfall 2). At 0 the banner exits (foreground) — the
   // store clears endTs via skip/finish; a reached-zero foreground rest is a
   // caller concern, but we still render "0:00" gracefully until then.
-  const remaining = remainingMs(endTs, Date.now());
+  const remaining = remainingMs(endTs, now);
   const figure = formatMSS(remaining);
 
   return (
