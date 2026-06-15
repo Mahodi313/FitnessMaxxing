@@ -213,12 +213,12 @@ Plans:
 3. A local notification fires when rest ends, even backgrounded; starting the next set or dismissing early cancels it
 4. The default rest duration and timer enable/disable are configurable in Settings (gated by notification permission)
 
-**Plans:** 4 plans
+**Plans:** 1/4 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 14-01-PLAN.md — Wave 0 scaffold: pure rest-timer.ts + test + fm:restSeconds/fm:restTimerEnabled prefs + i18n + expo-notifications install (TIMER-01/02/04/05)
+- [x] 14-01-PLAN.md — Wave 0 scaffold: pure rest-timer.ts + test + fm:restSeconds/fm:restTimerEnabled prefs + i18n + expo-notifications install (TIMER-01/02/04/05)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -266,7 +266,7 @@ Deferred to a later milestone (needs Apple Developer license + tooling). Mapped 
 | 11. Active Workout Re-skin (F13 risk)         | v2.0 | 3/3 | Complete   | 2026-06-13 |
 | 12. History, Detail, Chart & Dashboard        | v2.0 | 11/11 | Complete    | 2026-06-14 |
 | 13. PR Celebration (F18)                      | v2.0 | 5/5 | Complete   | 2026-06-14 |
-| 14. Rest Timer (F19)                          | v2.0 | 0/4 | ○ Not started  | — |
+| 14. Rest Timer (F19)                          | v2.0 | 1/4 | In Progress|  |
 | 15. Bilingual & Release Hardening             | v2.0 | 0/? | ○ Planned  | — |
 
 **v1.0:** 7/7 phases · 33/33 plans · 15/15 requirements validated · 79 STRIDE threats SECURED.
