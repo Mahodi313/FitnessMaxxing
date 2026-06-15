@@ -593,7 +593,14 @@ export default function SettingsTab() {
                 className="border-b border-forge-border-light dark:border-forge-border"
                 style={{ paddingHorizontal: 16, paddingVertical: 14, gap: 10 }}
               >
-                <View className="flex-row" style={{ gap: 8 }}>
+                {/* 3×2 grid of BIG pill buttons (device-UAT: 5-in-a-row read as
+                    small/cramped — each chip was only ~60px wide). 5 presets + a
+                    6th "Anpassad" cell fill an even 3-column / 2-row grid, so each
+                    pill is ~3× wider. flexBasis 30% + flexGrow 1 → exactly 3 per
+                    row, both rows even-width. rounded-full = Forge button language. */}
+                <View
+                  style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}
+                >
                   {REST_PRESETS.map((sec) => {
                     const selected = restSeconds === sec;
                     return (
@@ -603,20 +610,13 @@ export default function SettingsTab() {
                         accessibilityRole="button"
                         accessibilityState={{ selected }}
                         accessibilityLabel={formatRestLabel(sec)}
-                        // Vertical-only hitSlop (no horizontal — chips are
-                        // adjacent; horizontal slop would overlap neighbours).
-                        hitSlop={{ top: 8, bottom: 8 }}
-                        // rounded-full PILL — the Forge action-button language
-                        // (banner "Hoppa över"/"+30 s", "Avsluta" are all pills).
-                        // The "thin" feel was HEIGHT, not the corner: keep the
-                        // pill, give it real substance (device-UAT).
-                        className={`flex-1 items-center justify-center rounded-full ${
+                        className={`items-center justify-center rounded-full ${
                           selected
                             ? "bg-forge-accent-light dark:bg-forge-accent"
                             : "bg-forge-surface2-light dark:bg-forge-surface2"
                         }`}
                         style={({ pressed }) => [
-                          { height: 58 },
+                          { flexBasis: "30%", flexGrow: 1, height: 58 },
                           pressed ? { opacity: 0.7 } : null,
                         ]}
                       >
@@ -627,7 +627,7 @@ export default function SettingsTab() {
                               : "text-forge-text-light dark:text-forge-text"
                           }`}
                           style={{
-                            fontSize: 16,
+                            fontSize: 17,
                             fontWeight: "600",
                             fontVariant: ["tabular-nums"],
                           }}
@@ -637,50 +637,46 @@ export default function SettingsTab() {
                       </Pressable>
                     );
                   })}
-                </View>
-                {/* Anpassad tid — dashed outline (forge-borderStrong). When the
-                    current duration is NOT a preset, the button reads
-                    "Anpassad · {label}" in accent to surface the active custom
-                    value. Opens the numeric Alert.prompt (openRestCustomEntry). */}
-                {(() => {
-                  const isPreset = (
-                    REST_PRESETS as readonly number[]
-                  ).includes(restSeconds);
-                  return (
-                    <Pressable
-                      onPress={openRestCustomEntry}
-                      accessibilityRole="button"
-                      accessibilityLabel={t("restCustomTime")}
-                      className={`items-center justify-center rounded-full border border-dashed ${
-                        isPreset
-                          ? "border-forge-borderStrong-light dark:border-forge-borderStrong"
-                          : "border-forge-accent-light dark:border-forge-accent"
-                      }`}
-                      style={({ pressed }) => [
-                        { height: 58 },
-                        pressed ? { opacity: 0.7 } : null,
-                      ]}
-                    >
-                      <Text
-                        className={
+                  {/* 6th cell — "Anpassad" custom entry (dashed). Accent + soft fill
+                      when the active value is a custom (non-preset) duration; the
+                      cell then shows the value. Opens the numeric Alert.prompt. */}
+                  {(() => {
+                    const isPreset = (
+                      REST_PRESETS as readonly number[]
+                    ).includes(restSeconds);
+                    return (
+                      <Pressable
+                        onPress={openRestCustomEntry}
+                        accessibilityRole="button"
+                        accessibilityLabel={t("restCustomTime")}
+                        className={`items-center justify-center rounded-full border border-dashed ${
                           isPreset
-                            ? "text-forge-text2-light dark:text-forge-text2"
-                            : "font-mono text-forge-accent-light dark:text-forge-accent"
-                        }
-                        style={{
-                          fontSize: 16,
-                          ...(isPreset
-                            ? null
-                            : { fontVariant: ["tabular-nums"] }),
-                        }}
+                            ? "border-forge-borderStrong-light dark:border-forge-borderStrong"
+                            : "border-forge-accent-light bg-forge-accentSoft-light dark:border-forge-accent dark:bg-forge-accentSoft"
+                        }`}
+                        style={({ pressed }) => [
+                          { flexBasis: "30%", flexGrow: 1, height: 58 },
+                          pressed ? { opacity: 0.7 } : null,
+                        ]}
                       >
-                        {isPreset
-                          ? t("restCustomTime")
-                          : `${t("restCustom")} · ${formatRestLabel(restSeconds)}`}
-                      </Text>
-                    </Pressable>
-                  );
-                })()}
+                        <Text
+                          className={
+                            isPreset
+                              ? "text-forge-text2-light dark:text-forge-text2"
+                              : "font-mono text-forge-accent-light dark:text-forge-accent"
+                          }
+                          style={{
+                            fontSize: isPreset ? 16 : 17,
+                            fontWeight: "600",
+                            ...(isPreset ? null : { fontVariant: ["tabular-nums"] }),
+                          }}
+                        >
+                          {isPreset ? t("restCustom") : formatRestLabel(restSeconds)}
+                        </Text>
+                      </Pressable>
+                    );
+                  })()}
+                </View>
               </View>
               {/* Avisering toggle — nested under the chips (icon-less). This is the
                   fm:notifications master gate, contextualized to the rest timer
