@@ -213,7 +213,7 @@ Plans:
 3. A local notification fires when rest ends, even backgrounded; starting the next set or dismissing early cancels it
 4. The default rest duration and timer enable/disable are configurable in Settings (gated by notification permission)
 
-**Plans:** 1/4 plans executed
+**Plans:** 2/4 plans executed
 
 Plans:
 **Wave 1**
@@ -222,7 +222,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 14-02-PLAN.md — notifications.ts wrapper + rest-timer-store (Zustand) + _layout handler/tap deep-link (TIMER-03/05)
+- [x] 14-02-PLAN.md — notifications.ts wrapper + rest-timer-store (Zustand) + _layout handler/tap deep-link (TIMER-03/05)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -266,7 +266,7 @@ Deferred to a later milestone (needs Apple Developer license + tooling). Mapped 
 | 11. Active Workout Re-skin (F13 risk)         | v2.0 | 3/3 | Complete   | 2026-06-13 |
 | 12. History, Detail, Chart & Dashboard        | v2.0 | 11/11 | Complete    | 2026-06-14 |
 | 13. PR Celebration (F18)                      | v2.0 | 5/5 | Complete   | 2026-06-14 |
-| 14. Rest Timer (F19)                          | v2.0 | 1/4 | In Progress|  |
+| 14. Rest Timer (F19)                          | v2.0 | 2/4 | In Progress|  |
 | 15. Bilingual & Release Hardening             | v2.0 | 0/? | ○ Planned  | — |
 
 **v1.0:** 7/7 phases · 33/33 plans · 15/15 requirements validated · 79 STRIDE threats SECURED.
