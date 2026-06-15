@@ -193,6 +193,17 @@
   "workoutPrefs": "Träning",
   "cancel": "Avbryt",
 
+  "restSkip": "Hoppa över",
+  "restAdd30": "+30 s",
+  "restLabel": "Vila",
+  "restDuration": "Vilotid",
+  "restCustom": "Anpassad",
+  "restNoPermission": "Notiser av — vilan räknas ändå ner i appen.",
+  "restDoneTitle": "Vilan är slut",
+  "restDoneBody": "Dags för nästa set.",
+  "on": "På",
+  "off": "Av",
+
   "offline": "Du är offline — ändringar synkar när nätet är tillbaka.",
 
   "mgAll": "Alla",

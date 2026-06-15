@@ -51,6 +51,19 @@ const notificationsSchema = z
   .enum(["true", "false"])
   .catch("false") // D-07: default OFF
   .transform((s) => s === "true");
+// Phase 14 (Rest Timer, F19), Plan 14-01.
+// fm:restSeconds — D-10 default 120s. z.coerce.number() so the AsyncStorage
+// string parses; .int().positive() rejects garbage/zero/negative; .catch(120)
+// keeps the read total over `unknown` (T-14-01 — a tampered/huge/zero value
+// clamps to the 120s default, never throws).
+const restSecondsSchema = z.coerce.number().int().positive().catch(120);
+// fm:restTimerEnabled — default OFF (the master rest-timer toggle is opt-in).
+// Same enum-catch idiom as fm:notifications — throw-free; corrupt → OFF
+// (T-14-02).
+const restTimerEnabledSchema = z
+  .enum(["true", "false"])
+  .catch("false")
+  .transform((s) => s === "true");
 
 // Map each pref key to its (resolved) value type for a typed getPref/setPref.
 type PrefMap = {
@@ -58,6 +71,8 @@ type PrefMap = {
   "fm:language": LanguagePref;
   "fm:haptics": boolean;
   "fm:notifications": boolean;
+  "fm:restSeconds": number;
+  "fm:restTimerEnabled": boolean;
 };
 type PrefKey = keyof PrefMap;
 
@@ -66,6 +81,8 @@ const SCHEMAS = {
   "fm:language": languageSchema,
   "fm:haptics": hapticsSchema,
   "fm:notifications": notificationsSchema,
+  "fm:restSeconds": restSecondsSchema,
+  "fm:restTimerEnabled": restTimerEnabledSchema,
 } as const;
 
 /**
