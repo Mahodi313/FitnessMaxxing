@@ -28,7 +28,10 @@ import { Pressable, Text, View } from "react-native";
 import { Icon, type IconName } from "./Icon";
 
 export type SettingsRowProps = {
-  icon: IconName;
+  /** Leading accent icon tile. Omit for a NESTED sub-row — the label then
+   *  indents to align under icon'd rows (the revealed "configure" child of a
+   *  master-toggle row, e.g. the rest-timer duration under its enable toggle). */
+  icon?: IconName;
   label: string;
   /** Secondary caption under the label (e.g. a unit hint). Stacks vertically so
    *  it never competes for row width — locale-safe against truncation. */
@@ -115,10 +118,16 @@ export function SettingsRow({
           : "border-b border-forge-border-light dark:border-forge-border"
       }`}
     >
-      {/* 28x28 accent-soft icon tile + 15px accent icon. */}
-      <View className="h-7 w-7 items-center justify-center rounded-lg bg-forge-accentSoft-light dark:bg-forge-accentSoft">
-        <Icon name={icon} size={15} color={ACCENT_LIGHT} strokeWidth={1.8} />
-      </View>
+      {/* 28x28 accent-soft icon tile + 15px accent icon. Omitted on a nested
+          sub-row, where a same-size spacer keeps the label aligned under the
+          parent row's label (the revealed-child indent). */}
+      {icon ? (
+        <View className="h-7 w-7 items-center justify-center rounded-lg bg-forge-accentSoft-light dark:bg-forge-accentSoft">
+          <Icon name={icon} size={15} color={ACCENT_LIGHT} strokeWidth={1.8} />
+        </View>
+      ) : (
+        <View className="h-7 w-7" />
+      )}
 
       <View className="flex-1">
         <Text

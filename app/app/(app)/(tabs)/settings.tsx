@@ -594,39 +594,33 @@ export default function SettingsTab() {
             toggleValue={haptics}
             onToggle={onHapticsToggle}
           />
-          {/* Rest timer (TIMER-04). Enable Toggle + a tappable duration disclosure
-              (value "1:30"/"2 min" + chevron → presets/Anpassad sheet). The
-              duration sub-control lives in the `control` slot as a Pressable so it
-              coexists with the enable Toggle (the row-level onPress is suppressed
-              when toggle is set). */}
+          {/* Rest timer MASTER ENABLE (TIMER-04 / D-13). A clean single-control
+              toggle row — the duration is its own revealed sub-row below, matching
+              the Forge settings vocabulary (a row is a toggle OR a value+chevron
+              disclosure, never both crammed together). */}
           <SettingsRow
             icon="clock"
             label={t("restTimer")}
             toggle
             toggleValue={restTimerEnabled}
             onToggle={onRestTimerToggle}
-            control={
-              <Pressable
-                onPress={openRestDurationSheet}
-                accessibilityRole="button"
-                accessibilityLabel={t("restDuration")}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                className="flex-row items-center gap-1"
-                style={({ pressed }) => (pressed ? { opacity: 0.6 } : null)}
-              >
-                <Text className="text-[15px] text-forge-text2-light dark:text-forge-text2">
-                  {restTimerEnabled
-                    ? `${t("on")} · ${formatRestLabel(restSeconds)}`
-                    : t("off")}
-                </Text>
-                <Icon name="chevronRight" size={18} color="#8B8B8B" />
-              </Pressable>
-            }
           />
-          {/* D-12 denied-permission helper: muted forge-text2 (NOT danger red),
-              informational only. When blocked, the line is tappable → iOS Settings
-              (RESEARCH Pattern 4). Only shown once the timer is enabled and the OS
-              has not granted permission. */}
+          {/* Revealed only when enabled: the duration as a NESTED value+chevron
+              row (icon-less → indented under Vilotimer). Tapping the row opens the
+              presets/Anpassad sheet (the whole row is the target, not a cramped
+              chip). */}
+          {restTimerEnabled ? (
+            <SettingsRow
+              label={t("restDuration")}
+              value={formatRestLabel(restSeconds)}
+              chevron
+              onPress={openRestDurationSheet}
+            />
+          ) : null}
+          {/* D-12 denied-permission helper: a NESTED muted caption (NOT danger
+              red), indented to align under the rows above. When blocked, the line
+              is tappable → iOS Settings (RESEARCH Pattern 4). Only shown once the
+              timer is enabled and the OS has not granted permission. */}
           {restTimerEnabled && permState !== "granted" ? (
             <Pressable
               onPress={
@@ -641,9 +635,11 @@ export default function SettingsTab() {
               style={({ pressed }) =>
                 pressed && permState === "blocked" ? { opacity: 0.6 } : null
               }
-              className="border-t border-forge-border-light px-4 py-[10px] dark:border-forge-border"
+              className="flex-row items-center gap-3 border-b border-forge-border-light py-[10px] pl-4 pr-4 dark:border-forge-border"
             >
-              <Text className="text-[13px] text-forge-text2-light dark:text-forge-text2">
+              {/* Spacer aligns the caption under the icon'd rows' labels. */}
+              <View className="h-7 w-7" />
+              <Text className="flex-1 text-[13px] text-forge-text2-light dark:text-forge-text2">
                 {t("restNoPermission")}
               </Text>
             </Pressable>

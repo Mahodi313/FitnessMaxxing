@@ -94,10 +94,13 @@ blocked: 0
   reason: "User reported: 'kolla på inställningen det där ser inte ut att hålla kvalité standard. Du måste tänka på att andra kommer att använda den för en bättre design'"
   severity: cosmetic
   test: 1
-  root_cause: ""
+  root_cause: "Vilotimer-raden uppfann en dubbel-kontroll (enable-Toggle + 'På · 1 min ›' value+chevron i samma rad) som INTE finns i Forge-designkällan — forge-screens.jsx SettingsRow är ALLTID antingen en toggle ELLER en value+chevron-disclosure, aldrig båda. Den trängda raden bröt mot systemets vokabulär → kändes off-brand bredvid de rena Haptik/Notiser-togglarna."
   artifacts:
     - path: "app/app/(app)/(tabs)/settings.tsx"
-      issue: "Subjektiv designkvalitet på Vilotimer-raden — kräver designkälla + användarriktning innan ändring (memory: läs design source, gissa inte)"
+      issue: "Dubbel-kontroll-rad bröt mot Forge SettingsRow-vokabulären"
+    - path: "app/components/ui/SettingsRow.tsx"
+      issue: "icon var obligatorisk → ingen nästlad sub-rad möjlig"
   missing:
-    - "Klargör vilken yta + vad som känns billigt; läs 14-UI-SPEC.md + design v2-källan innan re-skin"
+    - "Vilotimer = ren master-toggle-rad; längden = egen avslöjad value+chevron sub-rad (iOS 'enable, then configure'); permission-helper = nästlad caption"
+  fix_applied: "SettingsRow.icon gjord valfri (icon-less → indenterad nästlad rad). NOTISER omstrukturerad: Vilotimer ren toggle, revealed 'Vilotid 1 min ›'-sub-rad öppnar längdsheet, denied-helper nästlad caption. Berör hela sektionens konsekvens. tsc 0, lint 0. Awaiting device re-verify."
   debug_session: ""
