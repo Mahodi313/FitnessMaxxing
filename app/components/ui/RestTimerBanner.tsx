@@ -286,13 +286,13 @@ export function RestTimerBanner({ content }: RestTimerBannerProps) {
             accessibilityLabel={t("restSkip")}
             className="rounded-full border border-forge-borderStrong-light dark:border-forge-borderStrong"
             style={({ pressed }) => [
-              { paddingVertical: 14, paddingHorizontal: 22 },
+              { paddingVertical: 16, paddingHorizontal: 22 },
               pressed ? { opacity: 0.7 } : null,
             ]}
           >
             <Text
               className="font-display text-forge-text2-light dark:text-forge-text2"
-              style={{ fontSize: 16 }}
+              style={{ fontSize: 17 }}
             >
               {t("restSkip")}
             </Text>
@@ -306,13 +306,13 @@ export function RestTimerBanner({ content }: RestTimerBannerProps) {
             accessibilityLabel={t("restAdd30")}
             className="rounded-full bg-forge-accentSoft-light dark:bg-forge-accentSoft"
             style={({ pressed }) => [
-              { paddingVertical: 14, paddingHorizontal: 22 },
+              { paddingVertical: 16, paddingHorizontal: 22 },
               pressed ? { opacity: 0.7 } : null,
             ]}
           >
             <Text
               className="font-display-bold text-forge-accent-light dark:text-forge-accent"
-              style={{ fontSize: 16 }}
+              style={{ fontSize: 17 }}
             >
               {t("restAdd30")}
             </Text>

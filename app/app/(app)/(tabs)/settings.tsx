@@ -606,13 +606,17 @@ export default function SettingsTab() {
                         // Vertical-only hitSlop (no horizontal — chips are
                         // adjacent; horizontal slop would overlap neighbours).
                         hitSlop={{ top: 8, bottom: 8 }}
-                        className={`flex-1 items-center justify-center rounded-full ${
+                        // rounded-forge-md (NOT rounded-full): the squared corner
+                        // is the app's md-button standard (ForgeButton md =
+                        // h-52 rounded-forge-md). rounded-full read as a flimsy
+                        // tag/pill, never a button (device-UAT).
+                        className={`flex-1 items-center justify-center rounded-forge-md ${
                           selected
                             ? "bg-forge-accent-light dark:bg-forge-accent"
                             : "bg-forge-surface2-light dark:bg-forge-surface2"
                         }`}
                         style={({ pressed }) => [
-                          { height: 52 }, // chunky tap target (device-UAT)
+                          { height: 56 }, // ≥ md-button substance (device-UAT)
                           pressed ? { opacity: 0.7 } : null,
                         ]}
                       >
@@ -622,7 +626,11 @@ export default function SettingsTab() {
                               ? "text-forge-accentText-light dark:text-forge-accentText"
                               : "text-forge-text-light dark:text-forge-text"
                           }`}
-                          style={{ fontSize: 15, fontVariant: ["tabular-nums"] }}
+                          style={{
+                            fontSize: 16,
+                            fontWeight: "600",
+                            fontVariant: ["tabular-nums"],
+                          }}
                         >
                           {formatRestLabel(sec)}
                         </Text>
@@ -649,7 +657,7 @@ export default function SettingsTab() {
                           : "border-forge-accent-light dark:border-forge-accent"
                       }`}
                       style={({ pressed }) => [
-                        { height: 52 },
+                        { height: 56 },
                         pressed ? { opacity: 0.7 } : null,
                       ]}
                     >
@@ -660,7 +668,7 @@ export default function SettingsTab() {
                             : "font-mono text-forge-accent-light dark:text-forge-accent"
                         }
                         style={{
-                          fontSize: 15,
+                          fontSize: 16,
                           ...(isPreset
                             ? null
                             : { fontVariant: ["tabular-nums"] }),
