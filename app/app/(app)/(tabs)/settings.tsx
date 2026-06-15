@@ -76,6 +76,7 @@ import { SegmentedControl } from "@/components/segmented-control";
 import { SettingsRow, SettingsSection } from "@/components/ui/SettingsRow";
 import { ForgeButton } from "@/components/ui/ForgeButton";
 import { Icon } from "@/components/ui/Icon";
+import { RestDurationSheet } from "@/components/ui/RestDurationSheet";
 
 type ThemePref = "system" | "light" | "dark";
 
@@ -249,6 +250,8 @@ export default function SettingsTab() {
   const [restTimerEnabled, setRestTimerEnabled] = useState(false);
   const [restSeconds, setRestSeconds] = useState(120);
   const [permState, setPermState] = useState<PermissionState>("denied");
+  // Custom Forge duration sheet visibility (replaces the native ActionSheetIOS).
+  const [showRestSheet, setShowRestSheet] = useState(false);
   // ---- Profile (SET-02) + Weekly goal (SET-04). ----
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [goal, setGoal] = useState(3);
@@ -406,29 +409,17 @@ export default function SettingsTab() {
     );
   };
 
-  // Rest-duration picker → iOS ActionSheet (clones openUnitsSheet). Presets map
-  // 0-4 → 60/90/120/180/300s (RESEARCH Open-Q2); index 5 → custom entry.
-  const openRestDurationSheet = () => {
-    ActionSheetIOS.showActionSheetWithOptions(
-      {
-        title: t("restDuration"),
-        options: [
-          "1 min",
-          "1:30",
-          "2 min",
-          "3 min",
-          "5 min",
-          t("restCustom"),
-          t("cancel"),
-        ],
-        cancelButtonIndex: 6,
-      },
-      (index) => {
-        if (index >= 0 && index <= 4) applyRestSeconds(REST_PRESETS[index]);
-        else if (index === 5) openRestCustomEntry();
-      },
-    );
-  };
+  // Rest-duration picker → custom Forge bottom sheet (RestDurationSheet), NOT the
+  // raw iOS ActionSheet (device-UAT 2026-06-15: the native sheet read as generic
+  // system pills, off-brand). Presets map to 60/90/120/180/300s (RESEARCH Open-Q2);
+  // the sheet's "Anpassad" row opens the numeric custom entry.
+  const openRestDurationSheet = () => setShowRestSheet(true);
+
+  // Preset rows for the sheet — seconds + their formatted label ("1 min"/"1:30").
+  const restDurationOptions = REST_PRESETS.map((seconds) => ({
+    seconds,
+    label: formatRestLabel(seconds),
+  }));
 
   // Weekly-goal stepper: clamp 1..7 (D-05), optimistic local set, then persist
   // own-row to profiles.weekly_goal (T-09-07 — .eq id + verify returned row).
@@ -678,6 +669,21 @@ export default function SettingsTab() {
           onPress={signOut}
         />
       </ScrollView>
+
+      {/* Custom Forge duration sheet (replaces the native ActionSheetIOS). Inline
+          overlay (no Modal portal, D-22) — mounted only while open so it animates
+          in on mount and unmounts on pick / backdrop-tap. */}
+      {showRestSheet ? (
+        <RestDurationSheet
+          selectedSeconds={restSeconds}
+          options={restDurationOptions}
+          title={t("restDuration")}
+          customLabel={t("restCustom")}
+          onSelect={applyRestSeconds}
+          onCustom={openRestCustomEntry}
+          onClose={() => setShowRestSheet(false)}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }

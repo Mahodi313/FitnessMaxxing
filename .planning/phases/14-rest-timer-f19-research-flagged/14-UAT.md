@@ -76,7 +76,7 @@ blocked: 0
 ## Gaps
 
 - truth: "Vilo-nedräkningen tickar ner i förgrunden (M:SS minskar varje sekund)"
-  status: failed
+  status: resolved  # User confirmed on device 2026-06-15: "Det funkar nu!" (foreground tick; background-reconcile Test 4 still pending device test)
   reason: "User reported: 'Tiden räknar inte ner' — VILA-bannern frusen på 1:00 medan sessions-pillen 0:23 tickar"
   severity: blocker
   test: 4
@@ -103,4 +103,32 @@ blocked: 0
   missing:
     - "Vilotimer = ren master-toggle-rad; längden = egen avslöjad value+chevron sub-rad (iOS 'enable, then configure'); permission-helper = nästlad caption"
   fix_applied: "SettingsRow.icon gjord valfri (icon-less → indenterad nästlad rad). NOTISER omstrukturerad: Vilotimer ren toggle, revealed 'Vilotid 1 min ›'-sub-rad öppnar längdsheet, denied-helper nästlad caption. Berör hela sektionens konsekvens. tsc 0, lint 0. Awaiting device re-verify."
+  debug_session: ""
+
+- truth: "Tidsväljaren håller produktklass Forge-design (inte en rå iOS-systemsheet)"
+  status: failed
+  reason: "User reported (device-UAT 2026-06-15): 'Jag gillar inte heller den som man väljer tid på' — picker var raw ActionSheetIOS, generiska grå systempiller, ingen Forge-identitet."
+  severity: cosmetic
+  test: 2
+  root_cause: "14-03 klonade Units-radens ActionSheetIOS-idiom — en native systemsheet, off-brand i en annars helt custom-designad app."
+  artifacts:
+    - path: "app/app/(app)/(tabs)/settings.tsx"
+      issue: "openRestDurationSheet använde ActionSheetIOS"
+  missing:
+    - "Custom Forge-bottom-sheet: mörk yta, grabber, riktiga rader, accent-check på vald tid, Anpassad-rad"
+  fix_applied: "Ny app/components/ui/RestDurationSheet.tsx — inline-overlay (no Modal, D-22), backdrop-fade + card-spring (damping 18/220, reduce-motion-snap), grabber, accent-check på vald, Anpassad→numerisk entry. settings.tsx: showRestSheet-state ersätter ActionSheetIOS. tsc 0, lint 0. Awaiting device verify."
+  debug_session: ""
+
+- truth: "VILA-countdown-bannern håller produktklass design"
+  status: failed
+  reason: "User reported (device-UAT 2026-06-15): 'Jag gillar inte designen så mycket på den modulen som räknar ner.'"
+  severity: cosmetic
+  test: 3
+  root_cause: "Bannern är platt — bara numeral + två kontroller, ingen visuell känsla för hur mycket vila som återstår (UI-SPEC rad 95/112 förutsåg en uttunnande accent-progressindikator som hoppades över)."
+  artifacts:
+    - path: "app/components/ui/RestTimerBanner.tsx"
+      issue: "Ingen progressindikator; platt hierarki"
+  missing:
+    - "Uttunnande accent-progressbar (UI-SPEC rad 95/112) + stramare hierarki — NÄSTA iteration efter tidsväljaren"
+  fix_applied: ""
   debug_session: ""
