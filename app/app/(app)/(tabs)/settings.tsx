@@ -45,7 +45,15 @@
 //   - 09-UI-SPEC.md §Interaction Contract + §Color + §Copywriting + §Spacing
 //   - 09-CONTEXT.md D-02/D-05/D-07/D-08/D-13/D-15/D-16
 import { useEffect, useId, useState } from "react";
-import { ActionSheetIOS, Pressable, ScrollView, Text, View } from "react-native";
+import {
+  ActionSheetIOS,
+  Alert,
+  Linking,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -57,6 +65,11 @@ import { z } from "zod";
 import { useAuthStore } from "@/lib/auth-store";
 import { supabase } from "@/lib/supabase";
 import { getPref, setPref, type UnitPref } from "@/lib/prefs";
+import {
+  ensureNotificationPermission,
+  getPermissionState,
+  type PermissionState,
+} from "@/lib/notifications";
 import { useUnitStore } from "@/lib/units-store";
 import i18n, { resolveLanguage, type LanguagePref } from "@/lib/i18n";
 import { SegmentedControl } from "@/components/segmented-control";
@@ -65,6 +78,25 @@ import { ForgeButton } from "@/components/ui/ForgeButton";
 import { Icon } from "@/components/ui/Icon";
 
 type ThemePref = "system" | "light" | "dark";
+
+// Rest-duration presets (D-08 / TIMER-04 / RESEARCH Open-Q2): 1 / 1:30 / 2 / 3 /
+// 5 min. The custom ("Anpassad") entry persists any positive number of seconds;
+// every READ clamps via the fm:restSeconds catch-parse schema (T-14-08, 14-01),
+// so a garbage/huge value can never produce a runaway timer.
+const REST_PRESETS = [60, 90, 120, 180, 300] as const;
+
+// seconds → a compact human label ("2 min" / "1:30"). Whole minutes render as
+// "{n} min"; a non-whole minute renders as M:SS (tabular-friendly). Mirrors the
+// UI-SPEC §Copywriting row-value shape. Pure — no i18n unit word for "min" since
+// the design specimen uses the bare "min" token in both locales.
+function formatRestLabel(sec: number): string {
+  if (!Number.isFinite(sec) || sec <= 0) return "2 min"; // safe default mirror
+  const total = Math.round(sec);
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  if (s === 0) return `${m} min`;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
 
 // 56px gradient avatar (brand gradFrom→gradTo) with initials, or a `user` icon
 // when display_name is null. react-native-svg engine (same as AppIcon) — NO new
@@ -212,6 +244,11 @@ export default function SettingsTab() {
   // ---- Notifications + haptics switches (SET-06/SET-07). ----
   const [haptics, setHaptics] = useState(true);
   const [notifications, setNotifications] = useState(false);
+  // ---- Rest timer (TIMER-04 / D-08..D-13). enable (default OFF) + duration
+  // (default 120s) + current OS permission state for the denied helper (D-12). --
+  const [restTimerEnabled, setRestTimerEnabled] = useState(false);
+  const [restSeconds, setRestSeconds] = useState(120);
+  const [permState, setPermState] = useState<PermissionState>("denied");
   // ---- Profile (SET-02) + Weekly goal (SET-04). ----
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [goal, setGoal] = useState(3);
@@ -228,6 +265,11 @@ export default function SettingsTab() {
     // reactively above — no local seed needed here (FIT-111).
     void getPref("fm:haptics").then(setHaptics);
     void getPref("fm:notifications").then(setNotifications);
+    // Rest timer: hydrate enable + duration prefs and the current (read-only) OS
+    // permission state so the row + denied helper reflect reality on mount (D-11).
+    void getPref("fm:restTimerEnabled").then(setRestTimerEnabled);
+    void getPref("fm:restSeconds").then(setRestSeconds);
+    void getPermissionState().then(setPermState);
   }, [setColorScheme]);
 
   // Load profile (display_name + weekly_goal) — own-row read (RLS).
