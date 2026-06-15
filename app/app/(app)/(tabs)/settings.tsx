@@ -606,17 +606,17 @@ export default function SettingsTab() {
                         // Vertical-only hitSlop (no horizontal — chips are
                         // adjacent; horizontal slop would overlap neighbours).
                         hitSlop={{ top: 8, bottom: 8 }}
-                        // rounded-forge-md (NOT rounded-full): the squared corner
-                        // is the app's md-button standard (ForgeButton md =
-                        // h-52 rounded-forge-md). rounded-full read as a flimsy
-                        // tag/pill, never a button (device-UAT).
-                        className={`flex-1 items-center justify-center rounded-forge-md ${
+                        // rounded-full PILL — the Forge action-button language
+                        // (banner "Hoppa över"/"+30 s", "Avsluta" are all pills).
+                        // The "thin" feel was HEIGHT, not the corner: keep the
+                        // pill, give it real substance (device-UAT).
+                        className={`flex-1 items-center justify-center rounded-full ${
                           selected
                             ? "bg-forge-accent-light dark:bg-forge-accent"
                             : "bg-forge-surface2-light dark:bg-forge-surface2"
                         }`}
                         style={({ pressed }) => [
-                          { height: 56 }, // ≥ md-button substance (device-UAT)
+                          { height: 58 },
                           pressed ? { opacity: 0.7 } : null,
                         ]}
                       >
@@ -651,13 +651,13 @@ export default function SettingsTab() {
                       onPress={openRestCustomEntry}
                       accessibilityRole="button"
                       accessibilityLabel={t("restCustomTime")}
-                      className={`items-center justify-center rounded-forge-md border border-dashed ${
+                      className={`items-center justify-center rounded-full border border-dashed ${
                         isPreset
                           ? "border-forge-borderStrong-light dark:border-forge-borderStrong"
                           : "border-forge-accent-light dark:border-forge-accent"
                       }`}
                       style={({ pressed }) => [
-                        { height: 56 },
+                        { height: 58 },
                         pressed ? { opacity: 0.7 } : null,
                       ]}
                     >
