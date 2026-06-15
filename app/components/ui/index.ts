@@ -12,6 +12,11 @@ export { ProgressRing, type ProgressRingProps } from "./ProgressRing";
 export { Sparkline, type SparklineProps } from "./Sparkline";
 export { PrTrophy, type PrTrophyProps } from "./PrTrophy";
 export { PrBanner, type PrBannerProps } from "./PrBanner";
+export {
+  RestTimerBanner,
+  type RestTimerBannerProps,
+  type RestNotificationContent,
+} from "./RestTimerBanner";
 
 export {
   ForgeButton,
