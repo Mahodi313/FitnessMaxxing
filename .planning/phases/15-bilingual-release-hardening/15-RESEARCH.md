@@ -306,14 +306,14 @@ console.error("FAIL — ..."); /* print details */ process.exit(1);
 
 **Note:** A1–A3 are LOW risk — all are either explicit CONTEXT discretion areas or directly code-verified.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Tab-switch "crossfade content 0→1" — in scope or already-satisfied?**
+1. **[RESOLVED — Plan 15-02] Tab-switch "crossfade content 0→1" — in scope or already-satisfied?**
    - What we know: Forge §07 row "Tab switch" lists TWO effects: (a) tab-bar icon scale 0.92→1 (the confirmed gap), and (b) "Crossfade content 0→1 (no slide)." expo-router/React-Navigation already does a default fade between tab screens (no horizontal slide), so (b) may be satisfied by the navigator default.
    - What's unclear: whether the planner wants to explicitly tune/verify the content crossfade or treat it as already-met.
    - Recommendation: treat the **icon scale** as the deliverable (D-07's explicit "likely just tab-bar icon scale"); verify content crossfade visually during UAT and only act if it slides horizontally. Do NOT add a custom content-transition animation unless UAT shows a regression.
 
-2. **Does the coverage scan currently surface any missing keys / hardcoded strings?**
+2. **[RESOLVED — answered at runtime by Plan 15-01 Task 1] Does the coverage scan currently surface any missing keys / hardcoded strings?**
    - What we know: I18N-01 is marked `[x]` Complete and `check-locale-parity.ts` passes (205/205). This strongly implies near-zero gaps.
    - What's unclear: the *exact* count won't be known until the new scan is written and run — that is itself the first deliverable.
    - Recommendation: the planner should sequence "write + run the scan" as Wave-1 task 1, then treat any surfaced misses as gap-closure tasks. Expectation per CONTEXT: few-to-none.
