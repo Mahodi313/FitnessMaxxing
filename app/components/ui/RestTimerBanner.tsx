@@ -232,7 +232,7 @@ export function RestTimerBanner({ content }: RestTimerBannerProps) {
       >
         <View
           className="flex-row items-center"
-          style={{ paddingVertical: 12, paddingHorizontal: 20, gap: 16 }}
+          style={{ paddingVertical: 12, paddingHorizontal: 20, gap: 12 }}
         >
           {/* Left: eyebrow (pulsing live-dot + VILA) + the live M:SS numeral. */}
           <View style={{ flex: 1 }}>
@@ -261,6 +261,9 @@ export function RestTimerBanner({ content }: RestTimerBannerProps) {
               RN TextStyle — PrBanner.tsx:276 uses the same fontVariant idiom). */}
           <Text
             className="font-mono text-forge-text-light dark:text-forge-text"
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.8}
             style={{
               fontSize: 32,
               fontWeight: "700",
@@ -284,7 +287,7 @@ export function RestTimerBanner({ content }: RestTimerBannerProps) {
             hitSlop={HIT_SLOP}
             accessibilityRole="button"
             accessibilityLabel={t("restSkip")}
-            className="rounded-full border border-forge-borderStrong-light px-7 py-[18px] dark:border-forge-borderStrong"
+            className="rounded-full border border-forge-borderStrong-light px-5 py-[18px] dark:border-forge-borderStrong"
             style={({ pressed }) => (pressed ? { opacity: 0.7 } : null)}
           >
             <Text
@@ -301,7 +304,7 @@ export function RestTimerBanner({ content }: RestTimerBannerProps) {
             hitSlop={HIT_SLOP}
             accessibilityRole="button"
             accessibilityLabel={t("restAdd30")}
-            className="rounded-full bg-forge-accentSoft-light px-7 py-[18px] dark:bg-forge-accentSoft"
+            className="rounded-full bg-forge-accentSoft-light px-5 py-[18px] dark:bg-forge-accentSoft"
             style={({ pressed }) => (pressed ? { opacity: 0.7 } : null)}
           >
             <Text
