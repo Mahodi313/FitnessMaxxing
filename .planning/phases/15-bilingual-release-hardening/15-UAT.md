@@ -94,8 +94,20 @@ The device-locale-default + Settings-override resolver (`resolveLanguage` + the 
 
 ## Regression gate
 
-> Populated by Task 2 — `cd app && npm run …`. Recorded here as the automated half of SC3
-> before the device sweep. (Pending Task 2 run.)
+> Automated half of SC3 (D-03 — the final release-regression gate). Run from the `app/`
+> cwd on **2026-06-16** prior to the device sweep. Each command's exit code recorded below.
+
+| # | Command (`cd app && …`) | Exit | Result |
+|---|--------------------------|:----:|--------|
+| 1 | `npm run test:i18n-coverage` | `0` | PASS — i18n coverage complete (34 files scanned, 205 flat keys + `exercise.`/`equip.` namespaces). No missing `t()` key, no bypassed JSX literal. |
+| 2 | `npm run check:locale-parity` | `0` | PASS — sv/en key sets match (205 keys). |
+| 3 | `npm run test:locale-resolve` | `0` | PASS — all 7 D-11 resolver cases (sv/en explicit + system device-locale → sv/en + fallback). |
+| 4 | `npm run test:rls` | `0` | PASS — ALL cross-user assertions passed (Phase 2→13 batteries; access-control regression V4 intact). |
+| 5 | `npm run test:f13-brutal` | `0` | NO-OP — "No workout_sessions found in the last 60 min. Nothing to verify." Per FIT-107, a count-only no-op/failure with no recent session is **environmental (fixture-window), NOT a regression** — the script imports nothing from `app/app/**`. Re-run after a fresh 25-set device fixture for a positive count assertion. |
+
+**Result:** automated regression gate **green** (SC3 satisfied pending the device sweep). The
+`test:f13-brutal` no-op is the known FIT-107 fixture-window condition, recorded as environmental
+per project convention — not treated as a hard fail.
 
 ---
 
