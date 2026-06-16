@@ -594,10 +594,14 @@ export default function SettingsTab() {
                 style={{ paddingHorizontal: 16, paddingVertical: 14, gap: 10 }}
               >
                 {/* 3×2 grid of BIG pill buttons (device-UAT: 5-in-a-row read as
-                    small/cramped — each chip was only ~60px wide). 5 presets + a
-                    6th "Anpassad" cell fill an even 3-column / 2-row grid, so each
-                    pill is ~3× wider. flexBasis 30% + flexGrow 1 → exactly 3 per
-                    row, both rows even-width. rounded-full = Forge button language. */}
+                    small/cramped). The 5 presets + the "Anpassad" cell fill an even
+                    3-column / 2-row grid. CRITICAL (FIT-66 / MEMORY
+                    feedback_nativewind_box_deco_via_classname): the basis/grow/height
+                    SIZING lives in `className` (basis-[30%] grow h-16), NEVER in the
+                    style() callback — NativeWind 4 drops layout/box props passed
+                    through a Pressable style() function, which silently collapsed
+                    these chips to content width (the device 5-in-a-row regression).
+                    style() keeps ONLY the pressed opacity. */}
                 <View
                   style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}
                 >
@@ -610,15 +614,12 @@ export default function SettingsTab() {
                         accessibilityRole="button"
                         accessibilityState={{ selected }}
                         accessibilityLabel={formatRestLabel(sec)}
-                        className={`items-center justify-center rounded-full ${
+                        className={`h-16 grow basis-[30%] items-center justify-center rounded-full ${
                           selected
                             ? "bg-forge-accent-light dark:bg-forge-accent"
                             : "bg-forge-surface2-light dark:bg-forge-surface2"
                         }`}
-                        style={({ pressed }) => [
-                          { flexBasis: "30%", flexGrow: 1, height: 58 },
-                          pressed ? { opacity: 0.7 } : null,
-                        ]}
+                        style={({ pressed }) => (pressed ? { opacity: 0.7 } : null)}
                       >
                         <Text
                           className={`font-mono ${
@@ -649,15 +650,12 @@ export default function SettingsTab() {
                         onPress={openRestCustomEntry}
                         accessibilityRole="button"
                         accessibilityLabel={t("restCustomTime")}
-                        className={`items-center justify-center rounded-full border border-dashed ${
+                        className={`h-16 grow basis-[30%] items-center justify-center rounded-full border border-dashed ${
                           isPreset
                             ? "border-forge-borderStrong-light dark:border-forge-borderStrong"
                             : "border-forge-accent-light bg-forge-accentSoft-light dark:border-forge-accent dark:bg-forge-accentSoft"
                         }`}
-                        style={({ pressed }) => [
-                          { flexBasis: "30%", flexGrow: 1, height: 58 },
-                          pressed ? { opacity: 0.7 } : null,
-                        ]}
+                        style={({ pressed }) => (pressed ? { opacity: 0.7 } : null)}
                       >
                         <Text
                           className={
