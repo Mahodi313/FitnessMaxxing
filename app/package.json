@@ -33,6 +33,7 @@
     "test:f13-brutal": "tsx --env-file-if-exists=.env.local scripts/verify-f13-brutal-test.ts",
     "test:dashboard": "tsx --env-file-if-exists=.env.local scripts/test-dashboard-aggregates.ts",
     "check:locale-parity": "tsx scripts/check-locale-parity.ts",
+    "test:i18n-coverage": "tsx scripts/check-i18n-coverage.ts",
     "inspect:duplicate-sets": "tsx --env-file-if-exists=.env.local scripts/inspect-duplicate-sets.ts",
     "inspect:recent-sessions": "tsx --env-file-if-exists=.env.local scripts/inspect-recent-sessions.ts"
   },

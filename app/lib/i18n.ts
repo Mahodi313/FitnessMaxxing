@@ -43,6 +43,19 @@ i18n.use(initReactI18next).init({
   fallbackLng: "sv",
   interpolation: { escapeValue: false },
   compatibilityJSON: "v4",
+  // D-04 (Phase 15, Plan 15-01): dev-only missing-key loudness. saveMissing
+  // gates missingKeyHandler firing; BOTH are __DEV__-gated so Metro
+  // dead-code-strips them from the release bundle (T-15-01 / RESEARCH Pitfall 4).
+  // A missing key triggers console.error — NOT throw: throwing inside a
+  // render-time t() crashes the tree on the first miss and hides every other
+  // missing key. console.error raises a red LogBox banner while the sv-fallback
+  // still renders, so the whole screen surfaces all gaps in one pass.
+  saveMissing: __DEV__,
+  missingKeyHandler: __DEV__
+    ? (_lngs, _ns, key) => {
+        console.error(`[i18n] MISSING KEY: "${key}"`);
+      }
+    : undefined,
 });
 
 export default i18n;
