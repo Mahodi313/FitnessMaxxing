@@ -91,6 +91,8 @@ None - plan executed exactly as written. Task 1 was verify-only as anticipated
 - This plan modified `.planning/REQUIREMENTS.md` only; per worktree/parallel-executor
   contract, STATE.md and ROADMAP.md are owned by the orchestrator post-wave.
 
-## Self-Check
+## Self-Check: PASSED
 
-(appended below after file/commit existence verification)
+- FOUND: `.planning/phases/15-bilingual-release-hardening/15-03-SUMMARY.md`
+- FOUND: commit `1538ffd` (Task 2 — I18N-02 flip)
+- FOUND: commit `6f6b5fc` (SUMMARY.md)
