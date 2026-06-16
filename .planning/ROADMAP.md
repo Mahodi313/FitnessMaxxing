@@ -240,6 +240,19 @@ Plans:
 3. `npm run test:f13-brutal` and the cross-user RLS test pass as the final regression gate
 4. Remaining design motion-table animations are applied and feel premium without breaching the hot-path budget
 
+**Plans:** 4 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 15-01-PLAN.md — i18n coverage gate (check-i18n-coverage.ts) + __DEV__ missingKeyHandler + CI wiring (I18N-03)
+- [ ] 15-02-PLAN.md — tab-bar icon scale 0.92→1 worklet (ForgeTabButton extraction) (I18N-03/MOTN)
+- [ ] 15-03-PLAN.md — I18N-02 resolver verification + reconcile requirement to Complete (I18N-02)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 15-04-PLAN.md — 15-UAT.md screen×combo matrix + final regression gate + device sweep (I18N-03/I18N-02)
+
 ### 📋 Future — App Store Launch (sketched)
 
 Deferred to a later milestone (needs Apple Developer license + tooling). Mapped at that milestone's planning.
