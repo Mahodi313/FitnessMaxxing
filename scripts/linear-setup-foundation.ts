@@ -134,6 +134,14 @@ const PROJECTS: ProjectSpec[] = [
     state: "planned",
   },
   {
+    name: "Phase 14 — Rest Timer (F19) — RESEARCH-FLAGGED",
+    description:
+      "Rest timer (F19): auto-startar efter loggat set, flytande nedräkning, överlever backgrounding via OS-lokalnotis (tidsstämpel, ej JS-timer), Settings-konfig gated av permission. Reqs: TIMER-01..05.",
+    initiative: "V1.1 — Polish & TestFlight Prep",
+    state: "started",
+    startDate: "2026-06-14",
+  },
+  {
     name: "V2.0 — App Store Launch",
     description:
       "Public App Store launch. Förladdat övningsbibliotek, EAS Build + TestFlight, differentiators (plan-scoped F7, repeat-last, sync-badge), integrationer (Health, widgets, CSV, web, Android). **Reqs**: F20–F30.",

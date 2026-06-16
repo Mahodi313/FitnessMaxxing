@@ -45,7 +45,15 @@
 //   - 09-UI-SPEC.md §Interaction Contract + §Color + §Copywriting + §Spacing
 //   - 09-CONTEXT.md D-02/D-05/D-07/D-08/D-13/D-15/D-16
 import { useEffect, useId, useState } from "react";
-import { ActionSheetIOS, Pressable, ScrollView, Text, View } from "react-native";
+import {
+  ActionSheetIOS,
+  Alert,
+  Linking,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -57,6 +65,11 @@ import { z } from "zod";
 import { useAuthStore } from "@/lib/auth-store";
 import { supabase } from "@/lib/supabase";
 import { getPref, setPref, type UnitPref } from "@/lib/prefs";
+import {
+  ensureNotificationPermission,
+  getPermissionState,
+  type PermissionState,
+} from "@/lib/notifications";
 import { useUnitStore } from "@/lib/units-store";
 import i18n, { resolveLanguage, type LanguagePref } from "@/lib/i18n";
 import { SegmentedControl } from "@/components/segmented-control";
@@ -65,6 +78,25 @@ import { ForgeButton } from "@/components/ui/ForgeButton";
 import { Icon } from "@/components/ui/Icon";
 
 type ThemePref = "system" | "light" | "dark";
+
+// Rest-duration presets (D-08 / TIMER-04 / RESEARCH Open-Q2): 1 / 1:30 / 2 / 3 /
+// 5 min. The custom ("Anpassad") entry persists any positive number of seconds;
+// every READ clamps via the fm:restSeconds catch-parse schema (T-14-08, 14-01),
+// so a garbage/huge value can never produce a runaway timer.
+const REST_PRESETS = [60, 90, 120, 180, 300] as const;
+
+// seconds → a compact human label ("2 min" / "1:30"). Whole minutes render as
+// "{n} min"; a non-whole minute renders as M:SS (tabular-friendly). Mirrors the
+// UI-SPEC §Copywriting row-value shape. Pure — no i18n unit word for "min" since
+// the design specimen uses the bare "min" token in both locales.
+function formatRestLabel(sec: number): string {
+  if (!Number.isFinite(sec) || sec <= 0) return "2 min"; // safe default mirror
+  const total = Math.round(sec);
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  if (s === 0) return `${m} min`;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
 
 // 56px gradient avatar (brand gradFrom→gradTo) with initials, or a `user` icon
 // when display_name is null. react-native-svg engine (same as AppIcon) — NO new
@@ -212,6 +244,11 @@ export default function SettingsTab() {
   // ---- Notifications + haptics switches (SET-06/SET-07). ----
   const [haptics, setHaptics] = useState(true);
   const [notifications, setNotifications] = useState(false);
+  // ---- Rest timer (TIMER-04 / D-08..D-13). enable (default OFF) + duration
+  // (default 120s) + current OS permission state for the denied helper (D-12). --
+  const [restTimerEnabled, setRestTimerEnabled] = useState(false);
+  const [restSeconds, setRestSeconds] = useState(120);
+  const [permState, setPermState] = useState<PermissionState>("denied");
   // ---- Profile (SET-02) + Weekly goal (SET-04). ----
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [goal, setGoal] = useState(3);
@@ -228,6 +265,11 @@ export default function SettingsTab() {
     // reactively above — no local seed needed here (FIT-111).
     void getPref("fm:haptics").then(setHaptics);
     void getPref("fm:notifications").then(setNotifications);
+    // Rest timer: hydrate enable + duration prefs and the current (read-only) OS
+    // permission state so the row + denied helper reflect reality on mount (D-11).
+    void getPref("fm:restTimerEnabled").then(setRestTimerEnabled);
+    void getPref("fm:restSeconds").then(setRestSeconds);
+    void getPermissionState().then(setPermState);
   }, [setColorScheme]);
 
   // Load profile (display_name + weekly_goal) — own-row read (RLS).
@@ -319,6 +361,49 @@ export default function SettingsTab() {
   const onNotificationsToggle = (next: boolean) => {
     setNotifications(next);
     setPref("fm:notifications", next);
+  };
+
+  // Rest-timer enable toggle WITH the in-context permission prompt (D-13). On
+  // ENABLE we fire the OS prompt once, reflect granted/denied/blocked into the
+  // row, then ALWAYS enable the timer regardless of the grant — D-12: the in-app
+  // countdown works even when notifications are denied (it only loses the
+  // backgrounded ping). On DISABLE we just persist OFF (no prompt).
+  const onRestTimerToggle = async (next: boolean) => {
+    if (next) {
+      const state = await ensureNotificationPermission(); // D-13 in-context ask
+      setPermState(state);
+    }
+    setRestTimerEnabled(next);
+    setPref("fm:restTimerEnabled", next);
+  };
+
+  // Persist a chosen duration (preset or custom) to fm:restSeconds. The catch-
+  // parse schema (14-01) clamps any out-of-range stored value on READ, so this
+  // only ever writes a positive integer second-count (T-14-08).
+  const applyRestSeconds = (sec: number) => {
+    setRestSeconds(sec);
+    setPref("fm:restSeconds", sec);
+  };
+
+  // Custom ("Anpassad") entry (D-08). Alert.prompt is iOS-only (V1 is iOS-locked,
+  // same constraint as the ActionSheet pickers above). The numeric input is
+  // interpreted as MINUTES (the duration picker speaks in minutes); we coerce to
+  // seconds, guard non-finite / <=0, and clamp to a sane 1..60 min ceiling before
+  // persisting — defence-in-depth on top of the read-side catch-parse (T-14-08).
+  const openRestCustomEntry = () => {
+    Alert.prompt(
+      t("restCustom"),
+      t("restDuration"),
+      (raw) => {
+        const minutes = Number((raw ?? "").replace(",", ".").trim());
+        if (!Number.isFinite(minutes) || minutes <= 0) return; // ignore garbage
+        const clampedMin = Math.min(60, minutes);
+        applyRestSeconds(Math.round(clampedMin * 60));
+      },
+      "plain-text",
+      "",
+      "number-pad",
+    );
   };
 
   // Weekly-goal stepper: clamp 1..7 (D-05), optimistic local set, then persist
@@ -476,7 +561,7 @@ export default function SettingsTab() {
           />
         </SettingsSection>
 
-        {/* ── Notifications (haptics + notifications) ── */}
+        {/* ── Notifications (haptics + notifications + rest timer) ── */}
         <SettingsSection label={t("notifications")}>
           <SettingsRow
             icon="spark"
@@ -485,14 +570,159 @@ export default function SettingsTab() {
             toggleValue={haptics}
             onToggle={onHapticsToggle}
           />
+          {/* Rest timer MASTER ENABLE (TIMER-04 / D-13). A clean single-control
+              toggle row — the duration is its own revealed sub-row below, matching
+              the Forge settings vocabulary (a row is a toggle OR a value+chevron
+              disclosure, never both crammed together). */}
           <SettingsRow
-            icon="bell"
-            label={t("notifications")}
-            last
+            icon="clock"
+            label={t("restTimer")}
+            subtitle={t("restSubtitle")}
             toggle
-            toggleValue={notifications}
-            onToggle={onNotificationsToggle}
+            toggleValue={restTimerEnabled}
+            onToggle={onRestTimerToggle}
           />
+          {restTimerEnabled ? (
+            <>
+              {/* Inline quick-pick duration chips (TIMER-04) — change the rest
+                  time with ONE tap, no sheet. Mono + tabular-nums so the figures
+                  never reflow. Selected = forge-accent fill + accentText; others
+                  = forge-surface2. Tap → applyRestSeconds (persists fm:restSeconds
+                  immediately). */}
+              <View
+                className="border-b border-forge-border-light dark:border-forge-border"
+                style={{ paddingHorizontal: 16, paddingVertical: 14, gap: 10 }}
+              >
+                {/* 3×2 grid of BIG pill buttons (device-UAT: 5-in-a-row read as
+                    small/cramped — each chip was only ~60px wide). 5 presets + a
+                    6th "Anpassad" cell fill an even 3-column / 2-row grid, so each
+                    pill is ~3× wider. flexBasis 30% + flexGrow 1 → exactly 3 per
+                    row, both rows even-width. rounded-full = Forge button language. */}
+                <View
+                  style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}
+                >
+                  {REST_PRESETS.map((sec) => {
+                    const selected = restSeconds === sec;
+                    return (
+                      <Pressable
+                        key={sec}
+                        onPress={() => applyRestSeconds(sec)}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected }}
+                        accessibilityLabel={formatRestLabel(sec)}
+                        className={`items-center justify-center rounded-full ${
+                          selected
+                            ? "bg-forge-accent-light dark:bg-forge-accent"
+                            : "bg-forge-surface2-light dark:bg-forge-surface2"
+                        }`}
+                        style={({ pressed }) => [
+                          { flexBasis: "30%", flexGrow: 1, height: 58 },
+                          pressed ? { opacity: 0.7 } : null,
+                        ]}
+                      >
+                        <Text
+                          className={`font-mono ${
+                            selected
+                              ? "text-forge-accentText-light dark:text-forge-accentText"
+                              : "text-forge-text-light dark:text-forge-text"
+                          }`}
+                          style={{
+                            fontSize: 17,
+                            fontWeight: "600",
+                            fontVariant: ["tabular-nums"],
+                          }}
+                        >
+                          {formatRestLabel(sec)}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                  {/* 6th cell — "Anpassad" custom entry (dashed). Accent + soft fill
+                      when the active value is a custom (non-preset) duration; the
+                      cell then shows the value. Opens the numeric Alert.prompt. */}
+                  {(() => {
+                    const isPreset = (
+                      REST_PRESETS as readonly number[]
+                    ).includes(restSeconds);
+                    return (
+                      <Pressable
+                        onPress={openRestCustomEntry}
+                        accessibilityRole="button"
+                        accessibilityLabel={t("restCustomTime")}
+                        className={`items-center justify-center rounded-full border border-dashed ${
+                          isPreset
+                            ? "border-forge-borderStrong-light dark:border-forge-borderStrong"
+                            : "border-forge-accent-light bg-forge-accentSoft-light dark:border-forge-accent dark:bg-forge-accentSoft"
+                        }`}
+                        style={({ pressed }) => [
+                          { flexBasis: "30%", flexGrow: 1, height: 58 },
+                          pressed ? { opacity: 0.7 } : null,
+                        ]}
+                      >
+                        <Text
+                          className={
+                            isPreset
+                              ? "text-forge-text2-light dark:text-forge-text2"
+                              : "font-mono text-forge-accent-light dark:text-forge-accent"
+                          }
+                          style={{
+                            fontSize: isPreset ? 16 : 17,
+                            fontWeight: "600",
+                            ...(isPreset ? null : { fontVariant: ["tabular-nums"] }),
+                          }}
+                        >
+                          {isPreset ? t("restCustom") : formatRestLabel(restSeconds)}
+                        </Text>
+                      </Pressable>
+                    );
+                  })()}
+                </View>
+              </View>
+              {/* Avisering toggle — nested under the chips (icon-less). This is the
+                  fm:notifications master gate, contextualized to the rest timer
+                  (the only OS notification this app sends, SET-07 / D-14). */}
+              <SettingsRow
+                label={t("restNotify")}
+                toggle
+                toggleValue={notifications}
+                onToggle={onNotificationsToggle}
+                last={permState === "granted"}
+              />
+              {/* D-12 denied-permission helper: muted caption (NOT danger red),
+                  indented under the rows. Blocked → tappable → iOS Settings. */}
+              {permState !== "granted" ? (
+                <Pressable
+                  onPress={
+                    permState === "blocked"
+                      ? () => {
+                          void Linking.openSettings();
+                        }
+                      : undefined
+                  }
+                  disabled={permState !== "blocked"}
+                  accessibilityRole={permState === "blocked" ? "button" : "text"}
+                  style={({ pressed }) =>
+                    pressed && permState === "blocked" ? { opacity: 0.6 } : null
+                  }
+                  className="flex-row items-center gap-3 py-[10px] pl-4 pr-4"
+                >
+                  <View className="h-7 w-7" />
+                  <Text className="flex-1 text-[13px] text-forge-text2-light dark:text-forge-text2">
+                    {t("restNoPermission")}
+                  </Text>
+                </Pressable>
+              ) : null}
+            </>
+          ) : (
+            <SettingsRow
+              icon="bell"
+              label={t("notifications")}
+              last
+              toggle
+              toggleValue={notifications}
+              onToggle={onNotificationsToggle}
+            />
+          )}
         </SettingsSection>
 
         {/* ── Sign-out (SET-09, D-16) — verbatim chain, no confirm ── */}

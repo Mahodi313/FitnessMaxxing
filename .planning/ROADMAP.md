@@ -135,6 +135,7 @@ Plans:
 4. Haptics respect the Settings haptics toggle
 
 **Plans:** 3/3 plans complete
+
 - [x] 11-01-PLAN.md — Workout screen structural re-skin (custom header + live timer, progress dots, Forge logged-set table + ✕-delete, empty/loading, full i18n sweep + all phase locale keys)
 - [x] 11-02-PLAN.md — Set-input row re-skin (preserve keyboard wiring) + set-logged motion + gated haptic + Forge finish overlay with stats row + spring + BLOCKING F13 verification
 - [x] 11-03-PLAN.md — Draft-resume overlay (danger ghost End-session) + saved-toast re-skin (chrome only, §07 spring, inline-rendered)
@@ -212,6 +213,22 @@ Plans:
 3. A local notification fires when rest ends, even backgrounded; starting the next set or dismissing early cancels it
 4. The default rest duration and timer enable/disable are configurable in Settings (gated by notification permission)
 
+**Plans:** 4/4 plans complete
+
+Plans:
+**Wave 1**
+
+- [x] 14-01-PLAN.md — Wave 0 scaffold: pure rest-timer.ts + test + fm:restSeconds/fm:restTimerEnabled prefs + i18n + expo-notifications install (TIMER-01/02/04/05)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [x] 14-02-PLAN.md — notifications.ts wrapper + rest-timer-store (Zustand) + _layout handler/tap deep-link (TIMER-03/05)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [x] 14-03-PLAN.md — Settings restTimer row + duration picker + in-context permission prompt (TIMER-04)
+- [x] 14-04-PLAN.md — floating countdown banner + fire-and-forget auto-start after addSet.mutate (TIMER-01/02/05)
+
 #### Phase 15: Bilingual & Release Hardening
 
 **Goal:** Close i18n coverage to zero missing keys and run the full release-candidate UAT across both languages and themes.
@@ -249,7 +266,7 @@ Deferred to a later milestone (needs Apple Developer license + tooling). Mapped 
 | 11. Active Workout Re-skin (F13 risk)         | v2.0 | 3/3 | Complete   | 2026-06-13 |
 | 12. History, Detail, Chart & Dashboard        | v2.0 | 11/11 | Complete    | 2026-06-14 |
 | 13. PR Celebration (F18)                      | v2.0 | 5/5 | Complete   | 2026-06-14 |
-| 14. Rest Timer (F19)                          | v2.0 | 0/? | ○ Planned  | — |
+| 14. Rest Timer (F19)                          | v2.0 | 4/4 | Complete   | 2026-06-15 |
 | 15. Bilingual & Release Hardening             | v2.0 | 0/? | ○ Planned  | — |
 
 **v1.0:** 7/7 phases · 33/33 plans · 15/15 requirements validated · 79 STRIDE threats SECURED.

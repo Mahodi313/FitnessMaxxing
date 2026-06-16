@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: — Forge Redesign
-status: executing
-stopped_at: Completed 13-05-PLAN.md
-last_updated: "2026-06-14T16:35:00.000Z"
-last_activity: 2026-06-14
+status: verifying
+stopped_at: Phase 14 UI-SPEC approved
+last_updated: "2026-06-15T18:43:58.822Z"
+last_activity: 2026-06-15
 progress:
   total_phases: 8
-  completed_phases: 5
-  total_plans: 33
-  completed_plans: 33
-  percent: 65
+  completed_phases: 7
+  total_plans: 37
+  completed_plans: 37
+  percent: 88
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-09)
 
 **Core value:** Logga ett set och omedelbart se vad jag tog senast på samma övning — utan att tappa data, någonsin.
-**Current focus:** Phase 13 — pr-celebration-f18
+**Current focus:** Phase 14 — rest-timer-f19-research-flagged
 
 ## Current Position
 
-Phase: 13 (pr-celebration-f18) — VERIFIED (device-UAT approved)
-Plan: 5 of 5 (all plans complete)
-Status: Closeout — verification PASSED (5/5 requirements, 20/20 must-haves); code review 0 critical / 6 warn / 5 info; schema-drift none; RLS green. Remaining: /gsd:secure-phase 13 (threat register T-13-*) → ship.
-Last activity: 2026-06-14
+Phase: 14 (rest-timer-f19-research-flagged) — EXECUTING
+Plan: 4 of 4
+Status: Phase complete — ready for verification
+Last activity: 2026-06-15
 
 ## Performance Metrics
 
@@ -86,6 +86,10 @@ Last activity: 2026-06-14
 | Phase 13 P03 | 8min | 2 tasks | 6 files |
 | Phase 13 P13-04 | ~25min | 2 tasks | 6 files |
 | Phase 13 P13-05 | ~50min | 2 tasks + 3 UAT fixes | 6 files |
+| Phase 14 P01 | 14min | 3 tasks | 8 files |
+| Phase 14 P02 | ~5min | 3 tasks | 5 files |
+| Phase 14 P03 | 8min | 2 tasks | 1 files |
+| Phase 14 P04 | 12min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -160,6 +164,10 @@ Recent decisions affecting current work:
 - [Phase ?]: 2026-06-14 [13-03]: Wave-2 PR read-side query layer. useBestE1rmQuery offline-first Record<exerciseId,{weight_kg,reps}> over get_best_working_sets (single dashboardKeys.summary()-style slot, NO per-exercise arg; Record-not-Map persister-safe; userId belt-and-braces; 15-min staleTime mirroring last-value.ts) = the live PR-detection baseline (D-06/PR-01). usePrHistoryQuery (was_pr-per-set, D-14/D-15) + useExerciseSetsInRangeQuery (raw range sets, since=null omits p_since so PostgREST defaults NULL, D-16) + useSessionPrFlags (ONE get_session_pr_flags call over the visible session-id array -> Record<session_id,has_pr>, hooks-legal history-LIST aggregator replacing a per-exercise hook loop, D-14/RESEARCH-OpenQ1; key sorts an id-list copy for order-independent cache). All four Zod-parse every RPC row (T-13-06); raw weight/reps returned, JS owns e1RM via lib/e1rm.ts (D-08). ONE additive bestE1rmKeys.all invalidate in the existing session-finish onSettled (D-17 hard line). tsc+test:f13-brutal green; 0 deviations.
 - [Phase ?]: **2026-06-14 [13-05]**: PR-04/05 — read-side PR surfaces. History-list session-row PrTrophy gated on ONE useSessionPrFlags(sessionIds) aggregator (D-14, no per-exercise hook loop). Session-detail per-exercise e1RM (epley1RM of top working set → formatWeight) + 18px PR-at-the-time trophy (was_pr set with session_id===thisSession via usePrHistoryQuery, hooks-legal on the fixed detail card, D-15). Chart hero DATA-swapped current_best→max(epley1RM) over useExerciseSetsInRangeQuery + estimated1RM eyebrow + success-only range delta (best−earliest, negative=no chip never red, D-16/PR-05); GEOMETRY + line draw-on-mount (MOTN-03) untouched. Every numeral via lib/e1rm.ts (D-08), reactive via useUnitStore (D-20); read-only, no v1 factory mutation (D-24). 3 device-UAT Rule-1 fixes: (A b909da6) chart hero blank on "Allt" — useExerciseSetsInRangeQuery sent p_since:undefined (JSON-dropped → PGRST202 404 → query threw); fixed by explicit p_since:null (migration-free, live-REST verified undefined→404/null→200). (B b73eb8f) hero showed unrounded 17-digit float (266.66666666666663 for 200×10) — raw String(toDisplayWeight()) on the metric passthrough; fixed via new shared units.ts formatWeightValue (integer as-is else 1 decimal); session-detail already-correct (formatWeight). (baf408e, FIT-116 — a 13-04-surface defect found here) active-workout PR trophies were ephemeral useState and vanished on navigation → now derived from persisted sets + baseline via running-max replay (D-02/D-05/D-12 preserved). tsc 0, lint clean, device UAT approved; test:f13-brutal amber = known FIT-107 count precondition (read-only, not a regression). 3 deviations (all Rule 1).
 - [Phase ?]: **2026-06-14 [13-04]**: PR-01/02/03 — live offline-safe PR detection wired fire-and-forget AFTER addSet.mutate in workout/[sessionId].tsx (never awaited, beside the existing fm:haptics gate, D-17/Pitfall 5). epley1RM(candidate via lib/e1rm.ts D-08) > max(allTimeBest from useBestE1rmQuery D-06, in-session max from useSetsForSessionQuery D-07), strict > (D-05) + weight_kg>0 (D-04) + hasPriorReference (first-set baseline excluded, D-02). On PR: record set id into prSetIds Set so its row swaps the green checkCircle for PrTrophy size=24 (D-13 replaces never stacks, D-12 a later higher PR never removes an earlier trophy), push a per-PR-set banner descriptor (D-11) mounting a fresh PrBanner, fire notificationSuccess through the SAME getPref('fm:haptics') gate (D-18). PrBanner = floating absolute overlay (no Modal portal D-22/D-09 — set list/input row/Klart never move), Skia gradient sweep via useDerivedValue mirroring Sparkline §07 + scale 0.96->1 withSpring, useReducedMotion snap (D-19), ~3.5s auto-dismiss; numerals via useUnitStore+formatWeight (D-20). ONE new key pbSetSuffix at sv/en parity. UAT loop-1 fix (6f61c39): transparent banner wash bled the card title through — fixed with an opaque Forge-surface base + outer/inner view split so the float shadow renders un-clipped while the wash stays clipped to the 16px radius. Zero new deps (T-13-SC). addSet write path byte-untouched (D-17); test:f13-brutal green; device UAT approved. 1 deviation (Rule 1 banner transparency).
+- [Phase 14]: 2026-06-15 [14-01]: Wave-0 rest-timer scaffold. app/lib/rest-timer.ts is the pure Node-importable heart of TIMER-01/02/05+D-14 (remainingMs/formatMSS re-derive from absolute endTs vs now per TIMER-02 — survives JS suspension; non-finite->0/0:00 Pitfall-5; formatMSS ceils so 1ms shows 0:01; extendEndTs +30_000 D-02; shouldFireNotification=timerOn&&masterOn&&permissionGranted D-14; decideNotificationAction skip->cancel/extend+nextSet->reschedule TIMER-05/D-03/D-07). 23-case test:rest-timer DB-free. fm:restSeconds (coerce.int.positive.catch(120) D-10/T-14-01) + fm:restTimerEnabled (enum-catch->false OFF/T-14-02) in prefs.ts. 10 timer i18n keys at sv/en parity (202 each), cancel reused. expo-notifications SDK-54 ~0.32.17 via npx expo install + app.json bare-string plugin. 6-row device-UAT checklist. tsc+lint clean; 0 deviations.
+- [Phase 14]: 2026-06-15 [14-02]: Native + state spine (TIMER-03/05). app/lib/notifications.ts is the FAIL-SOFT expo-notifications wrapper (D-12 — every native I/O returns null/warns-and-swallows, never rejects into the fire-and-forget caller): scheduleRestNotification (DATE trigger SchedulableTriggerInputTypes.DATE — reschedule-correct + sidesteps sub-1s TIME_INTERVAL throw Pitfall-4; data={sessionId} ONLY, no PII on lock screen D-15/T-14-04), cancelNotification (no-op null + warn-swallow T-14-05), getPermissionState/ensureNotificationPermission (granted|denied|blocked machine via getPermissionsAsync.granted/!canAskAgain RESEARCH §Pattern-4). app/lib/rest-timer-store.ts is the plain-create Zustand single owner of {endTs,notificationId} (NO persist — units-store precedent; transient OS-clock-backed) with start/extend/skip/finish — cancel-before-reschedule on EVERY transition (cancel stored id FIRST then schedule+store new, Pitfall-6/D-07); skip/finish cancel+clear; consumes extendEndTs+decideNotificationAction (rest-timer.ts) + schedule/cancel (notifications.ts); getState()-callable for Plan-04 onKlart + banner. _layout.tsx module-scope setNotificationHandler (shouldShowBanner/shouldShowList CURRENT fields — shouldShowAlert grep=0) + Fast-Refresh-guarded addNotificationResponseReceivedListener (new globalThis sentinel __fitnessmaxxing_notif_response_sub__ cloned from network.ts APPSTATE_BGFLUSH_KEY, Pitfall-7/T-14-06) routing a VALIDATED non-empty-string sessionId into (app)/workout/[sessionId] ONLY — never Linking.openURL external (M4 anti-phishing T-14-03). New test:rest-timer-store (15 cases, require-cache expo-notifications recording-stub asserts cancel-before-reschedule ORDER; test-units-store precedent). tsc+lint clean, test:rest-timer 23/23, test:f13-brutal exit 0. 1 deviation (Rule 3: rephrased a shouldShowAlert doc-comment so the grep-0 gate is unambiguous). Task 3 device-UAT (TIMER-03 background ping + D-15 tap route + Pitfall-7 single push) DEFERRED — no physical iPhone; NOT marked passed.
+- [Phase ?]: Rest-timer duration sub-control hosted in SettingsRow control slot so enable Toggle + duration disclosure coexist in one row
+- [Phase ?]: Custom rest-duration entry via iOS Alert.prompt interpreting minutes, clamped 1..60min + read-side catch-parse (T-14-08 defence-in-depth)
 
 ### Pending Todos
 
@@ -190,10 +198,10 @@ Items acknowledged for later:
 
 ## Session Continuity
 
-Last session: 2026-06-14T16:35:00.000Z
-Stopped at: Completed 13-05-PLAN.md (Phase 13 all 5 plans done)
+Last session: 2026-06-15T18:43:58.809Z
+Stopped at: Phase 14 UI-SPEC approved
 Resume file: None
-Next: Orchestrator runs Phase 13 closeout — `/gsd-secure-phase 13` (close threat register T-13-* against implementation; produce 13-SECURITY.md with threats_open: 0) → `/gsd-verify-work 13` (write 13-VERIFICATION.md with all 3 success criteria MET) → `/gsd-code-review` (post-phase audit) → phase.complete (advance ROADMAP Phase 13 → ✓ Complete). Then plan Phase 14 (Rest Timer — F19, RESEARCH-FLAGGED). NOTE: FIT-116 (workout-trophy persistence) was fixed inline during 13-05 UAT; close it when merging the phase PR.
+Next: Phase 13 closeout — ✓ `/gsd-secure-phase 13` DONE (13-SECURITY.md, 14/14 threats CLOSED, threats_open: 0 — originally run on the gsd/phase-13 branch at 1e612cf, restored onto the phase-14 branch 2026-06-14); ✓ `/gsd-verify-work 13` DONE (13-VERIFICATION.md, VERIFIED, device-UAT approved); ✓ `/gsd-code-review` DONE (13-REVIEW.md, WR-01…06 non-blocking). Remaining: phase.complete (advance ROADMAP Phase 13 → ✓ Complete). Phase 14 is now PLANNED (4 plans, 3 waves) → next is `/gsd:execute-phase 14`. NOTE: FIT-116 (workout-trophy persistence) was fixed inline during 13-05 UAT; close it when merging the phase PR.
 
 ## Operator Next Steps
 

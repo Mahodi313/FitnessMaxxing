@@ -193,6 +193,20 @@
   "workoutPrefs": "Workout",
   "cancel": "Cancel",
 
+  "restSkip": "Skip rest",
+  "restAdd30": "+30 s",
+  "restLabel": "Rest",
+  "restDuration": "Rest duration",
+  "restCustom": "Custom",
+  "restNoPermission": "Notifications off — rest still counts down in the app.",
+  "restSubtitle": "Count down rest between sets",
+  "restCustomTime": "Custom time",
+  "restNotify": "Alert when rest is over",
+  "restDoneTitle": "Rest is over",
+  "restDoneBody": "Time for your next set.",
+  "on": "On",
+  "off": "Off",
+
   "offline": "You're offline — changes will sync when you're back online.",
 
   "mgAll": "All",

@@ -57,11 +57,11 @@
 
 ### Rest Timer (TIMER)
 
-- [ ] **TIMER-01**: Completing a set ("Klart") can auto-start a rest countdown
-- [ ] **TIMER-02**: The rest countdown is visible and continues correctly after the app is backgrounded (reconciled from a stored timestamp, not a JS timer)
-- [ ] **TIMER-03**: A local notification fires when the rest period ends, including when the app is backgrounded
-- [ ] **TIMER-04**: The user can configure a default rest duration and enable/disable the timer in Settings
-- [ ] **TIMER-05**: Dismissing or starting the next set early cancels the scheduled rest notification
+- [x] **TIMER-01**: Completing a set ("Klart") can auto-start a rest countdown
+- [x] **TIMER-02**: The rest countdown is visible and continues correctly after the app is backgrounded (reconciled from a stored timestamp, not a JS timer)
+- [x] **TIMER-03**: A local notification fires when the rest period ends, including when the app is backgrounded
+- [x] **TIMER-04**: The user can configure a default rest duration and enable/disable the timer in Settings
+- [x] **TIMER-05**: Dismissing or starting the next set early cancels the scheduled rest notification
 
 ### Internationalization (I18N)
 
@@ -149,11 +149,11 @@
 | PR-03 | Phase 13 | Complete |
 | PR-04 | Phase 13 | Complete |
 | PR-05 | Phase 13 | Complete |
-| TIMER-01 | Phase 14 | Pending |
-| TIMER-02 | Phase 14 | Pending |
-| TIMER-03 | Phase 14 | Pending |
-| TIMER-04 | Phase 14 | Pending |
-| TIMER-05 | Phase 14 | Pending |
+| TIMER-01 | Phase 14 | Complete |
+| TIMER-02 | Phase 14 | Complete |
+| TIMER-03 | Phase 14 | Complete |
+| TIMER-04 | Phase 14 | Complete |
+| TIMER-05 | Phase 14 | Complete |
 | I18N-03 | Phase 15 | Pending |
 
 **Coverage:**

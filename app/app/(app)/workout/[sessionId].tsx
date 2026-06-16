@@ -78,8 +78,15 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
-import { ForgeButton, Icon, PrBanner, PrTrophy } from "@/components/ui";
+import {
+  ForgeButton,
+  Icon,
+  PrBanner,
+  PrTrophy,
+  RestTimerBanner,
+} from "@/components/ui";
 import { getPref } from "@/lib/prefs";
+import { useRestTimerStore } from "@/lib/rest-timer-store";
 import { randomUUID } from "@/lib/utils/uuid";
 import { epley1RM } from "@/lib/e1rm";
 import { useBestE1rmQuery } from "@/lib/queries/best-e1rm";
@@ -381,6 +388,22 @@ function WorkoutBody({ session }: { session: SessionRow }) {
     setBanners((prev) => prev.filter((b) => b.key !== key));
   }, []);
 
+  // TIMER-01 (Plan 14-04): is a rest currently running? Subscribe to the store's
+  // endTs (the single authoritative owner, 14-02) so the floating RestTimerBanner
+  // mounts/unmounts reactively. The banner itself re-derives the M:SS from endTs;
+  // this body-level subscription only gates the MOUNT in the overlay slot (D-01).
+  const restRunning = useRestTimerStore((s) => s.endTs != null);
+  // Notification content for the banner's +30s reschedule (D-02/D-15) — built
+  // once from the localized strings + this session's id (sessionId-only payload).
+  const restContent = useMemo(
+    () => ({
+      title: t("restDoneTitle"),
+      body: t("restDoneBody"),
+      sessionId: session.id,
+    }),
+    [t, session.id],
+  );
+
   // Exercise-name lookup via Map<id, name> per Phase 4 Plan 04-04 commit
   // 3bfaba8 (avoids a join in the queryFn; exercises cache is hot from
   // the picker route).
@@ -459,14 +482,18 @@ function WorkoutBody({ session }: { session: SessionRow }) {
         ))}
       </ScrollView>
 
-      {/* PR-03 floating celebration banner stack (D-09): position: absolute over
-          the scroll list — NOT in the flex flow, NO Modal portal (D-22), NO
-          backdrop. The set list, input row, and "Klart" button NEVER shift
-          (Pitfall 4). Pinned near the top of the body; one banner per PR set
-          (D-11), each auto-dismissing (~3.5s). pointerEvents="box-none" so taps
-          fall through to the scroll list beneath (the banner is non-interactive,
-          D-10). */}
-      {banners.length > 0 && overlayWidth > 0 && (
+      {/* Floating top-overlay stack (D-01/D-09): position: absolute over the
+          scroll list — NOT in the flex flow, NO Modal portal (D-22), NO backdrop.
+          The set list, input row, and "Klart" button NEVER shift (Pitfall 4).
+          pointerEvents="box-none" so taps fall through to the scroll list beneath
+          where the PR banner is non-interactive (D-10) — the RestTimerBanner's
+          OWN controls remain tappable (box-none passes through only EMPTY space).
+          The container renders whenever there is a PR banner OR a rest is running.
+          D-04 PR-then-timer HANDOFF: PR banners (auto-dismissing ~3.5s, D-11) own
+          the top slot FIRST; the RestTimerBanner mounts only once `banners` is
+          empty, so a single banner occupies the slot at a time. The timer's endTs
+          is set at log-time regardless (logical start ≠ visual mount). */}
+      {(banners.length > 0 || restRunning) && overlayWidth > 0 && (
         <View
           pointerEvents="box-none"
           style={{
@@ -487,6 +514,12 @@ function WorkoutBody({ session }: { session: SessionRow }) {
               />
             </View>
           ))}
+          {/* D-04 handoff: only render the timer once the PR celebration has
+              cleared the slot (banners empty). The timer kept counting from
+              log-time the whole while. */}
+          {banners.length === 0 && restRunning && (
+            <RestTimerBanner content={restContent} width={overlayWidth - 32} />
+          )}
         </View>
       )}
     </KeyboardAvoidingView>
@@ -675,6 +708,26 @@ function ExerciseCard({
     // behind the fm:haptics pref (default on, D-12) and voided.
     void getPref("fm:haptics").then((on) => {
       if (on) void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    });
+
+    // ── TIMER-01 rest auto-start (Plan 14-04) — fire-and-forget, AFTER the
+    // mutate, NEVER awaited, NEVER preceding it (D-05 / F13-sacred / T-14-10).
+    // The EXACT shape of the fm:haptics block above: a voided getPref chain off
+    // the write path. onKlart only ever logs set_type:"working" (:650), so D-06
+    // (working-sets-only auto-start) holds for free — warmup/dropset/failure
+    // never reach here. When the master rest-timer pref is OFF this no-ops. The
+    // store's start() is latest-set-wins: logging the next working set while a
+    // rest runs cancels-and-restarts a fresh full-duration rest (D-03/D-07).
+    // `npm run test:f13-brutal` must stay green — this is pure off-path I/O.
+    void getPref("fm:restTimerEnabled").then((enabled) => {
+      if (!enabled) return;
+      void getPref("fm:restSeconds").then((sec) => {
+        useRestTimerStore.getState().start(sec * 1000, planExercise.exercise_id, {
+          title: t("restDoneTitle"),
+          body: t("restDoneBody"),
+          sessionId,
+        });
+      });
     });
 
     // ── PR-01 live detection (Plan 13-04) — fire-and-forget, AFTER the mutate,
@@ -1485,6 +1538,12 @@ function AvslutaOverlay({
   }));
 
   const handleConfirm = () => {
+    // TIMER (Plan 14-04): cancel any pending rest + its scheduled notification
+    // on session-end (RESEARCH §Open Q3 discretion default — no prompt, the
+    // Avsluta overlay already owns its own confirmation). finish() cancels the
+    // stored notification id and clears endTs, so the banner unmounts and no
+    // stale "Vilan är slut" ping fires after the pass is over.
+    useRestTimerStore.getState().finish();
     // mutate (NOT mutateAsync) — Phase 4 commit 5d953b6.
     // D-N3: include notes in payload; trim/null-normalization happens in
     // the ['session','finish'] mutationFn (Task 1 — client.ts).
