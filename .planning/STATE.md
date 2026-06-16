@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: — Forge Redesign
 status: verifying
-stopped_at: Phase 14 UI-SPEC approved
-last_updated: "2026-06-15T18:43:58.822Z"
+stopped_at: Phase 15 context gathered
+last_updated: "2026-06-16T19:40:10.770Z"
 last_activity: 2026-06-15
 progress:
   total_phases: 8
@@ -198,9 +198,9 @@ Items acknowledged for later:
 
 ## Session Continuity
 
-Last session: 2026-06-15T18:43:58.809Z
-Stopped at: Phase 14 UI-SPEC approved
-Resume file: None
+Last session: 2026-06-16T19:40:10.759Z
+Stopped at: Phase 15 context gathered
+Resume file: .planning/phases/15-bilingual-release-hardening/15-CONTEXT.md
 Next: Phase 13 closeout — ✓ `/gsd-secure-phase 13` DONE (13-SECURITY.md, 14/14 threats CLOSED, threats_open: 0 — originally run on the gsd/phase-13 branch at 1e612cf, restored onto the phase-14 branch 2026-06-14); ✓ `/gsd-verify-work 13` DONE (13-VERIFICATION.md, VERIFIED, device-UAT approved); ✓ `/gsd-code-review` DONE (13-REVIEW.md, WR-01…06 non-blocking). Remaining: phase.complete (advance ROADMAP Phase 13 → ✓ Complete). Phase 14 is now PLANNED (4 plans, 3 waves) → next is `/gsd:execute-phase 14`. NOTE: FIT-116 (workout-trophy persistence) was fixed inline during 13-05 UAT; close it when merging the phase PR.
 
 ## Operator Next Steps
