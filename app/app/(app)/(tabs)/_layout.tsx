@@ -35,9 +35,15 @@
 //   - 10-PATTERNS.md tab-bar assignment + SP-5/SP-6
 //   - app/components/ui/TabBar.tsx (Phase 8 shell — token reference)
 
+import { useEffect } from "react";
 import { Tabs } from "expo-router";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { Pressable, Text, View } from "react-native";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from "react-native-reanimated";
 import { useColorScheme } from "nativewind";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
@@ -60,10 +66,83 @@ const ROUTE_LABEL_KEY: Record<string, string> = {
   settings: "settings",
 };
 
+// §07 motion spec — the default Forge curve (damping 18 / stiffness 220),
+// copied verbatim from PrBanner.tsx:71 / index.tsx:587. Shared by the tab-icon
+// scale worklet below.
+const SPRING = { damping: 18, stiffness: 220 } as const;
+
+// ── ForgeTabButton — one tab item, owning its own animation hooks ────────────
+// Extracted out of the `state.routes.map(...)` body so each tab's
+// useSharedValue/useEffect/useAnimatedStyle live in their own component
+// instance (Rules of Hooks — hooks must never be called inside a .map callback,
+// 15-RESEARCH Pitfall 5). On tab switch the active tab's icon springs from
+// scale 0.92 → 1 on the Reanimated UI thread (D-07 / Forge §07 motion-table);
+// this is purely presentational and never touches the log-a-set hot path (D-08).
+type ForgeTabButtonProps = {
+  iconName: IconName;
+  label: string;
+  isActive: boolean;
+  /** Raw Icon stroke color (already light/dark-resolved by the parent). */
+  color: string;
+  onPress: () => void;
+};
+
+function ForgeTabButton({
+  iconName,
+  label,
+  isActive,
+  color,
+  onPress,
+}: ForgeTabButtonProps) {
+  // UI-thread icon-scale worklet: 0.92 (inactive) ↔ 1 (active), §07 spring.
+  const scale = useSharedValue(isActive ? 1 : 0.92);
+  useEffect(() => {
+    scale.value = withSpring(isActive ? 1 : 0.92, SPRING);
+  }, [isActive, scale]);
+  const iconStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="tab"
+      accessibilityState={{ selected: isActive }}
+      accessibilityLabel={label}
+      className="flex-1 items-center gap-1"
+      // FIT-66 — pressed feedback via style callback, never active:opacity-*.
+      style={({ pressed }) => (pressed ? { opacity: 0.7 } : null)}
+    >
+      <Animated.View style={iconStyle}>
+        <Icon
+          name={iconName}
+          size={24}
+          color={color}
+          strokeWidth={isActive ? 2 : 1.6}
+        />
+      </Animated.View>
+      <Text
+        className={`text-[10.5px] ${
+          isActive
+            ? "text-forge-accent-light dark:text-forge-accent"
+            : "text-forge-text3-light dark:text-forge-text3"
+        }`}
+        style={{
+          fontWeight: isActive ? "600" : "500",
+          letterSpacing: -0.1,
+        }}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
 // ── ForgeTabBar — custom tabBar renderer styled to the Forge spec ────────────
 // Drives the live expo-router navigation state (state.index, navigation.navigate)
 // but paints the Forge floating bar. Light + dark parity via useColorScheme()
 // for the raw Icon stroke color (the bar surface + labels use token classes).
+// Each tab is a ForgeTabButton child so per-tab animation hooks are isolated.
 function ForgeTabBar({ state, navigation }: BottomTabBarProps) {
   const { t } = useTranslation();
   const { colorScheme } = useColorScheme();
@@ -94,36 +173,14 @@ function ForgeTabBar({ state, navigation }: BottomTabBarProps) {
         };
 
         return (
-          <Pressable
+          <ForgeTabButton
             key={route.key}
+            iconName={iconName}
+            label={t(labelKey)}
+            isActive={isActive}
+            color={color}
             onPress={onPress}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: isActive }}
-            accessibilityLabel={t(labelKey)}
-            className="flex-1 items-center gap-1"
-            // FIT-66 — pressed feedback via style callback, never active:opacity-*.
-            style={({ pressed }) => (pressed ? { opacity: 0.7 } : null)}
-          >
-            <Icon
-              name={iconName}
-              size={24}
-              color={color}
-              strokeWidth={isActive ? 2 : 1.6}
-            />
-            <Text
-              className={`text-[10.5px] ${
-                isActive
-                  ? "text-forge-accent-light dark:text-forge-accent"
-                  : "text-forge-text3-light dark:text-forge-text3"
-              }`}
-              style={{
-                fontWeight: isActive ? "600" : "500",
-                letterSpacing: -0.1,
-              }}
-            >
-              {t(labelKey)}
-            </Text>
-          </Pressable>
+          />
         );
       })}
     </View>
