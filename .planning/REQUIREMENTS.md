@@ -67,7 +67,7 @@
 
 - [x] **I18N-01**: All app UI text renders from translation resources (sv.json / en.json), not hardcoded strings
 - [x] **I18N-02**: App language follows the device locale by default and the Settings override
-- [ ] **I18N-03**: Both Swedish and English are complete with no missing keys across every screen
+- [x] **I18N-03**: Both Swedish and English are complete with no missing keys across every screen
 - [x] **I18N-04**: Dates and numbers format per the active locale (Swedish decimal handling preserved)
 - [x] **I18N-05**: User-created content (plan/exercise names, notes) is stored as written and never auto-translated
 
@@ -154,7 +154,7 @@
 | TIMER-03 | Phase 14 | Complete |
 | TIMER-04 | Phase 14 | Complete |
 | TIMER-05 | Phase 14 | Complete |
-| I18N-03 | Phase 15 | Pending |
+| I18N-03 | Phase 15 | Complete |
 
 **Coverage:**
 - v2.0 requirements: 48 total
