@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: — Forge Redesign
-status: executing
-stopped_at: Phase 15 context gathered
-last_updated: "2026-06-16T20:31:35.573Z"
-last_activity: 2026-06-16 -- Phase 15 execution started
+status: phase-complete
+stopped_at: Phase 15 complete — device UAT approved
+last_updated: "2026-06-17T00:00:00.000Z"
+last_activity: 2026-06-17 -- Phase 15 complete (device UAT approved; release-hardened)
 progress:
   total_phases: 8
-  completed_phases: 7
+  completed_phases: 8
   total_plans: 41
-  completed_plans: 40
-  percent: 88
+  completed_plans: 41
+  percent: 100
 ---
 
 # Project State
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-09)
 
 ## Current Position
 
-Phase: 15 (bilingual-release-hardening) — EXECUTING
-Plan: 1 of 4
-Status: Executing Phase 15
-Last activity: 2026-06-16 -- Phase 15 execution started
+Phase: 15 (bilingual-release-hardening) — COMPLETE
+Plan: 4 of 4
+Status: Phase 15 complete — all plans done, device UAT approved (v2.0 milestone executable)
+Last activity: 2026-06-17 -- Phase 15 complete (device UAT approved; release-hardened)
 
 ## Performance Metrics
 

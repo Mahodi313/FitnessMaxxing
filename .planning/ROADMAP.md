@@ -240,7 +240,7 @@ Plans:
 3. `npm run test:f13-brutal` and the cross-user RLS test pass as the final regression gate
 4. Remaining design motion-table animations are applied and feel premium without breaching the hot-path budget
 
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans executed
 
 Plans:
 **Wave 1**
@@ -251,7 +251,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 15-04-PLAN.md — 15-UAT.md screen×combo matrix + final regression gate + device sweep (I18N-03/I18N-02)
+- [x] 15-04-PLAN.md — 15-UAT.md screen×combo matrix + final regression gate + device sweep (I18N-03/I18N-02) — completed 2026-06-17
 
 ### 📋 Future — App Store Launch (sketched)
 
@@ -280,7 +280,7 @@ Deferred to a later milestone (needs Apple Developer license + tooling). Mapped 
 | 12. History, Detail, Chart & Dashboard        | v2.0 | 11/11 | Complete    | 2026-06-14 |
 | 13. PR Celebration (F18)                      | v2.0 | 5/5 | Complete   | 2026-06-14 |
 | 14. Rest Timer (F19)                          | v2.0 | 4/4 | Complete   | 2026-06-15 |
-| 15. Bilingual & Release Hardening             | v2.0 | 3/4 | In Progress|  |
+| 15. Bilingual & Release Hardening             | v2.0 | 4/4 | ✓ Complete | 2026-06-17 |
 
 **v1.0:** 7/7 phases · 33/33 plans · 15/15 requirements validated · 79 STRIDE threats SECURED.
 **v2.0:** 8 phases (8-15) · 48 requirements · 0/8 complete.
