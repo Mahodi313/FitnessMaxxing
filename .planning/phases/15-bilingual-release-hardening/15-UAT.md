@@ -45,28 +45,28 @@ sign-off (one fix per loop — established device-UAT-iteration pattern).
 
 | # | Route | Screen | States to drive (D-06) | sv-light | sv-dark | en-light | en-dark |
 |---|-------|--------|------------------------|:--------:|:-------:|:--------:|:-------:|
-| 1 | `(auth)/sign-in` | Sign in | error (bad credentials), empty (untouched form), offline (no network) | ☐ | ☐ | ☐ | ☐ |
-| 2 | `(auth)/sign-up` | Sign up | error (validation / duplicate email), empty (untouched form), offline | ☐ | ☐ | ☐ | ☐ |
-| 3 | `(app)/(tabs)/index` | Home / Plans | empty (no plans), active-session swap (banner), set-log + saved toast, offline banner | ☐ | ☐ | ☐ | ☐ |
-| 4 | `(app)/(tabs)/history` | History list | empty (no sessions), saved toast, offline banner | ☐ | ☐ | ☐ | ☐ |
-| 5 | `(app)/(tabs)/settings` | Settings | theme toggle, language override, units toggle, rest-timer enable + duration, sign-out | ☐ | ☐ | ☐ | ☐ |
-| 6 | `(app)/plans/new` | New plan | error (validation), empty (untouched form), offline | ☐ | ☐ | ☐ | ☐ |
-| 7 | `(app)/plans/[id]` | Plan detail | empty (no exercises), reorder (DraggableFlatList + ScaleDecorator), delete-confirm, offline | ☐ | ☐ | ☐ | ☐ |
-| 8 | `(app)/plans/[id]/exercise-picker` | Exercise picker | empty (no filter match), filter pills, create-new, offline | ☐ | ☐ | ☐ | ☐ |
-| 9 | `(app)/plans/[id]/exercise/[planExerciseId]/edit` | Plan-exercise edit | steppers (nullable targets), save, remove, offline | ☐ | ☐ | ☐ | ☐ |
-| 10 | `(app)/workout/[sessionId]` | Active workout (hot path) | set-log, **PR celebration** (PR banner + trophy), **rest timer** (start / extend / skip + background ping), finish overlay, offline | ☐ | ☐ | ☐ | ☐ |
-| 11 | `(app)/history/[sessionId]` | Session detail | breakdown, e1RM, PR trophy, delete-confirm, offline | ☐ | ☐ | ☐ | ☐ |
-| 12 | `(app)/exercise/[exerciseId]/chart` | Exercise chart | empty (no data in range), range switch (30d/90d/All), draw-on-mount, offline | ☐ | ☐ | ☐ | ☐ |
+| 1 | `(auth)/sign-in` | Sign in | error (bad credentials), empty (untouched form), offline (no network) | ☑ | ☑ | ☑ | ☑ |
+| 2 | `(auth)/sign-up` | Sign up | error (validation / duplicate email), empty (untouched form), offline | ☑ | ☑ | ☑ | ☑ |
+| 3 | `(app)/(tabs)/index` | Home / Plans | empty (no plans), active-session swap (banner), set-log + saved toast, offline banner | ☑ | ☑ | ☑ | ☑ |
+| 4 | `(app)/(tabs)/history` | History list | empty (no sessions), saved toast, offline banner | ☑ | ☑ | ☑ | ☑ |
+| 5 | `(app)/(tabs)/settings` | Settings | theme toggle, language override, units toggle, rest-timer enable + duration, sign-out | ☑ | ☑ | ☑ | ☑ |
+| 6 | `(app)/plans/new` | New plan | error (validation), empty (untouched form), offline | ☑ | ☑ | ☑ | ☑ |
+| 7 | `(app)/plans/[id]` | Plan detail | empty (no exercises), reorder (DraggableFlatList + ScaleDecorator), delete-confirm, offline | ☑ | ☑ | ☑ | ☑ |
+| 8 | `(app)/plans/[id]/exercise-picker` | Exercise picker | empty (no filter match), filter pills, create-new, offline | ☑ | ☑ | ☑ | ☑ |
+| 9 | `(app)/plans/[id]/exercise/[planExerciseId]/edit` | Plan-exercise edit | steppers (nullable targets), save, remove, offline | ☑ | ☑ | ☑ | ☑ |
+| 10 | `(app)/workout/[sessionId]` | Active workout (hot path) | set-log, **PR celebration** (PR banner + trophy), **rest timer** (start / extend / skip + background ping), finish overlay, offline | ☑ | ☑ | ☑ | ☑ |
+| 11 | `(app)/history/[sessionId]` | Session detail | breakdown, e1RM, PR trophy, delete-confirm, offline | ☑ | ☑ | ☑ | ☑ |
+| 12 | `(app)/exercise/[exerciseId]/chart` | Exercise chart | empty (no data in range), range switch (30d/90d/All), draw-on-mount, offline | ☑ | ☑ | ☑ | ☑ |
 
 **Hard-to-reach state coverage roll-up (D-06 — every state driven in every combo):**
 
 | State | Screens where it must be driven | sv-light | sv-dark | en-light | en-dark |
 |-------|----------------------------------|:--------:|:-------:|:--------:|:-------:|
-| Error | sign-in, sign-up, plans/new | ☐ | ☐ | ☐ | ☐ |
-| Empty | Home, History, plan detail, exercise-picker, chart | ☐ | ☐ | ☐ | ☐ |
-| Offline | every screen (offline banner + paused writes) | ☐ | ☐ | ☐ | ☐ |
-| PR celebration | active workout (PR banner + trophy swap) | ☐ | ☐ | ☐ | ☐ |
-| Rest timer | active workout (start / extend / skip + background notification) | ☐ | ☐ | ☐ | ☐ |
+| Error | sign-in, sign-up, plans/new | ☑ | ☑ | ☑ | ☑ |
+| Empty | Home, History, plan detail, exercise-picker, chart | ☑ | ☑ | ☑ | ☑ |
+| Offline | every screen (offline banner + paused writes) | ☑ | ☑ | ☑ | ☑ |
+| PR celebration | active workout (PR banner + trophy swap) | ☑ | ☑ | ☑ | ☑ |
+| Rest timer | active workout (start / extend / skip + background notification) | ☑ | ☑ | ☑ | ☑ |
 
 ---
 
@@ -76,19 +76,19 @@ The device-locale-default + Settings-override resolver (`resolveLanguage` + the 
 `LocaleBootstrap`) is unit-tested by `test:locale-resolve` (7 cases). This confirms the
 **runtime** half on real hardware (D-11 mapping: Swedish device → `sv`, anything else → `en`).
 
-- [ ] Set the **device** language to **Swedish** (Settings → General → Language & Region) → relaunch → app resolves **sv**.
-- [ ] Set the **device** language to a **non-Swedish** language (e.g. English / German / Norwegian) → relaunch → app resolves **en** (the D-11 "anything else → en" branch).
-- [ ] In-app **Settings → Language override → Svenska** → UI flips to Swedish live (no restart).
-- [ ] In-app **Settings → Language override → English** → UI flips to English live (no restart).
-- [ ] Settings override **wins** over the device locale (override set while device is on the other language → override language renders).
+- [x] Set the **device** language to **Swedish** (Settings → General → Language & Region) → relaunch → app resolves **sv**.
+- [x] Set the **device** language to a **non-Swedish** language (e.g. English / German / Norwegian) → relaunch → app resolves **en** (the D-11 "anything else → en" branch).
+- [x] In-app **Settings → Language override → Svenska** → UI flips to Swedish live (no restart).
+- [x] In-app **Settings → Language override → English** → UI flips to English live (no restart).
+- [x] Settings override **wins** over the device locale (override set while device is on the other language → override language renders).
 
 ---
 
 ## SC4 — Motion + hot-path budget (tab-icon spring + ≤3s log-a-set)
 
-- [ ] **Tab-icon spring (0.92 → 1):** switch between Planer / Historik / Inställningar tabs and confirm the active icon springs from 0.92 to 1 (Forge §07 curve: damping 18 / stiffness 220). The motion feels premium — a crisp settle, no jank, no overshoot wobble.
-- [ ] **≤3s log-a-set budget (MOTN-01):** on `workout/[sessionId]`, log a set (enter weight + reps → Klart) and confirm the row commits in ≤3s from tap with no lag. The automated `test:f13-brutal` covers the budget gate; this confirms the on-device feel is unchanged by the tab-icon motion.
-- [ ] **Hot path untouched (D-08):** logging a set during the same session shows no regression in responsiveness (no dropped frames, no stall on the write passage).
+- [x] **Tab-icon spring (0.92 → 1):** switch between Planer / Historik / Inställningar tabs and confirm the active icon springs from 0.92 to 1 (Forge §07 curve: damping 18 / stiffness 220). The motion feels premium — a crisp settle, no jank, no overshoot wobble.
+- [x] **≤3s log-a-set budget (MOTN-01):** on `workout/[sessionId]`, log a set (enter weight + reps → Klart) and confirm the row commits in ≤3s from tap with no lag. The automated `test:f13-brutal` covers the budget gate; this confirms the on-device feel is unchanged by the tab-icon motion.
+- [x] **Hot path untouched (D-08):** logging a set during the same session shows no regression in responsiveness (no dropped frames, no stall on the write passage).
 
 ---
 
@@ -113,9 +113,13 @@ per project convention — not treated as a hard fail.
 
 ## Sign-off
 
-- [ ] All 12 screen rows clean across all 4 combos (no truncation / fallback key / theme-contrast miss), including every listed hard-to-reach state.
-- [ ] I18N-02 language-toggle (device locale + Settings override) confirmed on device.
-- [ ] SC4 tab-icon spring feels premium + ≤3s log-a-set budget holds.
-- [ ] Regression gate section (below Task 2) all green (modulo the FIT-107 f13-brutal fixture-window caveat).
+- [x] All 12 screen rows clean across all 4 combos (no truncation / fallback key / theme-contrast miss), including every listed hard-to-reach state.
+- [x] I18N-02 language-toggle (device locale + Settings override) confirmed on device.
+- [x] SC4 tab-icon spring feels premium + ≤3s log-a-set budget holds.
+- [x] Regression gate section (below Task 2) all green (modulo the FIT-107 f13-brutal fixture-window caveat).
 
-**Approval:** pending device sweep (Task 3).
+**Approval:** ✅ **APPROVED** on device (2026-06-17) — all 12 screen rows clean across all 4 combos
+(no truncation / fallback key / theme-contrast miss, including every hard-to-reach state). I18N-02
+device-locale + Settings-override confirmed. SC4 tab-icon spring premium + ≤3s log-a-set budget holds.
+No `[i18n] MISSING KEY` LogBox output observed. (`expo-notifications` Expo Go warnings are the known
+SDK 53 limitation — not a regression.)
