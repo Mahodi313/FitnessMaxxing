@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: — Forge Redesign
-status: verifying
-stopped_at: Phase 14 UI-SPEC approved
-last_updated: "2026-06-15T18:43:58.822Z"
-last_activity: 2026-06-15
+status: phase-complete
+stopped_at: Phase 15 complete — device UAT approved
+last_updated: "2026-06-17T00:00:00.000Z"
+last_activity: 2026-06-17 -- Phase 15 complete (device UAT approved; release-hardened)
 progress:
   total_phases: 8
-  completed_phases: 7
-  total_plans: 37
-  completed_plans: 37
-  percent: 88
+  completed_phases: 8
+  total_plans: 41
+  completed_plans: 41
+  percent: 100
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-09)
 
 **Core value:** Logga ett set och omedelbart se vad jag tog senast på samma övning — utan att tappa data, någonsin.
-**Current focus:** Phase 14 — rest-timer-f19-research-flagged
+**Current focus:** Phase 15 — bilingual-release-hardening
 
 ## Current Position
 
-Phase: 14 (rest-timer-f19-research-flagged) — EXECUTING
+Phase: 15 (bilingual-release-hardening) — COMPLETE
 Plan: 4 of 4
-Status: Phase complete — ready for verification
-Last activity: 2026-06-15
+Status: Phase 15 complete — all plans done, device UAT approved (v2.0 milestone executable)
+Last activity: 2026-06-17 -- Phase 15 complete (device UAT approved; release-hardened)
 
 ## Performance Metrics
 
@@ -198,8 +198,8 @@ Items acknowledged for later:
 
 ## Session Continuity
 
-Last session: 2026-06-15T18:43:58.809Z
-Stopped at: Phase 14 UI-SPEC approved
+Last session: 2026-06-16T20:31:35.562Z
+Stopped at: Phase 15 context gathered
 Resume file: None
 Next: Phase 13 closeout — ✓ `/gsd-secure-phase 13` DONE (13-SECURITY.md, 14/14 threats CLOSED, threats_open: 0 — originally run on the gsd/phase-13 branch at 1e612cf, restored onto the phase-14 branch 2026-06-14); ✓ `/gsd-verify-work 13` DONE (13-VERIFICATION.md, VERIFIED, device-UAT approved); ✓ `/gsd-code-review` DONE (13-REVIEW.md, WR-01…06 non-blocking). Remaining: phase.complete (advance ROADMAP Phase 13 → ✓ Complete). Phase 14 is now PLANNED (4 plans, 3 waves) → next is `/gsd:execute-phase 14`. NOTE: FIT-116 (workout-trophy persistence) was fixed inline during 13-05 UAT; close it when merging the phase PR.
 
