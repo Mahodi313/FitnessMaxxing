@@ -1,5 +1,7 @@
 # PRD — Gym Tracker
 
+> **Scope note (2026-06-17):** This is the original **V1** product brief (features F1–F15). It is kept as a historical baseline and is **not** updated per milestone. V1.0 shipped 2026-05-16; **v2.0 — Forge Redesign** shipped 2026-06-17 (full UI rewrite + Home dashboard + PR celebration (F18) + rest timer (F19) + Swedish/English). For current product state and requirements see [`.planning/PROJECT.md`](./.planning/PROJECT.md), [`.planning/MILESTONES.md`](./.planning/MILESTONES.md), and per-milestone [`.planning/milestones/v*-REQUIREMENTS.md`](./.planning/milestones/). Note F13 (offline) was bumped Bör→Måste and shipped in V1.0, not deferred.
+
 ## 1. Problem
 Jag tränar på gym och vill veta vad jag tog senast (vikt, reps) på varje övning, så jag kan progressera systematiskt. Pappersanteckningar och Notes-appen är klumpiga. Befintliga appar är antingen för komplexa eller har features bakom betalvägg.
 
