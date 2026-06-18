@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A personal iOS gym tracker for iPhone where the user creates their own training plans, logs sets during a workout, and immediately sees the last value on the same exercise — never losing a set even through airplane mode + force-quit + battery-pull. V1.0 shipped 2026-05-16 as a personal-use deliverable; entering 4-week soak validation (PRD §8) before deciding the App Store path.
+A personal iOS gym tracker for iPhone where the user creates their own training plans, logs sets during a workout, and immediately sees the last value on the same exercise — never losing a set even through airplane mode + force-quit + battery-pull. V1.0 shipped 2026-05-16 as a personal-use deliverable. V2.0 (shipped 2026-06-17) rewrote the entire UI to the "Forge" design system (premium, Apple-Fitness DNA, dark/light parity), added a Home activity-ring dashboard, offline-safe PR celebration, a background-surviving rest timer, and complete Swedish + English — all with the v1 offline-first write path and the F13 "never lose a set" guarantee untouched. Next decision: the App Store path (Apple Sign-In / TestFlight).
 
 ## Core Value
 
@@ -10,22 +10,21 @@ Logga ett set och omedelbart se vad jag tog senast på samma övning — utan at
 
 **v1.0 outcome:** verified by F13 brutal-test (`npm run test:f13-brutal`) running as a regression gate every phase, manual airplane-mode + force-quit UAT signed off Phase 5, and 4-week personal soak about to start. Core value remains the right priority.
 
-## Current Milestone: v2.0 — Forge Redesign
+## Current State
 
-**Goal:** Skriv om hela appens UI till "Forge"-designsystemet (premium, Apple-Fitness-DNA, dark/light-paritet, orange accent), exponera datafält v1-UI:t aldrig visade, och addera dashboard, PR-firande, vilotimer och engelska — med v1:s offline-/F13-kärna och de 6 tabellernas write-path orörda. App Store-launch (Apple Sign-In/TestFlight) ligger kvar i en senare milestone.
+**v2.0 — Forge Redesign shipped 2026-06-17.** 8 phases (8-15), 41 plans, 48/48 requirements validated. The full UI now runs on the Forge design system with dark/light parity; the app is bilingual (sv/en) with zero missing keys, has a Home activity-ring dashboard, offline-safe PR celebration, and a background-surviving rest timer. The v1 offline-first write path and the F13 "never lose a set" guarantee were left untouched (`npm run test:f13-brutal` green every phase). Codebase: ~27.0k LOC TS/TSX in `app/` (up from ~15.2k at v1.0).
 
-**Target features:**
-- **Design-system foundation** — Forge-tokens (färg light+dark, radius, elevation) speglade från `design v2/Sources/design/lib.jsx → THEMES.forge` in i `tailwind.config.js`; typsnittssystem Inter Display + Inter + JetBrains Mono via expo-font; Forge-komponentbibliotek (ForgeButton/Field/Card/Stat, ProgressRing, Sparkline, Ascend-Logo).
-- **Screen re-skin** — alla 17 skärmar + 3 session-overlays (finish / draft-resume / saved-toast) ommålade mot tokens; rubriker lyfta till Display-skala.
-- **Settings-skärm + preferenser (ny)** — profil (display_name), enheter (kg/lbs via `profiles.preferred_unit`), veckomål, språk, haptik/notis-toggles. Liten additiv migration på `profiles` (weekly_goal m.fl.).
-- **Home-dashboard** — activity ring (pass/vecka mot mål), streak, veckans volym + %-delta, sparkline — via nya read-side RPC:er (Phase 6-mönster).
-- **PR-celebration (F18)** — e1RM/Epley-detektion; troféer på set/pass/historik; PR-banner + sweep-animation.
-- **Vilotimer (F19)** — full funktion: auto-trigga vid "Klart", countdown, notis när vilan är slut (expo-notifications; JS-suspension-trap kräver research).
-- **i18n** — svenska + engelska, **endast UI-text** (expo-localization + react-i18next; användarinnehåll lagras som skrivet, ingen auto-översättning).
-- **Motion & haptik** — set-logged, ring-fill, PR-sweep, chart-draw enligt designens motion-tabell (Reanimated 4, finns redan).
-- **Exponera befintliga schemafält i UI** — övnings muskelgrupp/utrustning/anteckning + filter i picker; plan-övnings set/rep-mål; plan-beskrivning (kolumner finns redan i schemat).
+**Status:** Between milestones — no active development. Next decision is whether to pursue the App Store path.
 
-**Out of this milestone (deferred):** Apple Sign-In (F14/FIT-45) + TestFlight — kräver Apple Developer-tools, egen milestone. F1.1 email-deep-link (FIT-46), F17-UI set-typ-toggling — ej prioriterade nu. **Genomarbetad DB-design för App Store** (utökade användaruppgifter etc.) — noterat som framtida milestone-arbete, ej v2.0.
+## Next Milestone Goals (App Store Launch — not yet planned)
+
+Start with `/gsd:new-milestone`. Sketched scope (requires Apple Developer license + EAS tooling):
+
+- **Apple Sign-In** (F14 / FIT-45) — App-Store blocker.
+- **TestFlight build via EAS** — Windows-only dev credential flow (research-flagged).
+- **Email-confirmation deep-link handler** (F1.1 / FIT-46) — currently opens in browser.
+- **App-Store-grade DB design** — expanded user/account data model.
+- **Carry-over polish:** first/last-name split (FIT-84), functional forgot-password flow, set-type toggling under active workout (F17-UI; schema exists since Phase 2).
 
 ## Requirements
 
@@ -51,26 +50,33 @@ Logga ett set och omedelbart se vad jag tog senast på samma övning — utan at
 
 **v1.0 outcome:** 15/15 V1 requirements validated. 79 STRIDE threats SECURED across phases 2–7. Code-gates green at v1.0 tag.
 
+- ✓ **Design system** — Forge tokens + fonts + component library (DSGN-01..06) — v2.0 (Phase 8)
+- ✓ **Screen re-skin** — all screens + 3 session overlays on tokens (SKIN-01..08) — v2.0 (Phases 9–12)
+- ✓ **Settings & preferences** — settings screen + profile/units/weekly-goal/language/toggles + `profiles.weekly_goal` migration (SET-01..09) — v2.0 (Phase 9)
+- ✓ **Home dashboard** — activity ring, streak, weekly volume, sparkline via RLS-scoped read-side RPCs (DASH-01..05) — v2.0 (Phase 12)
+- ✓ **PR celebration (F18)** — offline-safe Epley e1RM detection + trophies + PR banner (PR-01..05) — v2.0 (Phase 13)
+- ✓ **Rest timer (F19)** — auto-trigger on "Klart", background-surviving countdown, scheduled OS notification (TIMER-01..05) — v2.0 (Phase 14)
+- ✓ **i18n** — Swedish + English UI text via expo-localization + react-i18next, zero missing keys (I18N-01..05) — v2.0 (Phases 8, 9, 10, 15)
+- ✓ **Motion & haptics** — design motion-table animations + Settings-gated haptics (MOTN-01..05) — v2.0 (Phases 11, 12)
+
+**v2.0 outcome:** 48/48 requirements validated. Full release-candidate device UAT approved across 12 screens × 4 language/theme combos. F13 brutal-test stayed green every phase.
+
 ### Active
 
-<!-- Current scope: v2.0 Forge Redesign. REQ-IDs defined in REQUIREMENTS.md. -->
+<!-- No active milestone. Next: App Store Launch — define via /gsd:new-milestone (see "Next Milestone Goals" above). -->
 
-- [ ] **Design system** — Forge tokens + fonts + component library (DSGN-*)
-- [ ] **Screen re-skin** — all 17 screens + 3 overlays on tokens (SKIN-*)
-- [ ] **Settings & preferences** — settings screen + profile/units/weekly-goal/language/toggles + additive `profiles` migration (SET-*)
-- [ ] **Home dashboard** — activity ring, streak, weekly volume, sparkline via read-side RPCs (DASH-*)
-- [ ] **PR celebration (F18)** — e1RM/Epley detection + trophies + PR banner (PR-*)
-- [ ] **Rest timer (F19)** — auto-trigger on "Klart", countdown, notification via expo-notifications (TIMER-*)
-- [ ] **i18n** — Swedish + English UI text via expo-localization + react-i18next (I18N-*)
-- [ ] **Motion & haptics** — design motion-table animations + haptics (MOTN-*)
+(None — between milestones.)
 
-### V1.1 Carry-overs (queued, gated by 4-week soak)
+### V1.1 / Future Carry-overs (queued for the App Store milestone)
 
 - **F1.1** — Email-confirmation deep-link handler (Expo Linking + Supabase verifyOtp/exchangeCodeForSession) — currently opens in browser. Captured as FIT-46.
 - **F14** — Apple Sign-In (App Store-blocker). Captured as FIT-45.
 - **F17-UI** — Set-typ-toggling under aktivt pass (warmup/working/dropset/failure). Schema sedan Phase 2.
-- **F18** — PR-detection vid pass-avslut (Epley `w * (1 + r/30)`, max-vikt, max-volym per övning).
-- **F19** — Vilo-timer som auto-triggas vid "Klart"-tap. Research-flag: `expo-notifications` + `expo-keep-awake`, JS-suspension-trap.
+- **TestFlight via EAS** — Windows-only dev credential flow (research-flagged).
+- **App-Store-grade DB design** — expanded user/account data model.
+- **FIT-84** — Settings first/last-name split (currently a single display_name).
+
+*Shipped in v2.0: F18 PR-detection (Epley e1RM, Phase 13) and F19 rest timer (Phase 14).*
 
 ### Out of Scope (V1) — audited 2026-05-16
 
@@ -132,6 +138,12 @@ Logga ett set och omedelbart se vad jag tog senast på samma övning — utan at
 | Inline-overlay UX (NOT Modal portals) — etablerad Phase 4 | PATTERNS landmine #3: portal modals bryter freezeOnBlur + gestures | ✓ Good — etablerades Phase 4, återanvändes i Phase 5 + 7 utan revision |
 | Direct iOS keyboard measurement (NOT KeyboardAvoidingView i absolute backdrops) — etablerad Phase 7 | UAT-blocker: KAV `padding`/`height`/`position` lyfter inte i absolute-positioned backdrop på iOS 26 | ✓ Good — `Keyboard.addListener('keyboardWillShow')` är reliable fallback; iter-3 hotfix shipped och verified |
 | Per-phase HUMAN-UAT.md för UI-tunga phases (4, 5, 7) | UAT på riktig iPhone fångar buggar som tsc/lint/RLS inte ser | ✓ Good — 3 av Phase 7's UAT-discovered bugs (keyboard-blocking) hade nått soaken annars |
+| Token-driven re-skin (`forge-<token>-light` base + `dark:` sibling) — etablerad Phase 8 | Speglar `THEMES.forge` i tailwind.config så varje skärm ärver dark-mode utan per-skärm-arbete | ✓ Good — 17 skärmar ommålade med dark/light-paritet utan per-skärm dark-logik (v2.0) |
+| NativeWind box-decoration MÅSTE ligga i className (inte style()) — etablerad Phase 10 | NativeWind 4 droppar style() box-props (bg/border/radius/size) på Pressable → "naken" re-skin | ✓ Good — efter Phase 10-buggen blev det en regel; samma rotorsak bakom Phase 15 rest-banner-wrap (FIT-128) |
+| Reaktiv Zustand-store utan persist för live-prefs (`units-store`, `rest-timer-store`) | En Settings-ändring måste re-rendra alla konsumenter direkt, utan restart | ✓ Good — FIT-111 kg↔lbs live-toggle löstes; samma mönster bär rest-timerns transient OS-clock-state |
+| PR-detektion client-side/offline via Epley e1RM (`lib/e1rm.ts`), ingen `is_pr`-kolumn | Härledbart från sets → undviker schema/sync-komplexitet; måste funka offline | ✓ Good — singel formel-källa (D-08); PR-at-log-time via strictly-prior SQL-window; noll sync-state |
+| Vilotimer = absolut timestamp + schemalagd OS-notis (inte JS-interval) | Måste överleva JS-suspension vid backgrounding | ✓ Good — `remainingMs` re-derives från lagrat `endTs`; DATE-trigger-notis; fail-soft wrapper rejectar aldrig in i fire-and-forget |
+| i18n = endast UI-text; användarinnehåll lagras som skrivet (I18N-05) | Tvåspråkslagring per rad onödig för personligt verktyg | ✓ Good — react-i18next + tre-läges språk-resolver (System/sv/en) byter live utan restart; CI-gate ger noll saknade nycklar |
 
 ## Evolution
 
@@ -151,7 +163,9 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state ✓ (LOC + tech stack snapshot + known issues)
 
 ---
-*Last updated: 2026-06-11 — Phase 9 (Auth, Settings & Preferences) complete: full Forge Settings screen (Profile · Appearance · Workout · Notifications · Sign-out, D-13 order) with live language switching (no restart), units/weekly-goal/haptics/notifications prefs, and `profiles.weekly_goal` (migration 0007); Forge re-skin of sign-in/sign-up with an integrated in-field password eye, a sign-up Name field stored to `profiles.display_name` (migration 0008 trigger), and a keyboard-stable layout. SKIN-01 + SET-01..09 + I18N-02 validated via device UAT. Known V1 gaps: forgot-password flow (non-functional label), first/last-name split (Linear FIT-84). Next: Phase 10 (Plans & Exercises re-skin).*
+*Last updated: 2026-06-17 after v2.0 — Forge Redesign milestone close. Full review done: "What This Is" updated to reflect the shipped redesign; all 48 v2.0 requirements moved to Validated; Active emptied (between milestones); 7 v2.0 decisions added to Key Decisions; Current State + Next Milestone Goals (App Store Launch) sections added. v2.0: 8 phases (8-15), 41 plans, ~27.0k LOC. Phase artifacts retained in `.planning/phases/` (not archived). Next: `/gsd:new-milestone` for the App Store path.*
+
+*Earlier: 2026-06-11 — Phase 9 (Auth, Settings & Preferences) complete: full Forge Settings screen (Profile · Appearance · Workout · Notifications · Sign-out, D-13 order) with live language switching (no restart), units/weekly-goal/haptics/notifications prefs, and `profiles.weekly_goal` (migration 0007); Forge re-skin of sign-in/sign-up with an integrated in-field password eye, a sign-up Name field stored to `profiles.display_name` (migration 0008 trigger), and a keyboard-stable layout. SKIN-01 + SET-01..09 + I18N-02 validated via device UAT. Known V1 gaps: forgot-password flow (non-functional label), first/last-name split (Linear FIT-84). Next: Phase 10 (Plans & Exercises re-skin).*
 
 *Earlier: 2026-06-09 — milestone v2.0 (Forge Redesign) started. Current Milestone section added; Active section populated with v2.0 feature categories (design system, re-skin, settings/prefs, dashboard, PR/F18, rest-timer/F19, i18n, motion). Design source: `app/design v2/Sources/design/` (lib.jsx tokens + forge-screens.jsx, 17 screens). Schema audit confirmed most data fields already exist; only additive `profiles` migration + read-side RPCs needed.*
 
