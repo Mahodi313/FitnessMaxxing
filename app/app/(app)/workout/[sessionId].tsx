@@ -52,21 +52,44 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
-import ReanimatedSwipeable from "react-native-gesture-handler/ReanimatedSwipeable";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
+import { useColorScheme } from "nativewind";
 import {
   Stack,
   useFocusEffect,
   useLocalSearchParams,
   useRouter,
 } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import { useTranslation } from "react-i18next";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import * as Haptics from "expo-haptics";
+import { LinearGradient } from "expo-linear-gradient";
+import Animated, {
+  Easing,
+  SlideInDown,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
 
+import {
+  ForgeButton,
+  Icon,
+  PrBanner,
+  PrTrophy,
+  RestTimerBanner,
+} from "@/components/ui";
+import { getPref } from "@/lib/prefs";
+import { useRestTimerStore } from "@/lib/rest-timer-store";
 import { randomUUID } from "@/lib/utils/uuid";
+import { epley1RM } from "@/lib/e1rm";
+import { useBestE1rmQuery } from "@/lib/queries/best-e1rm";
 
 import { useFinishSession, useSessionQuery } from "@/lib/queries/sessions";
 import {
@@ -97,12 +120,29 @@ import type { PlanExerciseRow } from "@/lib/schemas/plan-exercises";
 // @hookform/resolvers Resolver invariance.
 type SetFormInput = z.input<typeof setFormSchema>;
 
+// Animated wrapper over Pressable so the Avsluta backdrop can both (a) animate
+// its scrim opacity (MOTN-04 §07 spring) and (b) keep backdrop-tap dismiss.
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+// mm:ss (or h:mm:ss past an hour) elapsed since `startedAt`. Copied from
+// active-session-banner.tsx (module-private there) for the in-content header
+// timer (D-07). Kept byte-identical so the two timers tick the same way.
+function formatElapsed(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
+}
+
 // ---------------------------------------------------------------------------
 // Default export — WorkoutScreen
 // ---------------------------------------------------------------------------
 
 export default function WorkoutScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   // WR-07 (05-REVIEW.md): useLocalSearchParams' generic argument is a TYPE
   // ASSERTION, not a runtime guard. The actual runtime shape is
   // Record<string, string | string[]> — a param could be string[] for
@@ -134,6 +174,22 @@ export default function WorkoutScreen() {
   const { data: setsData } = useSetsForSessionQuery(session?.id ?? "");
   const loggedSetCount = setsData?.length ?? 0;
 
+  // D-07: live header timer — tick every second from session.started_at.
+  // Mirrors the active-session-banner ticker (L62-69) verbatim so both the
+  // banner and this header advance in lockstep. Single 1s interval cleared on
+  // unmount (T-11-03 — bounded, no leak, never touches the write path).
+  const startedAt = session?.started_at;
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!startedAt) return;
+    setNow(Date.now());
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, [startedAt]);
+  const timer = startedAt
+    ? formatElapsed(now - new Date(startedAt).getTime())
+    : null;
+
   // Plan 05-05 (FIT-8): hydration gate. PersistQueryClientProvider in
   // _layout.tsx fires onSuccess → setHydrated(true) once AsyncStorage
   // round-trip completes. Before that, useSetsForSessionQuery returns
@@ -146,11 +202,11 @@ export default function WorkoutScreen() {
 
   if (!hydrated) {
     return (
-      <SafeAreaView className="flex-1 bg-white dark:bg-gray-900">
-        <Stack.Screen options={{ headerShown: true, title: "Pass" }} />
+      <SafeAreaView className="flex-1 bg-forge-bg-light dark:bg-forge-bg">
+        <Stack.Screen options={{ headerShown: false }} />
         <View className="flex-1 items-center justify-center">
-          <Text className="text-base text-gray-500 dark:text-gray-400">
-            Återställer pass…
+          <Text className="text-base text-forge-text2-light dark:text-forge-text2">
+            {t("restoringWorkout")}
           </Text>
         </View>
       </SafeAreaView>
@@ -162,11 +218,11 @@ export default function WorkoutScreen() {
   // `session` populated synchronously for any active session.
   if (!session) {
     return (
-      <SafeAreaView className="flex-1 bg-white dark:bg-gray-900">
-        <Stack.Screen options={{ headerShown: true, title: "Pass" }} />
+      <SafeAreaView className="flex-1 bg-forge-bg-light dark:bg-forge-bg">
+        <Stack.Screen options={{ headerShown: false }} />
         <View className="flex-1 items-center justify-center">
-          <Text className="text-base text-gray-500 dark:text-gray-400">
-            Laddar…
+          <Text className="text-base text-forge-text2-light dark:text-forge-text2">
+            {t("loading")}
           </Text>
         </View>
       </SafeAreaView>
@@ -174,50 +230,117 @@ export default function WorkoutScreen() {
   }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaView
-        className="flex-1 bg-white dark:bg-gray-900"
-        edges={["bottom"]}
-      >
-        <Stack.Screen
-          options={{
-            headerShown: true,
-            title: "Pass",
-            headerRight: () => (
-              <Pressable
-                onPress={() => setShowAvslutaOverlay(true)}
-                accessibilityRole="button"
-                accessibilityLabel="Avsluta passet"
-                hitSlop={8}
-                className="px-3 py-2 active:opacity-80"
-              >
-                <Text className="text-base font-semibold text-blue-600 dark:text-blue-400">
-                  Avsluta
-                </Text>
-              </Pressable>
-            ),
+    <SafeAreaView
+      className="flex-1 bg-forge-bg-light dark:bg-forge-bg"
+      edges={["bottom"]}
+    >
+      {/* D-09: native Stack header hidden; the in-content Forge header below
+          owns the safe-area top inset + back navigation. */}
+      <Stack.Screen options={{ headerShown: false }} />
+      <WorkoutHeader
+        timer={timer}
+        onBack={() => router.back()}
+        onFinish={() => setShowAvslutaOverlay(true)}
+      />
+      {/* WARNING-01 fix (Open Q#4 RESOLVED): second OfflineBanner
+          instance mounted inside /workout/[sessionId] because the route
+          is outside (tabs). Both instances state-mirror via
+          useOnlineStatus(); F13 brutal-test asserts this banner is
+          visible after force-quit re-open. */}
+      <OfflineBanner />
+      <WorkoutBody session={session} />
+      {showAvslutaOverlay && (
+        <AvslutaOverlay
+          sessionId={session.id}
+          loggedSetCount={loggedSetCount}
+          sets={setsData ?? []}
+          startedAt={session.started_at}
+          onCancel={() => setShowAvslutaOverlay(false)}
+          onFinish={() => {
+            setShowAvslutaOverlay(false);
+            router.replace("/(app)/(tabs)");
           }}
         />
-        {/* WARNING-01 fix (Open Q#4 RESOLVED): second OfflineBanner
-            instance mounted inside /workout/[sessionId] because the route
-            is outside (tabs). Both instances state-mirror via
-            useOnlineStatus(); F13 brutal-test asserts this banner is
-            visible after force-quit re-open. */}
-        <OfflineBanner />
-        <WorkoutBody session={session} />
-        {showAvslutaOverlay && (
-          <AvslutaOverlay
-            sessionId={session.id}
-            loggedSetCount={loggedSetCount}
-            onCancel={() => setShowAvslutaOverlay(false)}
-            onFinish={() => {
-              setShowAvslutaOverlay(false);
-              router.replace("/(app)/(tabs)");
-            }}
-          />
-        )}
-      </SafeAreaView>
-    </GestureHandlerRootView>
+      )}
+    </SafeAreaView>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// WorkoutHeader — D-07/D-09 in-content Forge header
+//   left   : 40px circular back button (surface + border)
+//   center : accentSoft live-timer pill (6px accent dot + MM:SS, tabular)
+//   right  : accent "Avsluta" pill opening the existing Avsluta overlay
+// Owns its safe-area top inset (the native header no longer provides it).
+// ---------------------------------------------------------------------------
+
+function WorkoutHeader({
+  timer,
+  onBack,
+  onFinish,
+}: {
+  timer: string | null;
+  onBack: () => void;
+  onFinish: () => void;
+}) {
+  const { t } = useTranslation();
+  const { colorScheme } = useColorScheme();
+  const insets = useSafeAreaInsets();
+  const isDark = colorScheme === "dark";
+  const backInk = isDark ? "#FFFFFF" : "#0A0A0A";
+  const accentInk = isDark ? "#FF5A1F" : "#E14E10";
+
+  return (
+    <View
+      className="flex-row items-center justify-between px-4 pb-1"
+      style={{ paddingTop: insets.top + 8 }}
+    >
+      {/* Left — 40px circular back button */}
+      <Pressable
+        onPress={onBack}
+        accessibilityRole="button"
+        accessibilityLabel={t("back")}
+        hitSlop={8}
+        className="w-10 h-10 rounded-forge-lg items-center justify-center border bg-forge-surface-light dark:bg-forge-surface border-forge-border-light dark:border-forge-border"
+        style={({ pressed }) => (pressed ? { opacity: 0.85 } : null)}
+      >
+        <Icon name="chevronLeft" size={18} color={backInk} strokeWidth={2.2} />
+      </Pressable>
+
+      {/* Center — accentSoft live-timer pill */}
+      <View className="flex-row items-center gap-2 px-3.5 py-2 rounded-forge-lg border bg-forge-accentSoft-light dark:bg-forge-accentSoft border-forge-border-light dark:border-forge-border">
+        <View className="w-1.5 h-1.5 rounded-full bg-forge-accent-light dark:bg-forge-accent" />
+        <Text
+          className="text-[13px] font-semibold text-forge-accent-light dark:text-forge-accent"
+          style={{ fontVariant: ["tabular-nums"], letterSpacing: -0.1 }}
+          accessibilityLiveRegion="polite"
+        >
+          {timer ?? "0:00"}
+        </Text>
+      </View>
+
+      {/* Right — accent "Avsluta" pill (FIT-66 accent shadow in style()) */}
+      <Pressable
+        onPress={onFinish}
+        accessibilityRole="button"
+        accessibilityLabel={t("finish")}
+        hitSlop={8}
+        className="h-9 px-4 rounded-full items-center justify-center bg-forge-accent-light dark:bg-forge-accent"
+        style={({ pressed }) => [
+          {
+            shadowColor: accentInk,
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: 0.45,
+            shadowRadius: 16,
+          },
+          pressed ? { opacity: 0.85 } : null,
+        ]}
+      >
+        <Text className="text-[14px] font-semibold text-forge-accentText-light dark:text-forge-accentText">
+          {t("finish")}
+        </Text>
+      </Pressable>
+    </View>
   );
 }
 
@@ -225,11 +348,61 @@ export default function WorkoutScreen() {
 // WorkoutBody — exercise-card list + KeyboardAvoidingView + defensive empty
 // ---------------------------------------------------------------------------
 
+// PR-03 (Plan 13-04): one descriptor per floating celebration banner. `key`
+// makes each banner a fresh mount (D-11 — a later, higher PR set in the same
+// session spawns a NEW banner, it does not update an existing one).
+type PrBannerDescriptor = {
+  key: string;
+  weightKg: number;
+  reps: number;
+  setNumber: number;
+};
+
 function WorkoutBody({ session }: { session: SessionRow }) {
   const router = useRouter();
+  const { t } = useTranslation();
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
   const { data: planExercises } = usePlanExercisesQuery(session.plan_id ?? "");
   const { data: setsData } = useSetsForSessionQuery(session.id);
   const { data: exercises } = useExercisesQuery();
+
+  // PR-01/PR-03 (Plan 13-04): the all-time-best e1RM reference, mounted ONCE
+  // here at the body root. Cached + persister-hydrated (D-06) — NO fresh fetch
+  // in the hot path; it is the offline-first baseline live detection compares
+  // against. `{}` until synced → first-set-on-an-exercise is silently a
+  // non-PR (D-02). Passed down to each ExerciseCard.
+  const { data: bestE1rm } = useBestE1rmQuery();
+
+  // PR-03 floating-banner state (D-09/D-11): a fresh descriptor per PR set, so
+  // a NEW PrBanner mounts each time (D-11 — banners never merge). Lifted to the
+  // body so the overlay floats OVER the whole scroll list, never inside the flex
+  // flow (the set list / input row / Klart button must not shift, Pitfall 4).
+  // Width is measured from the body so the Skia wash canvas has a concrete size.
+  const [banners, setBanners] = useState<PrBannerDescriptor[]>([]);
+  const [overlayWidth, setOverlayWidth] = useState(0);
+  const pushBanner = useCallback((d: Omit<PrBannerDescriptor, "key">) => {
+    setBanners((prev) => [...prev, { ...d, key: randomUUID() }]);
+  }, []);
+  const dismissBanner = useCallback((key: string) => {
+    setBanners((prev) => prev.filter((b) => b.key !== key));
+  }, []);
+
+  // TIMER-01 (Plan 14-04): is a rest currently running? Subscribe to the store's
+  // endTs (the single authoritative owner, 14-02) so the floating RestTimerBanner
+  // mounts/unmounts reactively. The banner itself re-derives the M:SS from endTs;
+  // this body-level subscription only gates the MOUNT in the overlay slot (D-01).
+  const restRunning = useRestTimerStore((s) => s.endTs != null);
+  // Notification content for the banner's +30s reschedule (D-02/D-15) — built
+  // once from the localized strings + this session's id (sessionId-only payload).
+  const restContent = useMemo(
+    () => ({
+      title: t("restDoneTitle"),
+      body: t("restDoneBody"),
+      sessionId: session.id,
+    }),
+    [t, session.id],
+  );
 
   // Exercise-name lookup via Map<id, name> per Phase 4 Plan 04-04 commit
   // 3bfaba8 (avoids a join in the queryFn; exercises cache is hot from
@@ -245,25 +418,36 @@ function WorkoutBody({ session }: { session: SessionRow }) {
   // this state is reachable only if a plan's exercises were removed
   // mid-pass — but the fallback keeps the screen usable.
   if ((planExercises?.length ?? 0) === 0) {
+    // D-13: defensive empty-state, Forge-skinned + i18n'd. Mirrors the
+    // (tabs)/index.tsx empty-state tile structure (surface2 icon tile +
+    // heading + body + ForgeButton). Reachable only if a plan's exercises
+    // were removed mid-pass.
     return (
-      <View className="flex-1 items-center justify-center px-6 gap-3">
-        <Ionicons name="list-outline" size={64} color="#2563EB" />
-        <Text className="text-2xl font-semibold text-gray-900 dark:text-gray-50 text-center">
-          Den här planen har inga övningar än
-        </Text>
-        <Text className="text-base text-gray-900 dark:text-gray-50 text-center">
-          Gå tillbaka och lägg till några.
-        </Text>
-        <Pressable
-          onPress={() => router.back()}
-          accessibilityRole="button"
-          accessibilityLabel="Tillbaka till planen"
-          className="rounded-lg bg-blue-600 dark:bg-blue-500 px-4 py-4 mt-3 active:opacity-80"
-        >
-          <Text className="text-base font-semibold text-white">
-            Tillbaka till planen
+      <View className="flex-1 items-center justify-center gap-6 px-4">
+        <View className="w-16 h-16 rounded-forge-md items-center justify-center border bg-forge-surface2-light dark:bg-forge-surface2 border-forge-border-light dark:border-forge-border">
+          <Icon
+            name="list"
+            size={28}
+            color={isDark ? "rgba(255,255,255,0.62)" : "#4D4D4D"}
+            strokeWidth={2}
+          />
+        </View>
+        <View className="gap-2 items-center">
+          <Text className="text-[22px] font-display-bold text-forge-text-light dark:text-forge-text text-center">
+            {t("nothingToLog")}
           </Text>
-        </Pressable>
+          <Text className="text-[15px] text-forge-text2-light dark:text-forge-text2 text-center">
+            {t("nothingToLogBody")}
+          </Text>
+        </View>
+        <View className="flex-row">
+          <ForgeButton
+            label={t("back")}
+            variant="primary"
+            size="lg"
+            onPress={() => router.back()}
+          />
+        </View>
       </View>
     );
   }
@@ -272,6 +456,7 @@ function WorkoutBody({ session }: { session: SessionRow }) {
     <KeyboardAvoidingView
       className="flex-1"
       behavior={Platform.OS === "ios" ? "padding" : undefined}
+      onLayout={(e) => setOverlayWidth(e.nativeEvent.layout.width)}
     >
       <ScrollView
         contentContainerStyle={{
@@ -291,9 +476,52 @@ function WorkoutBody({ session }: { session: SessionRow }) {
             }
             sessionId={session.id}
             allSets={setsData ?? []}
+            bestE1rm={bestE1rm ?? {}}
+            onPr={pushBanner}
           />
         ))}
       </ScrollView>
+
+      {/* Floating top-overlay stack (D-01/D-09): position: absolute over the
+          scroll list — NOT in the flex flow, NO Modal portal (D-22), NO backdrop.
+          The set list, input row, and "Klart" button NEVER shift (Pitfall 4).
+          pointerEvents="box-none" so taps fall through to the scroll list beneath
+          where the PR banner is non-interactive (D-10) — the RestTimerBanner's
+          OWN controls remain tappable (box-none passes through only EMPTY space).
+          The container renders whenever there is a PR banner OR a rest is running.
+          D-04 PR-then-timer HANDOFF: PR banners (auto-dismissing ~3.5s, D-11) own
+          the top slot FIRST; the RestTimerBanner mounts only once `banners` is
+          empty, so a single banner occupies the slot at a time. The timer's endTs
+          is set at log-time regardless (logical start ≠ visual mount). */}
+      {(banners.length > 0 || restRunning) && overlayWidth > 0 && (
+        <View
+          pointerEvents="box-none"
+          style={{
+            position: "absolute",
+            top: 12,
+            left: 16,
+            right: 16,
+          }}
+        >
+          {banners.map((b) => (
+            <View key={b.key} style={{ marginBottom: 8 }}>
+              <PrBanner
+                weightKg={b.weightKg}
+                reps={b.reps}
+                setNumber={b.setNumber}
+                width={overlayWidth - 32}
+                onDismiss={() => dismissBanner(b.key)}
+              />
+            </View>
+          ))}
+          {/* D-04 handoff: only render the timer once the PR celebration has
+              cleared the slot (banners empty). The timer kept counting from
+              log-time the whole while. */}
+          {banners.length === 0 && restRunning && (
+            <RestTimerBanner content={restContent} width={overlayWidth - 32} />
+          )}
+        </View>
+      )}
     </KeyboardAvoidingView>
   );
 }
@@ -307,12 +535,20 @@ function ExerciseCard({
   exerciseName,
   sessionId,
   allSets,
+  bestE1rm,
+  onPr,
 }: {
   planExercise: PlanExerciseRow;
   exerciseName: string;
   sessionId: string;
   allSets: SetRow[];
+  // PR-01: all-time-best working-set reference per exercise_id (D-06, cached).
+  bestE1rm: Record<string, { weight_kg: number; reps: number }>;
+  // PR-03: push a fresh floating banner descriptor (lifted to WorkoutBody).
+  onPr: (d: { weightKg: number; reps: number; setNumber: number }) => void;
 }) {
+  const { t } = useTranslation();
+  const accentTextInk = "#FFFFFF"; // forge-accentText (light & dark are both white)
   // Pre-fetch F7 data on card mount per CONTEXT.md D-20. staleTime 15min
   // keeps the result in cache offline.
   const { data: lastValueMap } = useLastValueQuery(
@@ -332,10 +568,18 @@ function ExerciseCard({
   const loggedCount = setsForThisExercise.length;
   const currentSetNumber = loggedCount + 1;
 
-  // D-10 pre-fill: after first set in this session, pre-fill from the
-  // most-recent set in the same exercise in the same session. For set 1
-  // (no prior in this session), pre-fill from F7 (last finished session,
-  // set-position-aligned to currentSetNumber).
+  // D-10: F7 prev-value, folded INTO the input-row header (replaces the separate
+  // LastValueChip below the row). Set-position-aligned to the row about to be
+  // logged. Not rendered when no data (D-19).
+  const prevValue = lastValueMap?.[currentSetNumber];
+  const prevLabel = prevValue
+    ? t("previous", { w: prevValue.weight_kg, r: prevValue.reps })
+    : null;
+
+  // D-10 (device-UAT revision): the "prefill" value no longer fills the field —
+  // it drives the FAINT PLACEHOLDER + the submitKlart() auto-submit fallback.
+  // Source order: most-recent set of this exercise in this session, else F7
+  // (last finished session, set-position-aligned to currentSetNumber).
   const sessionPrefill =
     setsForThisExercise[setsForThisExercise.length - 1] ?? null;
   const f7PrefillEntry = lastValueMap?.[currentSetNumber];
@@ -350,37 +594,86 @@ function ExerciseCard({
     control,
     handleSubmit,
     reset,
+    getValues,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<SetFormInput, undefined, SetFormOutput>({
     resolver: zodResolver(setFormSchema),
     mode: "onSubmit",
+    // D-10 (device-UAT revision): fields START EMPTY. The last value is surfaced
+    // as a FAINT PLACEHOLDER + the "Förra" header hint — never a committed
+    // value. submitKlart() below auto-injects the placeholder value when a field
+    // is left blank, so tapping Klart on an untouched row still logs the last set.
     defaultValues: {
-      weight_kg: prefillWeight ?? undefined,
-      reps: prefillReps ?? undefined,
+      weight_kg: undefined,
+      reps: undefined,
       set_type: "working",
     },
   });
 
-  // Re-hydrate defaults when prefill changes (e.g., after a set lands and
-  // setsForThisExercise.length increments). Pin set_type to 'working' so
-  // the schema default is preserved on every reset.
+  // Clear the row to empty when the prefill source changes (after a set lands and
+  // setsForThisExercise.length increments). The new prefill value drives the
+  // placeholder + auto-submit fallback, NOT the field value.
   useEffect(() => {
     reset({
-      weight_kg: prefillWeight ?? undefined,
-      reps: prefillReps ?? undefined,
+      weight_kg: undefined,
+      reps: undefined,
       set_type: "working",
     });
   }, [prefillWeight, prefillReps, reset]);
 
   const addSet = useAddSet(sessionId);
 
+  // PR-02/D-12/D-13: ids of THIS card's sets that were a PR. DERIVED (not
+  // ephemeral state) so the trophies PERSIST across navigation: ExerciseCard
+  // unmounts when the user leaves the workout screen, so any imperative
+  // accumulation is lost and previously-PR rows revert to the green check on
+  // return (FIT-116). Instead we replay the running-max over the in-session
+  // working sets against the cached all-time baseline — reproducible on every
+  // remount from persisted data (no query/network; D-17 budget untouched).
+  //
+  // Behaviour matches the prior onKlart detection exactly: D-12 historical
+  // honesty (a later higher set never removes an earlier trophy — running-max
+  // replay keeps earlier ids), D-05 strict `>`, D-04 weight_kg > 0,
+  // D-02 (the first-ever baseline-setting set is never a PR).
+  const prSetIds = useMemo(() => {
+    const ids = new Set<string>();
+    const best = bestE1rm[planExercise.exercise_id];
+    // Baseline = all-time best e1RM (finished sessions, cached). With no
+    // baseline AND no earlier in-session set, the first set is not a PR (D-02).
+    let runningMax = best ? epley1RM(best.weight_kg, best.reps) : 0;
+    let hasPrior = !!best;
+    // setsForThisExercise is already sorted by set_number (the monotonic
+    // per-exercise ordinal). completed_at can be null (schema), so set_number
+    // is the reliable chronological key — re-sort defensively in case the
+    // upstream ordering ever changes.
+    const ordered = [...setsForThisExercise].sort(
+      (a, b) => a.set_number - b.set_number,
+    );
+    for (const s of ordered) {
+      const e = epley1RM(s.weight_kg, s.reps);
+      const isPr = s.weight_kg > 0 && e > 0 && hasPrior && e > runningMax; // D-04/D-05 strict >
+      if (isPr) ids.add(s.id);
+      if (e > runningMax) runningMax = e;
+      hasPrior = true; // after the first set there is always a prior reference (D-07)
+    }
+    return ids;
+  }, [setsForThisExercise, bestE1rm, planExercise.exercise_id]);
+
   const onKlart = (input: SetFormOutput) => {
     // D-16 SUPERSEDED by Plan 05-04: server-side trigger assigns set_number;
     // client omits it on payload. Optimistic UI uses provisional value
     // computed in setMutationDefaults onMutate.
+    // The optimistic onMutate appends a row with THIS id; capture it so PR
+    // detection below can tag the matching row for the trophy swap.
+    const setId = randomUUID();
+    // 1-based session set ordinal for this exercise (used by the banner suffix +
+    // PR baseline). This set lands AFTER the ones already logged.
+    const candidateSetNumber = loggedCount + 1;
+
     addSet.mutate(
       {
-        id: randomUUID(),
+        id: setId,
         session_id: sessionId,
         exercise_id: planExercise.exercise_id,
         weight_kg: input.weight_kg,
@@ -391,14 +684,13 @@ function ExerciseCard({
       },
       {
         onSuccess: () => {
-          // D-10: pre-fill the next blank row with the just-logged values.
-          // Optimistic onMutate already appended to setsKeys.list — the
-          // useEffect-driven hydrate above will pick up the new prefill
-          // shortly. We also call reset() to short-circuit form-state if
-          // RHF retained the prior values.
+          // D-10 (device-UAT revision): clear the next row to EMPTY. The
+          // just-logged values become the new faint placeholder via the
+          // prefill chain; the field itself stays blank so it never reads as
+          // "förvald". submitKlart() re-injects the placeholder on a blank tap.
           reset({
-            weight_kg: input.weight_kg,
-            reps: input.reps,
+            weight_kg: undefined,
+            reps: undefined,
             set_type: "working",
           });
         },
@@ -407,195 +699,300 @@ function ExerciseCard({
         // line 303.
       },
     );
+
+    // MOTN-01 / MOTN-05 set-logged feedback — fire-and-forget, AFTER the
+    // optimistic mutate above, NEVER awaited and NEVER preceding it (F13,
+    // T-11-06). The VISUAL animation (row slide-in + check scale) is owned by
+    // LoggedSetRow's Reanimated `entering` / scale — it plays automatically
+    // when the just-appended row mounts and is NOT gated. The HAPTIC is gated
+    // behind the fm:haptics pref (default on, D-12) and voided.
+    void getPref("fm:haptics").then((on) => {
+      if (on) void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    });
+
+    // ── TIMER-01 rest auto-start (Plan 14-04) — fire-and-forget, AFTER the
+    // mutate, NEVER awaited, NEVER preceding it (D-05 / F13-sacred / T-14-10).
+    // The EXACT shape of the fm:haptics block above: a voided getPref chain off
+    // the write path. onKlart only ever logs set_type:"working" (:650), so D-06
+    // (working-sets-only auto-start) holds for free — warmup/dropset/failure
+    // never reach here. When the master rest-timer pref is OFF this no-ops. The
+    // store's start() is latest-set-wins: logging the next working set while a
+    // rest runs cancels-and-restarts a fresh full-duration rest (D-03/D-07).
+    // `npm run test:f13-brutal` must stay green — this is pure off-path I/O.
+    void getPref("fm:restTimerEnabled").then((enabled) => {
+      if (!enabled) return;
+      void getPref("fm:restSeconds").then((sec) => {
+        useRestTimerStore.getState().start(sec * 1000, planExercise.exercise_id, {
+          title: t("restDoneTitle"),
+          body: t("restDoneBody"),
+          sessionId,
+        });
+      });
+    });
+
+    // ── PR-01 live detection (Plan 13-04) — fire-and-forget, AFTER the mutate,
+    // NEVER awaited, NEVER preceding it (D-17 / Pitfall 5 / T-13-09). All inputs
+    // are already in memory (cached bestE1rm + in-session setsForThisExercise),
+    // so this is pure CPU off the write path — the ≤3s log budget is untouched
+    // and `npm run test:f13-brutal` stays green.
+    //
+    // A candidate is a PR (D-01/D-04/D-05/D-02) when:
+    //   weight_kg > 0 (D-04) AND its e1RM > 0 (guards 0-rep/non-finite, lib/e1rm)
+    //   AND there is a PRIOR reference (all-time-best OR an earlier in-session
+    //   working set — D-02: the FIRST-EVER set on an exercise is never a PR)
+    //   AND cand strictly > max(allTimeBest, sessionMax)  (D-05 strict >).
+    const cand = epley1RM(input.weight_kg, input.reps);
+
+    // All-time-best reference for this exercise (D-06, cached). e1RM via the
+    // single lib/e1rm source (D-08) — never an inline formula.
+    const best = bestE1rm[planExercise.exercise_id];
+    const allTimeBest = best ? epley1RM(best.weight_kg, best.reps) : 0;
+
+    // D-07: the best e1RM among EARLIER working sets THIS session (warmups
+    // already excluded — every onKlart logs set_type 'working').
+    const sessionMax = setsForThisExercise.reduce(
+      (mx, s) => Math.max(mx, epley1RM(s.weight_kg, s.reps)),
+      0,
+    );
+
+    const hasPriorReference = !!best || setsForThisExercise.length > 0;
+    const priorBest = Math.max(allTimeBest, sessionMax);
+    const isPR =
+      input.weight_kg > 0 && cand > 0 && hasPriorReference && cand > priorBest;
+
+    if (isPR) {
+      // D-12/D-13: the trophy swap for this set's row is now DERIVED (see the
+      // prSetIds useMemo above) — the optimistic onMutate appends this set to
+      // setsForThisExercise, the memo recomputes, and the row trophies
+      // immediately. No imperative tag needed here (FIT-116).
+      //
+      // (1) D-11: spawn a FRESH floating banner for this set (lifted overlay).
+      onPr({
+        weightKg: input.weight_kg,
+        reps: input.reps,
+        setNumber: candidateSetNumber,
+      });
+      // (2) D-18: the PR haptic — `notificationSuccess`, through the SAME
+      // fm:haptics gate as the set-logged haptic above. Silent when haptics off;
+      // still fires under reduce-motion (D-19 governs animation, not haptics).
+      void getPref("fm:haptics").then((on) => {
+        if (on)
+          void Haptics.notificationAsync(
+            Haptics.NotificationFeedbackType.Success,
+          );
+      });
+    }
   };
 
-  // Plan-target chip + counter chip (header)
+  // D-10 (device-UAT revision) auto-submit: a blank field falls back to its
+  // faint-placeholder (last) value so tapping Klart on an untouched row still
+  // logs the previous set — without ever pre-filling a committed value. Inject
+  // BEFORE handleSubmit so the value is present at validation time (an empty
+  // weight_kg would otherwise coerce to 0 and silently log a 0kg set). If no
+  // prefill exists (set 1, no history), the blank field fails validation
+  // normally and surfaces "Vikt krävs" / "Reps krävs".
+  const submitKlart = () => {
+    const { weight_kg, reps } = getValues();
+    const isBlank = (v: unknown) => v == null || v === "";
+    if (isBlank(weight_kg) && prefillWeight != null) {
+      setValue("weight_kg", prefillWeight);
+    }
+    if (isBlank(reps) && prefillReps != null) {
+      setValue("reps", prefillReps);
+    }
+    return handleSubmit(onKlart)();
+  };
+
+  // Plan-target chip (header)
   const targetChip = formatTargetChip(planExercise);
-  const counterChipText =
-    planExercise.target_sets != null
-      ? `${loggedCount}/${planExercise.target_sets} set klart`
-      : `${loggedCount} set`;
-  const counterReached =
-    planExercise.target_sets != null &&
-    loggedCount >= planExercise.target_sets;
+  // D-02: per-card set-progress dots replace the v1 "3/4 set klart" counter
+  // chip. The "total" for the dot strip is the plan target_sets, falling back
+  // to the logged count (so a target-less exercise still shows a filled strip).
+  const targetSets = planExercise.target_sets ?? loggedCount;
+  const dotCount = Math.max(targetSets, loggedCount, 1);
 
   return (
-    <View className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 mb-4">
+    <View className="bg-forge-surface-light dark:bg-forge-surface border border-forge-border-light dark:border-forge-border rounded-forge-lg p-4 mb-4">
       {/* Card header */}
-      <View className="flex-row items-start justify-between mb-2">
-        <View className="flex-1 gap-1 mr-3">
-          <Text
-            className="text-2xl font-semibold text-gray-900 dark:text-gray-50"
-            numberOfLines={1}
-          >
-            {exerciseName}
-          </Text>
-          {(targetChip || planExercise.notes) && (
-            <View className="flex-row flex-wrap gap-2 mt-1">
-              {targetChip && (
-                <View className="bg-gray-200 dark:bg-gray-700 rounded-full px-3 py-1">
-                  <Text className="text-sm text-gray-900 dark:text-gray-50">
-                    {targetChip}
-                  </Text>
-                </View>
-              )}
-            </View>
-          )}
-        </View>
-        <View
-          className={`rounded-full px-3 py-1 ${
-            counterReached
-              ? "bg-green-100 dark:bg-green-900"
-              : "bg-gray-200 dark:bg-gray-700"
-          }`}
+      <View className="gap-1 mb-3">
+        <Text
+          className="text-[22px] font-display-bold text-forge-text-light dark:text-forge-text"
+          numberOfLines={1}
         >
-          <Text
-            className={`text-sm font-semibold ${
-              counterReached
-                ? "text-green-900 dark:text-green-100"
-                : "text-gray-900 dark:text-gray-50"
-            }`}
-          >
-            {counterChipText}
-          </Text>
-        </View>
+          {exerciseName}
+        </Text>
+        {targetChip && (
+          <View className="flex-row flex-wrap gap-2 mt-1">
+            <View className="bg-forge-surface2-light dark:bg-forge-surface2 rounded-full px-3 py-1">
+              <Text className="text-[13px] text-forge-text2-light dark:text-forge-text2">
+                {targetChip}
+              </Text>
+            </View>
+          </View>
+        )}
       </View>
 
-      {/* Logged set rows */}
+      {/* D-02: set-progress dot strip + trailing N / M counter */}
+      <SetProgressDots
+        loggedCount={loggedCount}
+        dotCount={dotCount}
+        targetSets={planExercise.target_sets}
+      />
+
+      {/* Logged set rows — Forge set-table (D-03) */}
       {setsForThisExercise.length > 0 && (
-        <View className="gap-2 mt-2">
+        <View className="mt-3 rounded-forge-md border border-forge-border-light dark:border-forge-border overflow-hidden">
+          {/* Column headers (D-03) — 10px uppercase, once per card */}
+          <View
+            className="flex-row items-center px-4 py-2.5 border-b border-forge-border-light dark:border-forge-border"
+            style={{ gap: 12 }}
+          >
+            <Text
+              className="text-[10px] font-semibold uppercase text-forge-text3-light dark:text-forge-text3"
+              style={{ width: 32, letterSpacing: 1 }}
+            >
+              #
+            </Text>
+            <Text
+              className="flex-1 text-[10px] font-semibold uppercase text-forge-text3-light dark:text-forge-text3"
+              style={{ letterSpacing: 1 }}
+            >
+              {t("colWeight")}
+            </Text>
+            <Text
+              className="flex-1 text-[10px] font-semibold uppercase text-forge-text3-light dark:text-forge-text3"
+              style={{ letterSpacing: 1 }}
+            >
+              {t("colReps")}
+            </Text>
+            <Text
+              className="text-[10px] font-semibold uppercase text-forge-text3-light dark:text-forge-text3"
+              style={{ width: 56, letterSpacing: 1 }}
+            >
+              {t("colRpe")}
+            </Text>
+            <View style={{ width: 36 }} />
+          </View>
           {setsForThisExercise.map((set) => (
             <LoggedSetRow
               key={set.id}
               set={set}
               sessionId={sessionId}
+              isPr={prSetIds.has(set.id)}
             />
           ))}
         </View>
       )}
 
-      {/* Always-visible inline set-input row */}
-      <View className="flex-row items-center gap-2 mt-3">
-        <Controller
-          control={control}
-          name="weight_kg"
-          render={({ field: { onChange, value }, fieldState: { error } }) => (
-            <View className="flex-1">
-              <TextInput
+      {/* D-10 Forge input row: accent-tinted card footer. "SET N" accent
+          uppercase label + folded-in F7 prev-value on one header line; three
+          56px accent-bordered fields (large display value + small uppercase
+          unit label underneath); full-width 50px accent "Klart" CTA with a
+          leading check icon. The raw TextInputs are restyled IN PLACE so every
+          keyboard/RHF wiring prop survives byte-for-byte (D-17) — they are NOT
+          swapped to ForgeField (which cannot carry inputMode/selectTextOnFocus/
+          returnKeyType). Per FORGE InputField (forge-screens.jsx ForgeInput),
+          the value renders as the TextInput's own large display text with the
+          KG/REPS/RPE micro-label beneath it. */}
+      <View
+        className="rounded-forge-md mt-3 px-4 pt-4 pb-[18px] bg-forge-accentSoft-light dark:bg-forge-accentSoft"
+        style={{ gap: 10 }}
+      >
+        {/* Header: "SET N" accent uppercase + folded-in prev-value (D-10, F7) */}
+        <View className="flex-row items-center justify-between">
+          <Text
+            className="text-[11px] font-semibold uppercase text-forge-accent-light dark:text-forge-accent"
+            style={{ letterSpacing: 1 }}
+          >
+            {`${t("set")} ${currentSetNumber}`}
+          </Text>
+          {prevLabel && (
+            <Text
+              className="text-[11px] text-forge-text2-light dark:text-forge-text2"
+              style={{ fontVariant: ["tabular-nums"] }}
+            >
+              {prevLabel}
+            </Text>
+          )}
+        </View>
+
+        {/* Three fields grid: weight (1fr) · reps (1fr) · rpe (60px) */}
+        <View className="flex-row items-start" style={{ gap: 8 }}>
+          <Controller
+            control={control}
+            name="weight_kg"
+            render={({ field: { onChange, value }, fieldState: { error } }) => (
+              <ForgeNumField
                 value={value == null ? "" : String(value)}
                 onChangeText={onChange}
-                placeholder="Vikt"
-                placeholderTextColor="#9CA3AF"
+                unit={t("kg")}
+                placeholder={prefillWeight != null ? String(prefillWeight) : "0"}
                 keyboardType="decimal-pad"
                 inputMode="decimal"
-                returnKeyType="done"
-                autoCorrect={false}
-                autoCapitalize="none"
-                selectTextOnFocus={true}
-                accessibilityLabel="Vikt i kilo"
-                className={`rounded-md bg-white dark:bg-gray-900 border px-3 py-3 text-base font-semibold text-gray-900 dark:text-gray-50 min-h-[56px] ${
-                  error
-                    ? "border-red-600 dark:border-red-400"
-                    : "border-gray-300 dark:border-gray-700"
-                } focus:border-blue-600 dark:focus:border-blue-500`}
+                accessibilityLabel={t("weight")}
+                error={!!error}
+                errorMessage={error?.message}
+                className="flex-1"
               />
-              {error && (
-                <Text
-                  className="text-base text-red-600 dark:text-red-400 mt-1 px-1"
-                  accessibilityLiveRegion="polite"
-                >
-                  {error.message}
-                </Text>
-              )}
-            </View>
-          )}
-        />
-        <Controller
-          control={control}
-          name="reps"
-          render={({ field: { onChange, value }, fieldState: { error } }) => (
-            <View className="flex-1">
-              <TextInput
+            )}
+          />
+          <Controller
+            control={control}
+            name="reps"
+            render={({ field: { onChange, value }, fieldState: { error } }) => (
+              <ForgeNumField
                 value={value == null ? "" : String(value)}
                 onChangeText={onChange}
-                placeholder="Reps"
-                placeholderTextColor="#9CA3AF"
+                unit={t("reps")}
+                placeholder={prefillReps != null ? String(prefillReps) : "0"}
                 keyboardType="number-pad"
                 inputMode="numeric"
-                returnKeyType="done"
-                autoCorrect={false}
-                autoCapitalize="none"
-                selectTextOnFocus={true}
-                accessibilityLabel="Antal repetitioner"
-                className={`rounded-md bg-white dark:bg-gray-900 border px-3 py-3 text-base font-semibold text-gray-900 dark:text-gray-50 min-h-[56px] ${
-                  error
-                    ? "border-red-600 dark:border-red-400"
-                    : "border-gray-300 dark:border-gray-700"
-                } focus:border-blue-600 dark:focus:border-blue-500`}
+                accessibilityLabel={t("reps")}
+                error={!!error}
+                errorMessage={error?.message}
+                className="flex-1"
               />
-              {error && (
-                <Text
-                  className="text-base text-red-600 dark:text-red-400 mt-1 px-1"
-                  accessibilityLiveRegion="polite"
-                >
-                  {error.message}
-                </Text>
-              )}
-            </View>
-          )}
-        />
-        <Controller
-          control={control}
-          name="rpe"
-          render={({ field: { onChange, value }, fieldState: { error } }) => (
-            <View className="w-16">
-              <TextInput
+            )}
+          />
+          <Controller
+            control={control}
+            name="rpe"
+            render={({ field: { onChange, value }, fieldState: { error } }) => (
+              <ForgeNumField
                 value={value == null ? "" : String(value)}
                 onChangeText={onChange}
-                placeholder="RPE"
-                placeholderTextColor="#9CA3AF"
+                unit={t("rpe")}
+                placeholder="–"
                 keyboardType="decimal-pad"
                 inputMode="decimal"
-                returnKeyType="done"
-                autoCorrect={false}
-                autoCapitalize="none"
-                selectTextOnFocus={true}
-                accessibilityLabel="Upplevd ansträngning, valfri"
+                accessibilityLabel={t("rpe")}
+                error={!!error}
+                errorMessage={error?.message}
                 maxLength={4}
-                className={`rounded-md bg-white dark:bg-gray-900 border px-2 py-3 text-base font-semibold text-gray-900 dark:text-gray-50 min-h-[56px] text-center ${
-                  error
-                    ? "border-red-600 dark:border-red-400"
-                    : "border-gray-300 dark:border-gray-700"
-                } focus:border-blue-600 dark:focus:border-blue-500`}
+                small
               />
-              {error && (
-                <Text
-                  className="text-base text-red-600 dark:text-red-400 mt-1 px-1"
-                  accessibilityLiveRegion="polite"
-                >
-                  {error.message}
-                </Text>
-              )}
-            </View>
-          )}
-        />
+            )}
+          />
+        </View>
+
+        {/* Full-width 50px accent "Klart" CTA with leading check (D-10) */}
         <Pressable
-          onPress={handleSubmit(onKlart)}
+          onPress={submitKlart}
           disabled={isSubmitting}
           accessibilityRole="button"
-          accessibilityLabel="Spara set"
-          className="w-16 min-h-[56px] rounded-md bg-blue-600 dark:bg-blue-500 items-center justify-center disabled:opacity-60 active:opacity-80"
+          accessibilityLabel={t("done")}
+          className="h-[50px] w-full rounded-forge-md bg-forge-accent-light dark:bg-forge-accent flex-row items-center justify-center gap-2 disabled:opacity-60"
+          style={({ pressed }) => (pressed ? { opacity: 0.85 } : null)}
         >
-          <Text className="text-base font-semibold text-white">Klart</Text>
+          <Icon name="check" size={18} color={accentTextInk} strokeWidth={2.4} />
+          <Text
+            className="text-base font-semibold text-forge-accentText-light dark:text-forge-accentText"
+            style={{ letterSpacing: -0.2 }}
+          >
+            {t("done")}
+          </Text>
         </Pressable>
       </View>
-
-      {/* F7 chip — set-position-aligned. D-19: not rendered when no data. */}
-      <LastValueChip
-        exerciseId={planExercise.exercise_id}
-        sessionId={sessionId}
-        setNumber={currentSetNumber}
-      />
 
       {/* Generic form-level error fallback (rare — Controller already
           renders per-field errors above) */}
@@ -612,17 +1009,89 @@ function ExerciseCard({
 }
 
 // ---------------------------------------------------------------------------
-// LoggedSetRow — display + tap-to-edit + swipe-left-to-delete
+// SetProgressDots — D-02 per-card set-progress dot strip + N / M counter
+//   done bars      : accent fill
+//   current bar    : accentSoft fill + accent border
+//   remaining bars : surface2 fill
+// The 6px bar height is a declared spacing exception (UI-SPEC).
+// ---------------------------------------------------------------------------
+
+function SetProgressDots({
+  loggedCount,
+  dotCount,
+  targetSets,
+}: {
+  loggedCount: number;
+  dotCount: number;
+  targetSets: number | null;
+}) {
+  const bars = Array.from({ length: dotCount }, (_, i) => i + 1);
+  // Counter denominator = plan target when present, else the live logged count.
+  const denom = targetSets ?? loggedCount;
+  return (
+    <View className="flex-row items-center" style={{ gap: 6 }}>
+      {bars.map((n) => {
+        const done = n <= loggedCount;
+        const current = n === loggedCount + 1;
+        const cls = done
+          ? "bg-forge-accent-light dark:bg-forge-accent"
+          : current
+            ? "bg-forge-accentSoft-light dark:bg-forge-accentSoft border border-forge-accent-light dark:border-forge-accent"
+            : "bg-forge-surface2-light dark:bg-forge-surface2";
+        return (
+          <View key={n} className={`flex-1 h-1.5 rounded-[3px] ${cls}`} />
+        );
+      })}
+      <Text
+        className="text-[12px] font-semibold text-forge-text2-light dark:text-forge-text2 ml-1.5"
+        style={{ fontVariant: ["tabular-nums"] }}
+      >
+        {`${loggedCount} / ${denom}`}
+      </Text>
+    </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// LoggedSetRow — Forge set-table row (D-03) + tap-to-edit + ✕-delete (D-04)
+//   grid: 32px # · 1fr weight · 1fr reps · 56px RPE · 36px action
+//   RPE always rendered, muted "–" when null (D-05). No trophy (D-06).
+//   Swipe-to-delete removed; trailing ✕ replaces it (D-04).
 // ---------------------------------------------------------------------------
 
 function LoggedSetRow({
   set,
   sessionId,
+  isPr,
 }: {
   set: SetRow;
   sessionId: string;
+  // PR-02/D-13: this row's set was a PR at log time → render the gradient
+  // trophy INSTEAD of the green check (replaces, never stacks).
+  isPr: boolean;
 }) {
+  const { t } = useTranslation();
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
   const [isEditing, setIsEditing] = useState(false);
+
+  // MOTN-01 set-logged visual: the success check scales 0.8→1 on mount with
+  // the §07 default spring (damping 18, stiffness 220). This plays whenever a
+  // row first mounts (i.e. right after the optimistic addSet appends it) — it
+  // is NOT gated by fm:haptics (only the haptic in onKlart is). Fire-and-forget
+  // off the UI thread; never blocks the write (T-11-06).
+  const checkScale = useSharedValue(0.8);
+  useEffect(() => {
+    // Device UAT: the §07 spring (damping 18) read as a bouncy "pop". Switched
+    // to a short timing grow — no overshoot, just a calm scale-in.
+    checkScale.value = withTiming(1, {
+      duration: 180,
+      easing: Easing.out(Easing.quad),
+    });
+  }, [checkScale]);
+  const checkStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: checkScale.value }],
+  }));
 
   // Reset edit mode on screen blur (Pitfall 5 — freezeOnBlur).
   useFocusEffect(
@@ -654,43 +1123,97 @@ function LoggedSetRow({
   }
 
   const handleDelete = () => {
+    // D-17 frozen write path: payload shape unchanged.
     removeSet.mutate({ id: set.id, session_id: sessionId });
   };
 
+  const successInk = isDark ? "#30D158" : "#1E9E45";
+  const deleteInk = isDark ? "rgba(255,255,255,0.38)" : "#8B8B8B";
+
   return (
-    <ReanimatedSwipeable
-      friction={2}
-      rightThreshold={48}
-      renderRightActions={() => (
-        <Pressable
-          onPress={handleDelete}
-          accessibilityRole="button"
-          accessibilityLabel="Ta bort set"
-          className="bg-red-600 dark:bg-red-500 justify-center items-center px-6 rounded-md"
-        >
-          <Text className="text-base font-semibold text-white">Ta bort</Text>
-        </Pressable>
-      )}
+    <Animated.View
+      entering={SlideInDown.duration(180).easing(Easing.out(Easing.cubic))}
+      className="flex-row items-center px-4 border-b border-forge-border-light dark:border-forge-border"
+      style={{ gap: 12, paddingVertical: 14 }}
     >
+      {/* Tappable region (# + weight + reps + RPE + success) enters inline edit */}
       <Pressable
         onPress={() => setIsEditing(true)}
         accessibilityRole="button"
-        accessibilityLabel={`Set ${set.set_number}: ${set.weight_kg} kilo gånger ${set.reps} reps. Tryck för att redigera.`}
-        className="flex-row items-center bg-white dark:bg-gray-900 rounded-md px-3 py-3 active:opacity-80"
+        accessibilityLabel={`Set ${set.set_number}: ${set.weight_kg} kg × ${set.reps}`}
+        className="flex-row items-center flex-1"
+        style={({ pressed }) => [{ gap: 12 }, pressed ? { opacity: 0.7 } : null]}
       >
-        <Ionicons
-          name="checkmark-circle"
-          size={20}
-          color="#16A34A"
-        />
-        <Text className="text-sm font-semibold text-gray-500 dark:text-gray-400 mx-2">
-          Set {set.set_number}
+        {/* Set-number badge — accent circle, accentText numeral. marginRight
+            adds breathing room so the weight value doesn't hug the badge
+            (device UAT: "30kg too close to the number to the left"). */}
+        <View
+          className="items-center justify-center rounded-full bg-forge-accent-light dark:bg-forge-accent"
+          style={{ width: 22, height: 22, marginRight: 8 }}
+        >
+          <Text
+            className="text-[11px] font-bold text-forge-accentText-light dark:text-forge-accentText"
+            style={{ fontVariant: ["tabular-nums"] }}
+          >
+            {set.set_number}
+          </Text>
+        </View>
+        {/* Weight + kg unit suffix */}
+        <View className="flex-1 flex-row items-baseline">
+          <Text
+            className="text-[18px] font-display-semibold text-forge-text-light dark:text-forge-text"
+            style={{ fontVariant: ["tabular-nums"], letterSpacing: -0.3 }}
+          >
+            {set.weight_kg}
+          </Text>
+          <Text className="text-[12px] text-forge-text3-light dark:text-forge-text3 ml-1">
+            {t("kg")}
+          </Text>
+        </View>
+        {/* Reps */}
+        <Text
+          className="flex-1 text-[18px] font-display-semibold text-forge-text-light dark:text-forge-text"
+          style={{ fontVariant: ["tabular-nums"], letterSpacing: -0.3 }}
+        >
+          {set.reps}
         </Text>
-        <Text className="text-base font-normal text-gray-900 dark:text-gray-50 flex-1">
-          {`${set.weight_kg} × ${set.reps}`}
+        {/* RPE — always rendered; muted "–" when null (D-05) */}
+        <Text
+          className="text-[14px] text-forge-text2-light dark:text-forge-text2"
+          style={{ width: 56, fontVariant: ["tabular-nums"] }}
+        >
+          {set.rpe != null ? (
+            String(set.rpe)
+          ) : (
+            <Text className="text-forge-text3-light dark:text-forge-text3">–</Text>
+          )}
         </Text>
+        {/* PR-02/D-13: a PR-at-log-time row swaps the green check for a 24px
+            gradient trophy (replaces, never stacks — the 36px column holds
+            exactly one glyph). A normal row keeps the checkCircle. MOTN-01: the
+            glyph scales 0.8→1 on mount (ungated visual) either way. */}
+        <View style={{ width: 36 }} className="items-center">
+          <Animated.View style={checkStyle}>
+            {isPr ? (
+              <PrTrophy size={24} />
+            ) : (
+              <Icon name="checkCircle" size={20} color={successInk} />
+            )}
+          </Animated.View>
+        </View>
       </Pressable>
-    </ReanimatedSwipeable>
+      {/* Trailing ✕-delete (D-04) — replaces swipe; muted, no confirm */}
+      <Pressable
+        onPress={handleDelete}
+        accessibilityRole="button"
+        accessibilityLabel={t("removeSet")}
+        hitSlop={{ top: 11, bottom: 11, left: 11, right: 11 }}
+        className="items-center justify-center"
+        style={({ pressed }) => (pressed ? { opacity: 0.6 } : null)}
+      >
+        <Icon name="close" size={18} color={deleteInk} strokeWidth={2} />
+      </Pressable>
+    </Animated.View>
   );
 }
 
@@ -704,6 +1227,10 @@ function EditableSetRow({
   set: SetRow;
   onDone: (updated: { weight_kg: number; reps: number } | null) => void;
 }) {
+  const { t } = useTranslation();
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
+  // D-17: RHF + keyboard wiring preserved byte-for-byte; chrome retoken only.
   const {
     control,
     handleSubmit,
@@ -719,9 +1246,9 @@ function EditableSetRow({
   });
 
   return (
-    <View className="flex-row items-center gap-2 bg-white dark:bg-gray-900 rounded-md px-3 py-3">
-      <Text className="text-sm font-semibold text-gray-500 dark:text-gray-400">
-        Set {set.set_number}
+    <View className="flex-row items-center gap-2 bg-forge-surface-light dark:bg-forge-surface border-b border-forge-border-light dark:border-forge-border px-3 py-3">
+      <Text className="text-[13px] font-semibold text-forge-text2-light dark:text-forge-text2">
+        {t("set")} {set.set_number}
       </Text>
       <Controller
         control={control}
@@ -730,19 +1257,19 @@ function EditableSetRow({
           <TextInput
             value={value == null ? "" : String(value)}
             onChangeText={onChange}
-            placeholder="Vikt"
-            placeholderTextColor="#9CA3AF"
+            placeholder={t("weight")}
+            placeholderTextColor="#8B8B8B"
             keyboardType="decimal-pad"
             inputMode="decimal"
             returnKeyType="done"
             autoCorrect={false}
             autoCapitalize="none"
             selectTextOnFocus={true}
-            accessibilityLabel="Vikt i kilo"
-            className={`flex-1 rounded-md bg-white dark:bg-gray-900 border px-3 py-2 text-base text-gray-900 dark:text-gray-50 min-h-[44px] ${
+            accessibilityLabel={t("weight")}
+            className={`flex-1 rounded-forge-md bg-forge-bg-light dark:bg-forge-bg border px-3 py-2 text-base text-forge-text-light dark:text-forge-text min-h-[44px] ${
               error
-                ? "border-red-600 dark:border-red-400"
-                : "border-gray-300 dark:border-gray-700"
+                ? "border-forge-danger-light dark:border-forge-danger"
+                : "border-forge-border-light dark:border-forge-border"
             }`}
           />
         )}
@@ -754,19 +1281,19 @@ function EditableSetRow({
           <TextInput
             value={value == null ? "" : String(value)}
             onChangeText={onChange}
-            placeholder="Reps"
-            placeholderTextColor="#9CA3AF"
+            placeholder={t("reps")}
+            placeholderTextColor="#8B8B8B"
             keyboardType="number-pad"
             inputMode="numeric"
             returnKeyType="done"
             autoCorrect={false}
             autoCapitalize="none"
             selectTextOnFocus={true}
-            accessibilityLabel="Antal repetitioner"
-            className={`flex-1 rounded-md bg-white dark:bg-gray-900 border px-3 py-2 text-base text-gray-900 dark:text-gray-50 min-h-[44px] ${
+            accessibilityLabel={t("reps")}
+            className={`flex-1 rounded-forge-md bg-forge-bg-light dark:bg-forge-bg border px-3 py-2 text-base text-forge-text-light dark:text-forge-text min-h-[44px] ${
               error
-                ? "border-red-600 dark:border-red-400"
-                : "border-gray-300 dark:border-gray-700"
+                ? "border-forge-danger-light dark:border-forge-danger"
+                : "border-forge-border-light dark:border-forge-border"
             }`}
           />
         )}
@@ -777,48 +1304,126 @@ function EditableSetRow({
         )}
         disabled={isSubmitting}
         accessibilityRole="button"
-        accessibilityLabel="Spara redigering"
-        className="w-16 min-h-[44px] rounded-md bg-blue-600 dark:bg-blue-500 items-center justify-center disabled:opacity-60 active:opacity-80"
+        accessibilityLabel={t("done")}
+        className="w-16 min-h-[44px] rounded-forge-md bg-forge-accent-light dark:bg-forge-accent items-center justify-center disabled:opacity-60"
+        style={({ pressed }) => (pressed ? { opacity: 0.85 } : null)}
       >
-        <Text className="text-base font-semibold text-white">Klart</Text>
+        <Text className="text-base font-semibold text-forge-accentText-light dark:text-forge-accentText">
+          {t("done")}
+        </Text>
       </Pressable>
       <Pressable
         onPress={() => onDone(null)}
         accessibilityRole="button"
-        accessibilityLabel="Avbryt redigering"
-        className="px-2 active:opacity-80"
+        accessibilityLabel={t("cancel")}
+        className="px-2"
         hitSlop={8}
+        style={({ pressed }) => (pressed ? { opacity: 0.8 } : null)}
       >
-        <Ionicons name="close-outline" size={20} color="#6B7280" />
+        <Icon
+          name="close"
+          size={20}
+          color={isDark ? "rgba(255,255,255,0.62)" : "#4D4D4D"}
+          strokeWidth={2}
+        />
       </Pressable>
     </View>
   );
 }
 
 // ---------------------------------------------------------------------------
-// LastValueChip — F7 set-position-aligned "Förra: 82.5 × 8" chip
+// ForgeNumField — D-10 set-input field: a 56px accent-bordered cell where the
+// raw TextInput IS the large display value (font-display-semibold, tabular,
+// centered) with a small uppercase unit micro-label underneath (KG/REPS/RPE).
+// The TextInput keeps ALL hot-path keyboard wiring (keyboardType/inputMode/
+// returnKeyType/selectTextOnFocus/autoCorrect/autoCapitalize) — it is restyled
+// in place, NOT swapped to ForgeField (D-17). Box styling (h/radius/border/bg)
+// lives in className per the NativeWind-4 box-decoration rule; only nothing
+// extra is needed in style().
 // ---------------------------------------------------------------------------
 
-function LastValueChip({
-  exerciseId,
-  sessionId,
-  setNumber,
+function ForgeNumField({
+  value,
+  onChangeText,
+  unit,
+  placeholder,
+  keyboardType,
+  inputMode,
+  accessibilityLabel,
+  error,
+  errorMessage,
+  maxLength,
+  small,
+  className,
 }: {
-  exerciseId: string;
-  sessionId: string;
-  setNumber: number;
+  value: string;
+  onChangeText: (text: string) => void;
+  unit: string;
+  placeholder: string;
+  keyboardType: "decimal-pad" | "number-pad";
+  inputMode: "decimal" | "numeric";
+  accessibilityLabel: string;
+  error: boolean;
+  errorMessage?: string;
+  maxLength?: number;
+  small?: boolean;
+  className?: string;
 }) {
-  const { data: lastValueMap } = useLastValueQuery(exerciseId, sessionId);
-  const prev = lastValueMap?.[setNumber];
-  if (!prev) return null; // D-19 — not rendered when no data
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
+  // Field fill: white in light, near-black translucent in dark (ForgeInput
+  // L530-532). Inline because rgba(0,0,0,0.4) is off the Tailwind scale.
+  const fieldBg = isDark ? "rgba(0,0,0,0.4)" : "#FFFFFF";
+  const placeholderInk = isDark ? "rgba(255,255,255,0.38)" : "#8B8B8B";
+
   return (
-    <View className="flex-row items-center gap-1 px-3 py-1 mt-1">
-      <Text className="text-base font-normal text-gray-500 dark:text-gray-400">
-        Förra:
-      </Text>
-      <Text className="text-base font-semibold text-gray-500 dark:text-gray-400">
-        {`${prev.weight_kg} × ${prev.reps}`}
-      </Text>
+    <View className={className} style={small ? { width: 60 } : undefined}>
+      <View
+        className={`h-14 rounded-forge-sm border items-center justify-center ${
+          error
+            ? "border-forge-danger-light dark:border-forge-danger"
+            : "border-forge-accent-light/30 dark:border-forge-accent/30"
+        }`}
+        style={{ backgroundColor: fieldBg }}
+      >
+        <TextInput
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          placeholderTextColor={placeholderInk}
+          keyboardType={keyboardType}
+          inputMode={inputMode}
+          returnKeyType="done"
+          autoCorrect={false}
+          autoCapitalize="none"
+          selectTextOnFocus={true}
+          accessibilityLabel={accessibilityLabel}
+          maxLength={maxLength}
+          textAlign="center"
+          className="w-full text-center font-display-semibold text-forge-text-light dark:text-forge-text p-0"
+          style={{
+            fontSize: small ? 20 : 22,
+            lineHeight: small ? 22 : 24,
+            letterSpacing: -0.6,
+            fontVariant: ["tabular-nums"],
+          }}
+        />
+        <Text
+          className="text-[9.5px] font-semibold uppercase text-forge-text3-light dark:text-forge-text3 mt-0.5"
+          style={{ letterSpacing: 1 }}
+        >
+          {unit}
+        </Text>
+      </View>
+      {error && errorMessage && (
+        <Text
+          className="text-[11px] text-forge-danger-light dark:text-forge-danger mt-1 text-center"
+          accessibilityLiveRegion="polite"
+          numberOfLines={1}
+        >
+          {errorMessage}
+        </Text>
+      )}
     </View>
   );
 }
@@ -834,23 +1439,39 @@ function LastValueChip({
 //   layout primitives; NativeWind retained for the inner card content
 //   where it works reliably.
 //
-// D-23 + PITFALLS §6.6 — the primary "Avsluta" button is accent-blue
+// D-23 + PITFALLS §6.6 / D-16 — the primary "Avsluta" button is ACCENT
 // (NOT red). Finishing a pass is the intended terminal state, not a
 // data-loss action. Red is reserved for the "Avsluta sessionen" button
 // in the draft-resume overlay (Plan 03), where finishing an orphaned
 // draft IS data-loss-adjacent.
+//
+// Plan 11-02 (D-08/D-15/MOTN-04): re-skinned to FFinishOverlay — trophy hero
+// (the overlay's OWN gradient icon, NOT the omitted PR banner), 3-cell
+// client-derived stats row (sets / Σ kg / MM:SS), §07 spring open
+// (backdrop 0→0.5 + card translateY 24→0), inline-rendered (no Modal portal).
 
 function AvslutaOverlay({
   sessionId,
   loggedSetCount,
+  sets,
+  startedAt,
   onCancel,
   onFinish,
 }: {
   sessionId: string;
   loggedSetCount: number;
+  sets: SetRow[];
+  startedAt: string | null;
   onCancel: () => void;
   onFinish: () => void;
 }) {
+  const { t } = useTranslation();
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
+  const accentTextInk = "#FFFFFF";
+  const trophyGrad: [string, string] = isDark
+    ? ["#FF7A2E", "#FF2D55"]
+    : ["#FF7A2E", "#FF3D5E"];
   const finishSession = useFinishSession(sessionId);
   // D-N4: local notes state; nollställs vid unmount (Option A — minimal coupling).
   const [notes, setNotes] = useState<string>("");
@@ -880,15 +1501,49 @@ function AvslutaOverlay({
     };
   }, []);
 
-  const title = "Avsluta passet?";
-  const body =
-    loggedSetCount > 0
-      ? `${loggedSetCount} set sparade. Avsluta passet?`
-      : "Inget set är loggat. Avsluta utan att spara?";
-  const primaryLabel =
-    loggedSetCount > 0 ? "Avsluta" : "Avsluta utan att spara";
+  // D-08: 3-cell stats row, derived CLIENT-SIDE from the sets already loaded
+  // for this session (no new query/aggregate; T-11-04). cell 1 = logged-set
+  // count, cell 2 = Σ weight×reps (kg), cell 3 = MM:SS elapsed since started_at.
+  const totalVolume = sets.reduce(
+    (sum, s) => sum + (s.weight_kg ?? 0) * (s.reps ?? 0),
+    0,
+  );
+  const elapsedMs = startedAt
+    ? Date.now() - new Date(startedAt).getTime()
+    : 0;
+  const elapsedLabel = formatElapsed(elapsedMs);
+  // Volume formatted with a thin space thousands separator (mock "4 820").
+  const volumeLabel = Math.round(totalVolume)
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+
+  const title = t("finishWorkoutQ");
+  // Body copy folds the count + elapsed time (D-08 / Copywriting contract).
+  const body = t("finishBody", { count: loggedSetCount, time: elapsedLabel });
+
+  // MOTN-04 §07 overlay spring: backdrop opacity 0→0.5 + card translateY 24→0
+  // (damping 18, stiffness 220, ~240ms), inline-rendered (no Modal portal,
+  // D-15). Shared values animate on mount; never gate the write.
+  const backdropOpacity = useSharedValue(0);
+  const cardTranslateY = useSharedValue(24);
+  useEffect(() => {
+    backdropOpacity.value = withSpring(0.5, { damping: 18, stiffness: 220 });
+    cardTranslateY.value = withSpring(0, { damping: 18, stiffness: 220 });
+  }, [backdropOpacity, cardTranslateY]);
+  const backdropStyle = useAnimatedStyle(() => ({
+    backgroundColor: `rgba(0,0,0,${backdropOpacity.value})`,
+  }));
+  const cardStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: cardTranslateY.value }],
+  }));
 
   const handleConfirm = () => {
+    // TIMER (Plan 14-04): cancel any pending rest + its scheduled notification
+    // on session-end (RESEARCH §Open Q3 discretion default — no prompt, the
+    // Avsluta overlay already owns its own confirmation). finish() cancels the
+    // stored notification id and clears endTs, so the banner unmounts and no
+    // stale "Vilan är slut" ping fires after the pass is over.
+    useRestTimerStore.getState().finish();
     // mutate (NOT mutateAsync) — Phase 4 commit 5d953b6.
     // D-N3: include notes in payload; trim/null-normalization happens in
     // the ['session','finish'] mutationFn (Task 1 — client.ts).
@@ -914,29 +1569,36 @@ function AvslutaOverlay({
   // resumed or explicitly closed, so backdrop-dismiss there would leave the
   // user in an ambiguous state. UI-SPEC §line 250 (force-decision) vs
   // §line 558 (Avsluta-during-workout, dismissible).
+  const counterWarn = notes.length > 480;
+  const placeholderInk = isDark ? "rgba(255,255,255,0.38)" : "#8B8B8B";
+
   return (
-    <Pressable
-      style={{
-        position: "absolute",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: "rgba(0,0,0,0.5)",
-        alignItems: "center",
-        // D-N1 (revised 2026-05-16, iter 3): center the card normally; only
-        // when the iOS keyboard is up do we switch to flex-end + paddingBottom
-        // = keyboardHeight + 16 so the card lifts exactly above the keyboard.
-        // This avoids the "modal slammed against bottom" look when no input
-        // is focused while still solving the original UAT-blocker.
-        justifyContent: keyboardHeight > 0 ? "flex-end" : "center",
-        paddingHorizontal: 32,
-        paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : 0,
-        zIndex: 2000,
-      }}
+    <AnimatedPressable
+      style={[
+        {
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          alignItems: "center",
+          // D-N1 (revised 2026-05-16, iter 3): center the card normally; only
+          // when the iOS keyboard is up do we switch to flex-end + paddingBottom
+          // = keyboardHeight + 16 so the card lifts exactly above the keyboard.
+          // This avoids the "modal slammed against bottom" look when no input
+          // is focused while still solving the original UAT-blocker.
+          justifyContent: keyboardHeight > 0 ? "flex-end" : "center",
+          paddingHorizontal: 24,
+          paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : 0,
+          zIndex: 2000,
+        },
+        // MOTN-04: animated backdrop opacity 0→0.5 (replaces the static
+        // rgba(0,0,0,0.5)).
+        backdropStyle,
+      ]}
       onPress={onCancel}
       accessibilityRole="button"
-      accessibilityLabel="Stäng dialog"
+      accessibilityLabel={t("closeModal")}
     >
       {/* Inner Pressable claims the touch so backdrop-onPress (onCancel) does
           NOT fire when tapping the card itself (PATTERNS.md landmine #6).
@@ -948,66 +1610,158 @@ function AvslutaOverlay({
         style={{ width: "100%", maxWidth: 400 }}
         onPress={() => Keyboard.dismiss()}
       >
-          <View
-            className="bg-gray-100 dark:bg-gray-800 rounded-2xl p-6"
-            style={{ gap: 16 }}
+        {/* MOTN-04: card translateY 24→0 spring. Box styling in className per
+            the NativeWind-4 rule; only the animated transform + shadow in
+            style(). */}
+        <Animated.View
+          className="rounded-forge-lg p-6 border bg-forge-surface-light dark:bg-forge-surface2 border-forge-borderStrong-light dark:border-forge-borderStrong"
+          style={[
+            cardStyle,
+            {
+              gap: 0,
+              shadowColor: "#000000",
+              shadowOffset: { width: 0, height: 24 },
+              shadowOpacity: 0.4,
+              shadowRadius: 48,
+            },
+          ]}
+        >
+          {/* Trophy hero — the overlay's OWN gradient icon block (NOT the
+              omitted PR banner). 52px rounded gradient tile + trophy. */}
+          <LinearGradient
+            colors={trophyGrad}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{
+              width: 52,
+              height: 52,
+              borderRadius: 16,
+              alignItems: "center",
+              justifyContent: "center",
+              marginBottom: 16,
+            }}
           >
-            <View style={{ gap: 8 }}>
-              <Text
-                className="text-2xl font-semibold text-gray-900 dark:text-gray-50"
-                accessibilityRole="header"
-              >
-                {title}
-              </Text>
-              <Text className="text-base text-gray-900 dark:text-gray-50">
-                {body}
-              </Text>
-            </View>
-            {/* D-N2: multi-line notes TextInput + char-counter */}
-            <TextInput
-              value={notes}
-              onChangeText={setNotes}
-              placeholder="Anteckningar (valfri)"
-              placeholderTextColor="#9CA3AF"
-              multiline
-              numberOfLines={3}
-              maxLength={500}
-              style={{ minHeight: 80, maxHeight: 160 }}
-              textAlignVertical="top"
-              accessibilityLabel="Anteckningar för passet, valfri"
-              className="rounded-md bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 px-3 py-2 text-base text-gray-900 dark:text-gray-50"
-            />
-            {/* Counter: always visible; flips to red when > 480 (D-N2 warning threshold) */}
-            <Text
-              className={`text-sm text-right ${notes.length > 480 ? "text-red-600 dark:text-red-400" : "text-gray-500 dark:text-gray-400"}`}
-            >
-              {`${notes.length}/500`}
-            </Text>
-            <View className="flex-row gap-3">
-              <Pressable
-                onPress={onCancel}
-                accessibilityRole="button"
-                accessibilityLabel="Fortsätt passet"
-                className="flex-1 py-4 rounded-lg bg-gray-200 dark:bg-gray-700 items-center justify-center active:opacity-80"
-              >
-                <Text className="text-base font-semibold text-gray-900 dark:text-gray-50">
-                  Fortsätt
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={handleConfirm}
-                accessibilityRole="button"
-                accessibilityLabel={primaryLabel}
-                className="flex-1 py-4 rounded-lg bg-blue-600 dark:bg-blue-500 items-center justify-center active:opacity-80"
-              >
-                <Text className="text-base font-semibold text-white">
-                  {primaryLabel}
-                </Text>
-              </Pressable>
-            </View>
+            <Icon name="trophy" size={24} color="#FFFFFF" strokeWidth={2.2} />
+          </LinearGradient>
+
+          <Text
+            className="text-[26px] font-display-bold text-forge-text-light dark:text-forge-text"
+            style={{ letterSpacing: -0.8 }}
+            accessibilityRole="header"
+          >
+            {title}
+          </Text>
+          <Text
+            className="text-[15px] text-forge-text2-light dark:text-forge-text2 mt-2 mb-[18px]"
+            style={{ lineHeight: 21, letterSpacing: -0.1 }}
+          >
+            {body}
+          </Text>
+
+          {/* D-N2: multi-line notes TextInput + char-counter (PRESERVED) */}
+          <TextInput
+            value={notes}
+            onChangeText={setNotes}
+            placeholder={t("notesPlaceholder")}
+            placeholderTextColor={placeholderInk}
+            multiline
+            numberOfLines={3}
+            maxLength={500}
+            style={{ minHeight: 80, maxHeight: 160 }}
+            textAlignVertical="top"
+            accessibilityLabel={t("notes")}
+            className="rounded-forge-sm bg-forge-bg-light dark:bg-forge-bg border border-forge-border-light dark:border-forge-border px-3.5 py-3 text-[15px] text-forge-text-light dark:text-forge-text"
+          />
+          {/* Counter: always visible; flips to danger when > 480 */}
+          <Text
+            className={`text-[11px] text-right mt-1.5 mb-[18px] ${counterWarn ? "text-forge-danger-light dark:text-forge-danger" : "text-forge-text3-light dark:text-forge-text3"}`}
+            style={{ fontVariant: ["tabular-nums"] }}
+          >
+            {`${notes.length}/500`}
+          </Text>
+
+          {/* D-08: 3-cell client-derived stats row (FFOStat) */}
+          <View className="flex-row mb-5" style={{ gap: 8 }}>
+            <FinishStat value={String(loggedSetCount)} label={t("sets")} />
+            <FinishStat value={volumeLabel} label={t("kg")} />
+            <FinishStat value={elapsedLabel} label={t("time")} />
           </View>
+
+          {/* Buttons — neutral "Fortsätt" (surface3) + accent "Avsluta"
+              (D-16, NOT red) with leading check. */}
+          <View className="flex-row" style={{ gap: 10 }}>
+            <Pressable
+              onPress={onCancel}
+              accessibilityRole="button"
+              accessibilityLabel={t("continue")}
+              className="flex-1 h-[52px] rounded-forge-md items-center justify-center bg-forge-surface3-light dark:bg-forge-surface3"
+              style={({ pressed }) => (pressed ? { opacity: 0.8 } : null)}
+            >
+              <Text
+                className="text-[15px] font-semibold text-forge-text-light dark:text-forge-text"
+                style={{ letterSpacing: -0.2 }}
+              >
+                {t("continue")}
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={handleConfirm}
+              accessibilityRole="button"
+              accessibilityLabel={t("finish")}
+              className="flex-1 h-[52px] rounded-forge-md flex-row items-center justify-center gap-2 bg-forge-accent-light dark:bg-forge-accent"
+              style={({ pressed }) => [
+                {
+                  // NativeWind-4 rule: flex/box sizing MUST be in className
+                  // (flex-1 above), NOT here — flexGrow/flexBasis in this
+                  // style() callback render NAKED and the button collapsed to
+                  // content width + clipped past the card edge (device UAT).
+                  // style() keeps ONLY shadow + pressed opacity.
+                  shadowColor: isDark ? "#FF5A1F" : "#E14E10",
+                  shadowOffset: { width: 0, height: 6 },
+                  shadowOpacity: 0.4,
+                  shadowRadius: 16,
+                },
+                pressed ? { opacity: 0.85 } : null,
+              ]}
+            >
+              <Icon
+                name="check"
+                size={16}
+                color={accentTextInk}
+                strokeWidth={2.4}
+              />
+              <Text
+                className="text-[15px] font-semibold text-forge-accentText-light dark:text-forge-accentText"
+                style={{ letterSpacing: -0.2 }}
+              >
+                {t("finish")}
+              </Text>
+            </Pressable>
+          </View>
+        </Animated.View>
       </Pressable>
-    </Pressable>
+    </AnimatedPressable>
+  );
+}
+
+// FinishStat — D-08 single stat cell (FFOStat): centered display numeral +
+// uppercase micro-label. Box styling in className.
+function FinishStat({ value, label }: { value: string; label: string }) {
+  return (
+    <View className="flex-1 py-2.5 rounded-forge-sm items-center border bg-forge-bg-light dark:bg-forge-bg border-forge-border-light dark:border-forge-border">
+      <Text
+        className="text-[18px] font-display-bold text-forge-text-light dark:text-forge-text"
+        style={{ letterSpacing: -0.4, lineHeight: 20, fontVariant: ["tabular-nums"] }}
+      >
+        {value}
+      </Text>
+      <Text
+        className="text-[9px] font-bold uppercase text-forge-text3-light dark:text-forge-text3 mt-1"
+        style={{ letterSpacing: 0.8 }}
+      >
+        {label}
+      </Text>
+    </View>
   );
 }
 

@@ -1,5 +1,13 @@
 # ARCHITECTURE — Gym Tracker
 
+> **Currency note (2026-06-17).** This is the locked stack/schema **decision register** (§2 stack, §4 datamodell, §10 beslutsregister) — those sections are authoritative and change only via explicit revision (see CLAUDE.md). A few descriptive sections have drifted from the shipped code and should be read with these corrections:
+> - **§3 Mappstruktur** is the early V1 sketch. The real, current structure (the `(app)`/`(auth)` route groups, the Forge `components/ui/` library, `lib/` modules, `locales/`) is documented in [`app/README.md`](./app/README.md).
+> - **§4 Datamodell** transcribes migration `0001` verbatim. The schema has since taken additive migrations through `0012` (e.g. `profiles.weekly_goal`, `exercises.seed_key`, `workout_sessions.plan_name_snapshot`, plus read-side dashboard/PR RPCs in `0011`/`0012`). The 6 base tables + RLS model below are unchanged.
+> - **§7 Offline-strategi** is labelled "(V1.5)" and says "V1: kräver internet" — **this is superseded**: offline-first (F13) was bumped Bör→Måste and shipped in **V1.0** (TanStack Query mutation queue + `resumePausedMutations`; verified by `npm run test:f13-brutal`).
+> - **§6 Auth** "Apple Sign-In i V1.1" → now deferred to the App Store milestone (FIT-45).
+>
+> For shipped state see [`.planning/MILESTONES.md`](./.planning/MILESTONES.md) and [`.planning/PROJECT.md`](./.planning/PROJECT.md).
+
 ## 1. Översikt på hög nivå
 
 ```

@@ -71,6 +71,60 @@
 
 ---
 
+## Milestone: v2.0 — Forge Redesign
+
+**Shipped:** 2026-06-17
+**Phases:** 8 (8-15) | **Plans:** 41 | **Tasks:** ~70 | **Commits:** 338 (9 days, 2026-06-09 → 2026-06-17)
+
+### What Was Built
+
+- A full UI rewrite to the "Forge" design system (premium, Apple-Fitness DNA, dark/light parity, orange accent) across every screen + the 3 session overlays, on `tailwind.config.js` tokens via the `forge-<token>-light` base + `dark:` sibling pattern.
+- Self-hosted type system (Inter Display + Inter + JetBrains Mono) via expo-font with a splash gate; static→animated Skia ProgressRing + Sparkline (no new charting dependency); a Forge component library (Button/Field/Card/Stat/Chip/SettingsRow).
+- A new Settings screen + preference layer: units (kg/lbs, canonical-kg storage + display conversion), weekly goal (`profiles.weekly_goal`), language, haptics/notifications toggles, theme; live language switching (no restart) via a three-state resolver.
+- A Home activity-ring dashboard (sessions-this-week vs goal, streak, weekly volume + delta, sparkline) backed by RLS-scoped SECURITY-INVOKER read-side RPCs (migrations 0011/0012); animated ring fill + chart draw-on-mount.
+- Offline-safe PR celebration: client-side Epley e1RM (`app/lib/e1rm.ts`), in-workout trophy + gradient-sweep banner, read-side PR surfacing; PR-at-log-time flagged via a strictly-prior SQL window frame. No persisted `is_pr` column.
+- A rest timer that survives backgrounding by re-deriving from a stored `endTs` + a DATE-trigger local notification; fail-soft notifications wrapper + Zustand store with cancel-before-reschedule on every transition.
+- Complete bilingual sv/en with a CI i18n-coverage gate (`check-i18n-coverage.ts`) + `__DEV__` missing-key handler → zero missing keys; a release-candidate device UAT across 12 screens × 4 language/theme combos, approved on real iPhone hardware.
+
+### What Worked
+
+- **Infrastructure-first sequencing.** Building tokens + fonts + i18n scaffold + component library in Phase 8 before touching any screen meant Phases 9–15 inherited dark-mode, locale, and components for free. Zero per-screen design-system rework.
+- **F13 brutal-test as an unbroken regression gate through a UI rewrite.** Every re-skin phase (esp. the high-risk Phase 11 active-workout re-skin) ran `npm run test:f13-brutal` as a BLOCKING gate. The "never lose a set" guarantee survived a full UI rewrite untouched.
+- **Inline-overlay UX carried from v1.0.** Reusing the "no Modal portals" pattern for finish/draft-resume/saved-toast/PR-banner/rest-banner kept the hot-path write surface and gesture/freezeOnBlur behavior coherent through five new overlays.
+- **Pure-module + reactive-store discipline.** Pure Node-importable cores (`e1rm.ts`, `rest-timer.ts`, `resolve-language.ts`) gave DB-free unit tests; reactive Zustand stores (`units-store`, `rest-timer-store`, no persist) made live cross-screen pref changes work without restart.
+- **Device UAT caught real regressions.** Phase 12's three gap-closure plans (FIT-109 stale ring, FIT-110 dropped chart cross-link, FIT-111 non-reactive units) and Phase 13's FIT-116 (ephemeral PR trophies) were all device-UAT discoveries, not code-review/verifier findings.
+
+### What Was Inefficient
+
+- **The NativeWind box-decoration-via-className gotcha cost two separate bugs.** Phase 10's "naked re-skin" (Pressable box styling in a `style()` callback renders naked under NativeWind 4) and Phase 15's rest-banner two-line wrap (FIT-128) share the exact same root cause. It was learned twice before becoming a documented rule. Should have been a plan-time PATTERNS landmine after the first occurrence.
+- **REQUIREMENTS.md traceability drifted again.** SKIN-01 + SET-01..09 sat at "Pending" the entire milestone despite shipping in Phase 9; the table was last touched at initial definition (2026-06-09) and corrected only at archive. Same class of bug flagged in the v1.0 retro — the `phase.complete` auto-flip improvement still isn't in place.
+- **Verification/UAT file statuses never flipped after the Phase 15 RC sweep.** The Phase 15 release-candidate device UAT (12×4 combos) functionally subsumed the `human_needed` device checks in 09/11/13/14, but those per-file statuses stayed `human_needed` — surfacing as 6 "open" artifacts at milestone close that had to be acknowledged-and-deferred. A closing sweep should reconcile subsumed per-phase verification files.
+- **No second physical-iPhone pass for Phase 14.** TIMER-03 background-ping / tap-route / single-push checks (8 scenarios in `14-UAT.md`) were deferred for lack of a device session; covered functionally by the fail-soft design + the Phase 15 sweep, but left as formal debt.
+
+### Patterns Established
+
+- **Token-driven dark/light parity** (`forge-<token>-light` base + `dark:` sibling `forge-<token>` DEFAULT) — every screen inherits dark-mode without per-screen logic.
+- **NativeWind box-decoration MUST live in `className`** — `style()` is for shadow/opacity only; NativeWind 4 drops box props (bg/border/radius/size) on Pressable.
+- **Reactive Zustand store (no persist) for live cross-screen prefs** — `units-store` / `rest-timer-store`; a Settings change re-renders all consumers immediately.
+- **Offline-safe derived features compute from local/persisted state + absolute timestamps** — never from network or JS intervals (PR detection; rest countdown).
+- **RLS-scoped SECURITY-INVOKER read-side RPCs** with `search_path=''`, finished-only, `set_type='working'` for all dashboard/chart/PR aggregates; no cross-user aggregation.
+
+### Key Lessons
+
+1. **Infrastructure-first is the right shape for a re-skin.** One foundation phase amortized across seven later phases beat re-deriving tokens/i18n/components per screen.
+2. **A strong regression gate lets you rewrite the UI fearlessly.** F13 brutal-test green-before-every-phase made the high-risk active-workout re-skin a non-event.
+3. **A learned gotcha must become a plan-time landmine immediately, or it recurs.** The NativeWind className rule cost two bugs because it wasn't promoted to a pre-flight check after the first.
+4. **Stale doc/verification state is still a class of bug.** Two milestones running, the same drift (requirements checkboxes + verification statuses) needed manual reconciliation at close. The `phase.complete` auto-flip is overdue.
+5. **Device UAT remains irreplaceable** — every meaningful v2.0 regression was a device finding, not an automated-gate finding.
+
+### Cost Observations
+
+- Model mix: planning + execution predominantly Opus (config `model_profile: "quality"`, `executor_model`/`planner_model: "opus"`).
+- Sessions: ~1+ GSD session per phase (8 phases; data-heavy Phase 12 spanned multiple sessions incl. 3 gap-closure plans).
+- Notable: the 11-plan Phase 12 (read-side + dashboard + 3 UAT gap-closures) was the milestone's center of mass; the foundation phase (8) front-loaded cost that paid back across all later phases.
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -78,13 +132,18 @@
 | Milestone | Sessions | Phases | Plans | Key Change |
 |-----------|----------|--------|-------|------------|
 | v1.0      | ~7       | 7      | 33    | Initial GSD adoption + per-phase HUMAN-UAT for UI-heavy phases + FIFO scope contract established |
+| v2.0      | ~10+     | 8      | 41    | Infrastructure-first re-skin; token-driven dark/light parity; reactive Zustand stores; CI i18n-coverage gate; F13 gate held through a full UI rewrite |
 
 ### Cumulative Quality
 
 | Milestone | STRIDE threats SECURED | RLS assertions | F13 brutal-test status | Linear bugs at close |
 |-----------|------------------------|----------------|------------------------|----------------------|
 | v1.0      | 79 (across phases 2–7) | 30+ (extends every user-scoped-table phase) | green every phase | 0 (FIT-6 + FIT-5 closed in close-out) |
+| v2.0      | per-phase threats_open: 0 (3 new migrations 0010/0011/0012, all RLS-paired) | extended for weekly_goal + seed_key + dashboard/PR RPCs (cross-user) | green every phase; amber at close on FIT-107 fixture precondition only (not a regression) | 0 open bugs; 6 deferred verification/UAT artifacts acknowledged (device-observation, RC-sweep-subsumed) |
 
 ### Top Lessons (Verified Across Milestones)
 
-1. *(Pending V1.1 to verify cross-milestone)* — initial v1.0 lessons captured above; will be verified when V1.1 ships.
+1. **Stale doc/verification state is a recurring class of bug.** Both v1.0 and v2.0 needed manual reconciliation of requirements checkboxes (and, in v2.0, per-phase verification statuses) at close. The `phase.complete` auto-flip improvement is now twice-justified.
+2. **Device/HUMAN-UAT catches what automated gates miss — every milestone.** v1.0's keyboard-blocking bug and v2.0's FIT-109/110/111/116 were all device findings, not code-review/verifier/tsc findings.
+3. **A strong always-green regression gate (F13 brutal-test) compounds in value.** It protected the offline-write path across both an MVP build (v1.0) and a full UI rewrite (v2.0) with zero regressions to the guarantee.
+4. **Locked stack pins with rationale keep paying off** — v2.0 added react-i18next / expo-notifications / react-native-svg without disturbing the NativeWind-4↔Tailwind-3 / Skia-2↔React-19 pin web.

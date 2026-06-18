@@ -118,6 +118,154 @@ async function main() {
     process.exit(1);
   }
 
+  // -------------------------------------------------------------------------
+  // Phase 12 (Migration 0011) — assert both new aggregate RPC functions exist
+  // with SECURITY INVOKER (prosecdef = false) and search_path = '' (proconfig
+  // contains 'search_path=' substring). Same pg_proc check shape as Phase 6
+  // (D-23). These are the deploy-side locks for get_dashboard_summary +
+  // get_exercise_summary (DASH-05 / SKIN-06).
+  // -------------------------------------------------------------------------
+  console.log("\n=== Phase 12 RPC verification (Migration 0011) ===");
+  const phase12Functions = ["get_dashboard_summary", "get_exercise_summary"];
+  let phase12Failures = 0;
+  for (const fname of phase12Functions) {
+    const rows = await sql`
+      select proname, prosecdef, proconfig
+      from pg_proc
+      where pronamespace = 'public'::regnamespace
+        and proname = ${fname}
+    `;
+    if (rows.length === 0) {
+      console.log(`  FAIL: ${fname} — function not deployed`);
+      phase12Failures += 1;
+      continue;
+    }
+    const row = rows[0];
+    const cfg = Array.isArray(row.proconfig) ? row.proconfig.join(",") : (row.proconfig ?? "");
+    const hasSecurityInvoker = row.prosecdef === false;
+    const hasSearchPath = cfg.includes("search_path=");
+    if (hasSecurityInvoker && hasSearchPath) {
+      console.log(`  PASS: ${fname} — SECURITY INVOKER + search_path set`);
+    } else {
+      console.log(
+        `  FAIL: ${fname} — prosecdef=${row.prosecdef} proconfig=[${cfg}]`,
+      );
+      phase12Failures += 1;
+    }
+  }
+  if (phase12Failures > 0) {
+    console.error(
+      `\nPhase 12 verify-deploy FAILED — ${phase12Failures} function(s) missing or misconfigured`,
+    );
+    await sql.end();
+    process.exit(1);
+  }
+
+  // -------------------------------------------------------------------------
+  // Phase 13 RPC verification (Migration 0012) — assert all four new read-only
+  // PR RPCs exist with SECURITY INVOKER (prosecdef = false) and search_path = ''
+  // (proconfig contains 'search_path=' substring). Same pg_proc check shape as
+  // Phase 12. These are the deploy-side locks for get_exercise_pr_history +
+  // get_best_working_sets + get_exercise_sets_in_range + get_session_pr_flags
+  // (PR-01 / PR-04 / PR-05 — T-13-01 RLS inheritance + T-13-02 search_path).
+  // -------------------------------------------------------------------------
+  console.log("\n=== Phase 13 RPC verification (Migration 0012) ===");
+  const phase13Functions = [
+    "get_exercise_pr_history",
+    "get_best_working_sets",
+    "get_exercise_sets_in_range",
+    "get_session_pr_flags",
+  ];
+  let phase13Failures = 0;
+  for (const fname of phase13Functions) {
+    const rows = await sql`
+      select proname, prosecdef, proconfig
+      from pg_proc
+      where pronamespace = 'public'::regnamespace
+        and proname = ${fname}
+    `;
+    if (rows.length === 0) {
+      console.log(`  FAIL: ${fname} — function not deployed`);
+      phase13Failures += 1;
+      continue;
+    }
+    const row = rows[0];
+    const cfg = Array.isArray(row.proconfig) ? row.proconfig.join(",") : (row.proconfig ?? "");
+    const hasSecurityInvoker = row.prosecdef === false;
+    const hasSearchPath = cfg.includes("search_path=");
+    if (hasSecurityInvoker && hasSearchPath) {
+      console.log(`  PASS: ${fname} — SECURITY INVOKER + search_path set`);
+    } else {
+      console.log(
+        `  FAIL: ${fname} — prosecdef=${row.prosecdef} proconfig=[${cfg}]`,
+      );
+      phase13Failures += 1;
+    }
+  }
+  if (phase13Failures > 0) {
+    console.error(
+      `\nPhase 13 verify-deploy FAILED — ${phase13Failures} function(s) missing or misconfigured`,
+    );
+    await sql.end();
+    process.exit(1);
+  }
+
+  // -------------------------------------------------------------------------
+  // Phase 10 (Migration 0010) — assert the two additive columns landed AND the
+  // workout_sessions → workout_plans FK is still ON DELETE SET NULL
+  // (confdeltype = 'n'). D-06 + D-11. These are the regression locks for the
+  // hard-delete history-readability contract.
+  // -------------------------------------------------------------------------
+  console.log("\n=== Phase 10 schema verification (Migration 0010) ===");
+  let phase10Failures = 0;
+
+  const columnChecks: { table: string; column: string }[] = [
+    { table: "exercises", column: "seed_key" },
+    { table: "workout_sessions", column: "plan_name_snapshot" },
+  ];
+  for (const { table, column } of columnChecks) {
+    const rows = await sql`
+      select column_name
+      from information_schema.columns
+      where table_schema = 'public'
+        and table_name = ${table}
+        and column_name = ${column}
+    `;
+    if (rows.length === 1) {
+      console.log(`  PASS: public.${table}.${column} exists`);
+    } else {
+      console.log(`  FAIL: public.${table}.${column} — column not deployed`);
+      phase10Failures += 1;
+    }
+  }
+
+  // FK ON DELETE SET NULL — confdeltype 'n' = SET NULL (vs 'c' CASCADE, 'a' NO ACTION).
+  const fkRows = await sql`
+    select conname, confdeltype
+    from pg_constraint
+    where conrelid = 'public.workout_sessions'::regclass
+      and contype = 'f'
+      and conname = 'workout_sessions_plan_id_fkey'
+  `;
+  if (fkRows.length === 1 && fkRows[0].confdeltype === "n") {
+    console.log(
+      "  PASS: workout_sessions_plan_id_fkey is ON DELETE SET NULL (confdeltype='n')",
+    );
+  } else {
+    console.log(
+      `  FAIL: workout_sessions_plan_id_fkey confdeltype=${fkRows[0]?.confdeltype ?? "MISSING"} (expected 'n')`,
+    );
+    phase10Failures += 1;
+  }
+
+  if (phase10Failures > 0) {
+    console.error(
+      `\nPhase 10 verify-deploy FAILED — ${phase10Failures} schema assertion(s) failed`,
+    );
+    await sql.end();
+    process.exit(1);
+  }
+
   console.log("\n=== ENUMs in public ===");
   const enums = await sql`
     select t.typname, array_agg(e.enumlabel order by e.enumsortorder) as labels

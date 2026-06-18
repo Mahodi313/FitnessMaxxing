@@ -238,7 +238,10 @@ async function main() {
 
   const { data: exB, error: exBErr } = await clientB
     .from("exercises")
-    .insert({ user_id: userB.id, name: "rls-test-b-bench-press" })
+    // Phase 10 D-06: seed B's exercise WITH a seed_key so the cross-user
+    // assertions below prove the column is covered by the column-agnostic
+    // own-row RLS (A can neither read nor write B's seed_key).
+    .insert({ user_id: userB.id, name: "rls-test-b-bench-press", seed_key: "bench_press" })
     .select()
     .single();
   if (exBErr || !exB) throw new Error(`Seed B exercises failed: ${exBErr?.message}`);
@@ -291,6 +294,39 @@ async function main() {
     .single();
   if (exAErr || !exA) throw new Error(`Seed A exercise failed: ${exAErr?.message}`);
 
+  // ---- Phase 10 CR-01 regression — per-user starter-seed ids -----------------
+  // The original first-run seed hardcoded ONE global UUID per seed_key, so the
+  // first user to seed claimed the id and every later user's upsert hit
+  // `ON CONFLICT (id) DO NOTHING` → zero starter exercises, silently. The fix
+  // derives the id PER USER (deterministicUUID(`…:${userId}:${seed_key}`)). exB
+  // already holds seed_key='bench_press' for user B; user A seeding the SAME
+  // seed_key (its own row) MUST succeed with a DISTINCT id.
+  {
+    const aBench = await clientA
+      .from("exercises")
+      .insert({
+        user_id: userA.id,
+        name: "rls-test-a-bench-press",
+        seed_key: "bench_press",
+      })
+      .select()
+      .single();
+    if (aBench.error || !aBench.data) {
+      fail(
+        "CR-01: A CAN seed its own bench_press while B already holds one",
+        { error: aBench.error },
+      );
+    } else if (aBench.data.id === exB.id) {
+      fail("CR-01: A's bench_press reused B's id (global-id regression)", {
+        id: aBench.data.id,
+      });
+    } else {
+      pass(
+        "CR-01: two users hold seed_key='bench_press' with distinct ids (no PK collision)",
+      );
+    }
+  }
+
   // =========================================================================
   // ASSERTION BATTERY — clientA against User B's namespace
   // =========================================================================
@@ -305,6 +341,31 @@ async function main() {
     "A cannot UPDATE B's profile (display_name)",
     await clientA.from("profiles").update({ display_name: "hacked" }).eq("id", userB.id).select(),
   );
+  // Phase 9 (0007): weekly_goal is covered by the same own-row update policy.
+  // Cross-user write must be blocked (BOLA / API1 — T-09-03).
+  assertWriteBlocked(
+    "A cannot UPDATE B's profile (weekly_goal)",
+    await clientA.from("profiles").update({ weekly_goal: 7 }).eq("id", userB.id).select(),
+  );
+  // Own-row weekly_goal update MUST succeed (positive path — confirms the policy
+  // is permissive for the owner, not deny-all).
+  {
+    const ownGoal = await clientA
+      .from("profiles")
+      .update({ weekly_goal: 5 })
+      .eq("id", userA.id)
+      .select();
+    if (ownGoal.error) {
+      fail("A CAN UPDATE own profile (weekly_goal)", { error: ownGoal.error });
+    } else if (ownGoal.data && ownGoal.data.length === 1) {
+      pass("A CAN UPDATE own profile (weekly_goal)");
+    } else {
+      fail("A CAN UPDATE own profile (weekly_goal)", {
+        reason: "expected 1 row returned",
+        got: ownGoal.data?.length ?? 0,
+      });
+    }
+  }
   // (no INSERT/DELETE assertion on profiles — handle_new_user owns inserts; deletes cascade from auth.users)
 
   // ---- exercises ---------------------------------------------------------
@@ -327,6 +388,21 @@ async function main() {
   assertWriteBlocked(
     "A cannot DELETE B's exercise",
     await clientA.from("exercises").delete().eq("id", exB.id).select(),
+  );
+  // Phase 10 D-06 (T-10-01): the column-agnostic own-row RLS must cover the new
+  // seed_key column. A's SELECT of B's seed_key row returns empty, and A's
+  // UPDATE of seed_key on B's row is blocked.
+  assertEmpty(
+    "A cannot SELECT B's exercise seed_key (Phase 10 D-06)",
+    await clientA.from("exercises").select("seed_key").eq("id", exB.id),
+  );
+  assertWriteBlocked(
+    "A cannot UPDATE seed_key on B's exercise (Phase 10 D-06)",
+    await clientA
+      .from("exercises")
+      .update({ seed_key: "hacked_key" })
+      .eq("id", exB.id)
+      .select(),
   );
 
   // ---- workout_plans -----------------------------------------------------
@@ -929,6 +1005,372 @@ async function main() {
       pass(
         "Phase 6 extension: A's get_exercise_top_sets on B's exercise returns empty (RLS-filtered)",
       );
+    }
+  }
+
+  // =========================================================================
+  // Phase 12 extension (Migration 0011) — cross-user assertions, ONE per new
+  // read-only aggregate RPC (D-23). Threat-register IDs T-12-01, T-12-02.
+  // Both RPCs are SECURITY INVOKER → the caller's JWT flows into the 0001 RLS
+  // policies, so B's data must NEVER surface in A's aggregates.
+  // =========================================================================
+  console.log(
+    "[test-rls] Phase 12 extension — dashboard + exercise summary RPCs cross-user gates…",
+  );
+
+  // Seed a FINISHED session + working set for User B so the finished-only
+  // dashboard aggregate has B-data that COULD leak if RLS were broken. (B's
+  // baseline sessB above is unfinished, so it never reaches a finished-only
+  // aggregate — this finished one is the real leak bait.)
+  const sessBFinishedId = randomUUID();
+  {
+    const { error } = await clientB.from("workout_sessions").insert({
+      id: sessBFinishedId,
+      user_id: userB.id,
+      plan_id: planB.id,
+      started_at: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+      finished_at: new Date().toISOString(),
+    });
+    if (error) throw new Error(`seed B finished session: ${error.message}`);
+  }
+  {
+    const { error } = await clientB.from("exercise_sets").insert({
+      session_id: sessBFinishedId,
+      exercise_id: exB.id,
+      set_number: 1,
+      reps: 8,
+      weight_kg: 80,
+      rpe: 8,
+      set_type: "working",
+    });
+    if (error) throw new Error(`seed B finished set: ${error.message}`);
+  }
+
+  // ---- get_dashboard_summary cross-user RPC (T-12-01) ----------------------
+  // A calls it: A has NO finished sessions, so every aggregate must be zero.
+  // If B's finished session/volume inflated A's totals, RLS is broken.
+  {
+    const { data: dashAsA, error: dashErr } =
+      await clientA.rpc("get_dashboard_summary", { p_tz: "Europe/Stockholm" });
+    const rowA = dashAsA?.[0];
+    if (dashErr) {
+      fail("Phase 12 extension: get_dashboard_summary RPC returned error for A", {
+        error: dashErr,
+      });
+    } else if (!rowA) {
+      fail("Phase 12 extension: get_dashboard_summary returned no row for A", {
+        dashAsA,
+      });
+    } else if (
+      Number(rowA.lifetime_sessions) !== 0 ||
+      Number(rowA.sessions_this_week) !== 0 ||
+      Number(rowA.volume_this_week_kg) !== 0
+    ) {
+      fail("Phase 12 extension: A's get_dashboard_summary leaked B's finished session", {
+        lifetime_sessions: rowA.lifetime_sessions,
+        sessions_this_week: rowA.sessions_this_week,
+        volume_this_week_kg: rowA.volume_this_week_kg,
+      });
+    } else {
+      pass(
+        "Phase 12 extension: A's get_dashboard_summary reflects only A's data (B's finished session not surfaced)",
+      );
+    }
+  }
+
+  // ---- get_exercise_summary cross-user RPC (T-12-02) -----------------------
+  // A calls it with B's exercise_id — RLS on exercise_sets + workout_sessions
+  // scopes via parent-FK EXISTS, so every figure must be empty/zero/null.
+  {
+    const { data: summAsA, error: summErr } =
+      await clientA.rpc("get_exercise_summary", {
+        p_exercise_id: exB.id,
+        p_metric: "weight",
+        p_since: null as unknown as string,
+      });
+    const rowS = summAsA?.[0];
+    if (summErr) {
+      fail("Phase 12 extension: get_exercise_summary RPC returned error for A on B's exercise", {
+        error: summErr,
+      });
+    } else if (
+      rowS &&
+      (rowS.current_best != null ||
+        rowS.top_set_weight_kg != null ||
+        rowS.vol_per_session_kg != null ||
+        rowS.avg_rpe != null)
+    ) {
+      fail("Phase 12 extension: A's get_exercise_summary leaked B's exercise data", {
+        row: rowS,
+      });
+    } else {
+      pass(
+        "Phase 12 extension: A's get_exercise_summary on B's exercise returns empty/null (RLS-filtered)",
+      );
+    }
+  }
+
+  // =========================================================================
+  // Phase 13 extension (Migration 0012) — cross-user isolation per new read-only
+  // PR RPC + was_pr / has_pr correctness on a seeded A-owned progression
+  // fixture. Threat-register IDs T-13-01 (RLS inheritance). All four RPCs are
+  // SECURITY INVOKER → the caller's JWT flows into the 0001 RLS policies, so B's
+  // data must NEVER surface in A's results. (CLAUDE.md "cross-user verification
+  // is a gate".)
+  // =========================================================================
+  console.log(
+    "[test-rls] Phase 13 extension — PR RPC cross-user gates + was_pr/has_pr correctness…",
+  );
+
+  // ---- get_exercise_pr_history cross-user RPC (T-13-01) --------------------
+  // A calls it with B's exercise_id — RLS on exercise_sets + workout_sessions
+  // scopes via parent-FK EXISTS, so result is empty (not error).
+  {
+    const { data: prHistAsA, error: prHistErr } =
+      await clientA.rpc("get_exercise_pr_history", { p_exercise_id: exB.id });
+    if (prHistErr) {
+      fail(
+        "Phase 13 extension: get_exercise_pr_history RPC returned error for A on B's exercise",
+        { error: prHistErr },
+      );
+    } else if (prHistAsA && prHistAsA.length > 0) {
+      fail(
+        "Phase 13 extension: A's get_exercise_pr_history leaked B's exercise sets",
+        { count: prHistAsA.length },
+      );
+    } else {
+      pass(
+        "Phase 13 extension: A's get_exercise_pr_history on B's exercise returns empty (RLS-filtered)",
+      );
+    }
+  }
+
+  // ---- get_exercise_sets_in_range cross-user RPC (T-13-01) -----------------
+  {
+    const { data: rangeAsA, error: rangeErr } =
+      await clientA.rpc("get_exercise_sets_in_range", {
+        p_exercise_id: exB.id,
+        p_since: null as unknown as string,
+      });
+    if (rangeErr) {
+      fail(
+        "Phase 13 extension: get_exercise_sets_in_range RPC returned error for A on B's exercise",
+        { error: rangeErr },
+      );
+    } else if (rangeAsA && rangeAsA.length > 0) {
+      fail(
+        "Phase 13 extension: A's get_exercise_sets_in_range leaked B's exercise sets",
+        { count: rangeAsA.length },
+      );
+    } else {
+      pass(
+        "Phase 13 extension: A's get_exercise_sets_in_range on B's exercise returns empty (RLS-filtered)",
+      );
+    }
+  }
+
+  // ---- get_session_pr_flags cross-user RPC (T-13-01) ----------------------
+  // A passes B's session_ids — the ranked CTE only ever sees A's own sets
+  // (INVOKER RLS), so B's sessions return ZERO rows for A (not an error).
+  {
+    const { data: flagsAsA, error: flagsErr } =
+      await clientA.rpc("get_session_pr_flags", {
+        p_session_ids: [sessB.id, sessBFinishedId],
+      });
+    if (flagsErr) {
+      fail(
+        "Phase 13 extension: get_session_pr_flags RPC returned error for A on B's sessions",
+        { error: flagsErr },
+      );
+    } else if (
+      flagsAsA?.some(
+        (r: { session_id: string }) =>
+          r.session_id === sessB.id || r.session_id === sessBFinishedId,
+      )
+    ) {
+      fail(
+        "Phase 13 extension: A's get_session_pr_flags leaked B's session flags",
+        { rows: flagsAsA },
+      );
+    } else {
+      pass(
+        "Phase 13 extension: A's get_session_pr_flags on B's session_ids returns no B rows (RLS-filtered)",
+      );
+    }
+  }
+
+  // ---- get_best_working_sets cross-user RPC (T-13-01) ---------------------
+  // No args — A's result must contain none of B's exercise ids (B's finished
+  // session/set was seeded above as leak bait).
+  {
+    const { data: bestAsA, error: bestErr } =
+      await clientA.rpc("get_best_working_sets");
+    if (bestErr) {
+      fail(
+        "Phase 13 extension: get_best_working_sets RPC returned error for A",
+        { error: bestErr },
+      );
+    } else if (
+      bestAsA?.some((r: { exercise_id: string }) => r.exercise_id === exB.id)
+    ) {
+      fail(
+        "Phase 13 extension: A's get_best_working_sets leaked B's exercise",
+        { exBId: exB.id, rows: bestAsA },
+      );
+    } else {
+      pass(
+        "Phase 13 extension: A's get_best_working_sets contains none of B's exercises (RLS-filtered)",
+      );
+    }
+  }
+
+  // ---- was_pr / has_pr correctness on a seeded A-owned progression --------
+  // Seed ONE A-owned exercise across THREE finished sessions:
+  //   S1 (oldest):  100 kg × 5  → e1RM 116.67 → first set → was_pr = false (D-02)
+  //   S2 (middle):  110 kg × 5  → e1RM 128.33 > 116.67    → was_pr = true  (D-05 strict >)
+  //   S3 (newest):  110 kg × 5  → e1RM 128.33 (TIE)       → was_pr = false (D-05 tie is NOT a PR)
+  // Then get_session_pr_flags([S1,S2,S3]) → S1=false, S2=true, S3=false (D-14:
+  // a session has_pr iff ANY of its working sets was_pr). All fixtures are
+  // A-owned (seeded via clientA) so they are cleaned up by the user-cascade in
+  // the finally block (FK on delete cascade purges the sessions + sets).
+  {
+    const { data: prExA, error: prExErr } = await clientA
+      .from("exercises")
+      .insert({ user_id: userA.id, name: "rls-test-a-pr-progression" })
+      .select()
+      .single();
+    if (prExErr || !prExA) throw new Error(`seed A PR-fixture exercise: ${prExErr?.message}`);
+
+    // Three finished sessions, chronologically separated so completed_at orders
+    // them deterministically (S1 oldest → S3 newest).
+    const now = Date.now();
+    const sessionSpecs = [
+      { startOffsetMin: 180, weight_kg: 100, reps: 5 }, // S1 baseline
+      { startOffsetMin: 120, weight_kg: 110, reps: 5 }, // S2 higher (PR)
+      { startOffsetMin: 60, weight_kg: 110, reps: 5 }, // S3 tie (no PR)
+    ];
+    const sessionIds: string[] = [];
+    for (const spec of sessionSpecs) {
+      const sid = randomUUID();
+      const startedAt = new Date(now - spec.startOffsetMin * 60 * 1000);
+      const finishedAt = new Date(now - (spec.startOffsetMin - 30) * 60 * 1000);
+      {
+        const { error } = await clientA.from("workout_sessions").insert({
+          id: sid,
+          user_id: userA.id,
+          plan_id: null,
+          started_at: startedAt.toISOString(),
+          finished_at: finishedAt.toISOString(),
+        });
+        if (error) throw new Error(`seed A PR-fixture session: ${error.message}`);
+      }
+      {
+        const { error } = await clientA.from("exercise_sets").insert({
+          session_id: sid,
+          exercise_id: prExA.id,
+          set_number: 1,
+          reps: spec.reps,
+          weight_kg: spec.weight_kg,
+          set_type: "working",
+          completed_at: finishedAt.toISOString(),
+        });
+        if (error) throw new Error(`seed A PR-fixture set: ${error.message}`);
+      }
+      sessionIds.push(sid);
+    }
+    const [s1, s2, s3] = sessionIds;
+
+    // (i) get_exercise_pr_history was_pr correctness (chronological order).
+    {
+      const { data: hist, error: histErr } = await clientA.rpc(
+        "get_exercise_pr_history",
+        { p_exercise_id: prExA.id },
+      );
+      if (histErr) {
+        fail("Phase 13 extension: get_exercise_pr_history errored on A's fixture", {
+          error: histErr,
+        });
+      } else if (!hist || hist.length !== 3) {
+        fail("Phase 13 extension: get_exercise_pr_history returned wrong row count", {
+          count: hist?.length,
+        });
+      } else {
+        // hist is ordered by completed_at asc → [baseline, higher, tie].
+        const [r1, r2, r3] = hist as { was_pr: boolean }[];
+        if (r1.was_pr === false && r2.was_pr === true && r3.was_pr === false) {
+          pass(
+            "Phase 13 extension: was_pr = [false(baseline,D-02), true(higher,D-05), false(tie,D-05)]",
+          );
+        } else {
+          fail("Phase 13 extension: was_pr sequence incorrect", {
+            was_pr: [r1.was_pr, r2.was_pr, r3.was_pr],
+          });
+        }
+      }
+    }
+
+    // (ii) get_session_pr_flags has_pr consistency with the per-set engine.
+    {
+      const { data: flags, error: flagsErr } = await clientA.rpc(
+        "get_session_pr_flags",
+        { p_session_ids: [s1, s2, s3] },
+      );
+      if (flagsErr) {
+        fail("Phase 13 extension: get_session_pr_flags errored on A's fixture", {
+          error: flagsErr,
+        });
+      } else {
+        const byId = new Map(
+          (flags as { session_id: string; has_pr: boolean }[]).map((r) => [
+            r.session_id,
+            r.has_pr,
+          ]),
+        );
+        if (
+          byId.get(s1) === false &&
+          byId.get(s2) === true &&
+          byId.get(s3) === false
+        ) {
+          pass(
+            "Phase 13 extension: get_session_pr_flags has_pr = S1:false, S2:true, S3:false (D-14)",
+          );
+        } else {
+          fail("Phase 13 extension: get_session_pr_flags has_pr incorrect", {
+            s1: byId.get(s1),
+            s2: byId.get(s2),
+            s3: byId.get(s3),
+          });
+        }
+      }
+    }
+
+    // (iii) get_best_working_sets returns the all-time best for A's fixture
+    //       exercise (110 × 5 — the heavier set, not the 100 baseline).
+    {
+      const { data: best, error: bestErr } = await clientA.rpc(
+        "get_best_working_sets",
+      );
+      const row = (best as { exercise_id: string; weight_kg: number; reps: number }[] | null)?.find(
+        (r) => r.exercise_id === prExA.id,
+      );
+      if (bestErr) {
+        fail("Phase 13 extension: get_best_working_sets errored on A's fixture", {
+          error: bestErr,
+        });
+      } else if (!row) {
+        fail("Phase 13 extension: get_best_working_sets missing A's fixture exercise", {
+          best,
+        });
+      } else if (Number(row.weight_kg) === 110 && Number(row.reps) === 5) {
+        pass(
+          "Phase 13 extension: get_best_working_sets returns A's all-time best (110 × 5, D-06)",
+        );
+      } else {
+        fail("Phase 13 extension: get_best_working_sets returned wrong best set", {
+          weight_kg: row.weight_kg,
+          reps: row.reps,
+        });
+      }
     }
   }
 

@@ -103,6 +103,9 @@ type UpdateVars = {
   archived_at?: string | null;
 };
 type ArchiveVars = { id: string };
+// Phase 10 D-11: hard-delete a plan (vs archive's soft-delete). The mutationFn
+// + optimistic/onSettled logic lives in lib/query/client.ts ['plan','delete'].
+type DeleteVars = { id: string };
 
 // useCreatePlan accepts no planId — the new plan's id IS the scope identifier.
 // The hook reads vars.id for scope grouping with chained child mutations
@@ -126,6 +129,17 @@ export function useUpdatePlan(planId?: string) {
 export function useArchivePlan(planId?: string) {
   return useMutation<PlanRow, Error, ArchiveVars>({
     mutationKey: ["plan", "archive"] as const,
+    scope: planId ? { id: `plan:${planId}` } : undefined,
+  });
+}
+
+// useDeletePlan — Phase 10 D-11 hard-delete. Static scope baked at construction
+// (SP-3 — TanStack v5 scope.id must be a static string; no function-shaped
+// scope). Pass planId so the delete groups FIFO with any in-flight plan-scoped
+// mutation. The mutationFn + cache logic live in lib/query/client.ts.
+export function useDeletePlan(planId?: string) {
+  return useMutation<void, Error, DeleteVars>({
+    mutationKey: ["plan", "delete"] as const,
     scope: planId ? { id: `plan:${planId}` } : undefined,
   });
 }

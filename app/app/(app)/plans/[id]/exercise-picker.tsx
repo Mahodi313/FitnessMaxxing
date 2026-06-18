@@ -1,40 +1,49 @@
 // app/app/(app)/plans/[id]/exercise-picker.tsx
 //
-// Phase 4 Plan 03 Task 2: Exercise-add sheet (modal route).
+// Phase 10 Plan 03 (SKIN-03 / I18N-05): Forge re-skin of the exercise picker
+// → FExercisePicker (browse) + FExercisePickerNew (inline create-new).
+// (forge-screens.jsx FExercisePicker line 1215, FExercisePickerNew line 1334.)
 //
-// Two states on a single screen:
-//   1. Default — search input + "+ Skapa ny övning" toggle button + filtered
-//      list of useExercisesQuery() results (client-side .filter() per
-//      UI-SPEC §"Exercise search implementation"). Tapping a row optimistically
-//      inserts a plan_exercises row and dismisses the modal.
-//   2. Create-form — same screen, search/list hidden; replaced with an
-//      inline RHF form (name, muscle_group, equipment, notes) +
-//      "Skapa & lägg till" CTA + "Avbryt" text link that returns to default
-//      state (does NOT dismiss the sheet — Avbryt-as-back is the modal-close
-//      auto-rendered by Expo Router 6 presentation: 'modal').
+// Two states on one modal screen:
+//   1. Browse (FExercisePicker) — modal header (Stäng dismiss + centered title),
+//      48-tall search field with inline magnifier, a single-select muscle-group
+//      filter-pill row (D-04: Alla + 5 D-01 keys), a dashed create-new CTA, and
+//      the bilingual exercise list. Tapping a row's + add-button inserts a
+//      plan_exercises row with null targets and dismisses (add-now-set-later,
+//      D-14). The filtered memo AND-combines the active group with the displayed
+//      (translated) name search (D-05).
+//   2. Create-new (FExercisePickerNew) — name ForgeField (raw, D-16) +
+//      muscle-group dropdown (D-01 — emits one of the 5 keys) + free-text
+//      equipment ForgeField (stored as written, D-02) + multiline notes. Submit
+//      chains create→add under the shared scope.id='plan:<planId>' (FK-safe
+//      offline replay). `← Tillbaka` returns to browse.
 //
-// Chained-create-and-add flow (RESEARCH §5 — load-bearing for FK safety on
-// offline replay):
-//   - useCreateExercise(planId) BAKES scope.id='plan:<planId>' into the
-//     mutation hook instance. This is the v5-correct way to share scope
-//     across mutations — the planner's <interfaces> block phrased it as
-//     "meta.scopeOverride" but Plan 01's actual hook signature accepts
-//     planId directly. The intent is identical: both subsequent
-//     useAddExerciseToPlan(planId) and the chained useCreateExercise(planId)
-//     mutations carry scope.id='plan:<planId>', so on reconnect the create
-//     replays BEFORE the add (FK ordering preserved).
+// Bilingual display rule (Plan 01/02): a row with seed_key !== null renders
+//   displayName = t('exercise.'+seed_key+'.name'); equipment = t('equip.'+equipment)
+//   else displayName = row.name (raw); equipment = row.equipment (raw).
 //
-// Why no meta.scopeOverride here: TanStack v5's MutationScope.id is a
-// STATIC string read at runtime — there is no per-mutate dynamic scope.
-// scopeOverride was a planner-side abstraction; the implementation surface
-// it maps to is `useCreateExercise(planId)` (Plan 04-01 SUMMARY auto-fix
-// Rule 1 documents this correction).
+// Chained-create-and-add (RESEARCH §5 — load-bearing for FK safety on offline
+// replay): useCreateExercise(planId) + useAddExerciseToPlan(planId) BOTH bake
+// scope.id='plan:<planId>' so on reconnect the create replays BEFORE the add.
+// Fire with .mutate(payload, { onError }) NOT mutateAsync — paused offline
+// mutations never resolve the awaitable (SP-2 / Phase-4 UAT 2026-05-10).
+//
+// Modal patterns (Phase 4 locked / 10-UI-SPEC §Modal & overlay): own
+// GestureHandlerRootView wrapper with a theme-aware backdrop (the root wrapper
+// in app/_layout.tsx does not propagate into iOS modal UIViewControllers).
+//
+// Optical values (10-UI-SPEC §Spacing — NativeWind 4 / Tailwind 3 purges
+// off-scale arbitrary classes, so these are inline style={{}} numbers,
+// Pitfall 3): search 48 tall radius 14; filter pill padding 6×12 radius 18 gap 6;
+// create-new CTA padding 12×16 radius 14 dashed; row icon tile 36×36 radius 10;
+// row add-button 30×30 radius 15; mg-dropdown 56 tall; notes minHeight 92.
 //
 // References:
-//   - 04-CONTEXT.md D-13
-//   - 04-UI-SPEC.md §"Exercise-add sheet"
-//   - 04-RESEARCH.md §5
-//   - 04-01-SUMMARY.md "scope.id correction" + Plan 04-01 hook signatures
+//   - app/design v2/Sources/design/forge-screens.jsx FExercisePicker (1215) + FExercisePickerNew (1334)
+//   - .planning/phases/10-plans-exercises-re-skin/10-UI-SPEC.md §Interaction Contract / §Copywriting
+//   - 10-PATTERNS.md SP-2/SP-5/SP-6/SP-8 + picker assignment
+//   - app/app/(app)/plans/[id]/exercise/[planExerciseId]/edit.tsx (Forge re-skin idiom)
+//   - app/lib/muscle-group.ts (resolveMuscleGroupKey)
 
 import { useState, useMemo } from "react";
 import {
@@ -43,21 +52,30 @@ import {
   TextInput,
   Pressable,
   FlatList,
+  ScrollView,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
 } from "react-native";
 import { useColorScheme } from "nativewind";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useTranslation } from "react-i18next";
+import Svg, { Path, Circle } from "react-native-svg";
+
+import { Icon, ForgeButton } from "@/components/ui";
 import {
   exerciseFormSchema,
+  MUSCLE_GROUP_KEYS,
   type ExerciseFormInput,
+  type ExerciseRow,
 } from "@/lib/schemas/exercises";
+import {
+  resolveMuscleGroupKey,
+  type MuscleGroupKey,
+} from "@/lib/muscle-group";
 import { useExercisesQuery, useCreateExercise } from "@/lib/queries/exercises";
 import {
   useAddExerciseToPlan,
@@ -66,33 +84,115 @@ import {
 import { useAuthStore } from "@/lib/auth-store";
 import { randomUUID } from "@/lib/utils/uuid";
 
+// ── Forge token hexes (light / dark) ────────────────────────────────────────
+// Mirror the tailwind.config forge.* token pairs verbatim (10-UI-SPEC §Color),
+// for the inline-style optical containers + Icon strokes (the same split the
+// edit modal + ForgeButton use). Class-driven surfaces still use token classes.
+const TOKENS = {
+  light: {
+    text: "#0A0A0A",
+    text2: "#4D4D4D",
+    text3: "#8B8B8B",
+    bg: "#FAFAF7",
+    surface: "#FFFFFF",
+    surface2: "#F2F1EC",
+    accent: "#E14E10",
+    accentText: "#FFFFFF",
+    accentSoft: "rgba(225,78,16,0.10)",
+    border: "rgba(0,0,0,0.07)",
+    borderStrong: "rgba(0,0,0,0.14)",
+    danger: "#D70015",
+  },
+  dark: {
+    text: "#FFFFFF",
+    text2: "rgba(255,255,255,0.62)",
+    text3: "rgba(255,255,255,0.38)",
+    bg: "#000000",
+    surface: "#0E0E10",
+    surface2: "#18181B",
+    accent: "#FF5A1F",
+    accentText: "#FFFFFF",
+    accentSoft: "rgba(255,90,31,0.14)",
+    border: "rgba(255,255,255,0.08)",
+    borderStrong: "rgba(255,255,255,0.14)",
+    danger: "#FF453A",
+  },
+} as const;
+
+// Capitalize a D-01 key for the `mg<Key>` locale lookup (chest → mgChest).
+function mgLabelKey(key: MuscleGroupKey): string {
+  return `mg${key.charAt(0).toUpperCase()}${key.slice(1)}`;
+}
+
+// Inline magnifier SVG — there is no named `search` icon (10-UI-SPEC §Icon;
+// matches FExercisePicker line 1245 + Phase 9 search-field precedent).
+function MagnifierIcon({ color }: { color: string }) {
+  return (
+    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+      <Circle cx="11" cy="11" r="7" stroke={color} strokeWidth={1.8} />
+      <Path
+        d="M21 21l-4.3-4.3"
+        stroke={color}
+        strokeWidth={1.8}
+        strokeLinecap="round"
+      />
+    </Svg>
+  );
+}
+
 export default function ExercisePicker() {
   const router = useRouter();
+  const { t } = useTranslation();
   const { id: planId } = useLocalSearchParams<{ id: string }>();
   const userId = useAuthStore((s) => s.session?.user.id);
   const { colorScheme } = useColorScheme();
-  const isDark = colorScheme === "dark";
-  const accent = isDark ? "#60A5FA" : "#2563EB";
+  const tk = TOKENS[colorScheme === "dark" ? "dark" : "light"];
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeGroup, setActiveGroup] = useState<MuscleGroupKey | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [bannerError, setBannerError] = useState<string | null>(null);
 
   const { data: exercises } = useExercisesQuery();
   const { data: planExercises } = usePlanExercisesQuery(planId!);
 
-  // BOTH mutations carry scope.id='plan:<planId>' — see file header for the
-  // scopeOverride contract. useCreateExercise(planId) baking the scope is the
-  // canonical implementation of the planner's "meta.scopeOverride" intent.
+  // BOTH mutations carry scope.id='plan:<planId>' (set on the hook instances)
+  // so on offline replay the create lands BEFORE the add (FK safety, RESEARCH §5).
   const createExercise = useCreateExercise(planId);
   const addExerciseToPlan = useAddExerciseToPlan(planId!);
 
+  // Bilingual display name: seed rows via t('exercise.<seed_key>.name'); user
+  // rows render their raw name verbatim (D-16). Used by BOTH the search filter
+  // (search matches the TRANSLATED name, D-05) and the list-row label.
+  const displayName = (e: ExerciseRow): string =>
+    e.seed_key
+      ? t(`exercise.${e.seed_key}.name`, { defaultValue: e.name })
+      : e.name;
+
+  // Bilingual equipment: seed rows via t('equip.<equipment>'); user rows raw.
+  const displayEquipment = (e: ExerciseRow): string | null => {
+    if (!e.equipment) return null;
+    return e.seed_key
+      ? t(`equip.${e.equipment}`, { defaultValue: e.equipment })
+      : e.equipment;
+  };
+
+  // AND-combine the active group filter (D-04) with the displayed-name search
+  // (D-05). resolveMuscleGroupKey is total (never throws on legacy data).
   const filtered = useMemo(() => {
-    const q = searchQuery.toLowerCase().trim();
     if (!exercises) return [];
-    if (!q) return exercises;
-    return exercises.filter((e) => e.name.toLowerCase().includes(q));
-  }, [exercises, searchQuery]);
+    const q = searchQuery.toLowerCase().trim();
+    return exercises.filter(
+      (e) =>
+        (!activeGroup ||
+          resolveMuscleGroupKey(e.muscle_group) === activeGroup) &&
+        (!q || displayName(e).toLowerCase().includes(q)),
+    );
+    // displayName is stable per-render (depends only on `t`); exercises +
+    // searchQuery + activeGroup are the real inputs. `t` is referenced through
+    // displayName; the i18n instance is stable so omitting it is safe.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exercises, searchQuery, activeGroup, t]);
 
   const maxOrderIndex = useMemo(() => {
     if (!planExercises || planExercises.length === 0) return -1;
@@ -102,6 +202,7 @@ export default function ExercisePicker() {
     );
   }, [planExercises]);
 
+  // Tapping a row's + : insert plan_exercises with null targets + dismiss (D-14).
   const onPickExisting = (exerciseId: string) => {
     if (!planId) return;
     addExerciseToPlan.mutate({
@@ -113,6 +214,7 @@ export default function ExercisePicker() {
     router.back();
   };
 
+  // ── Create-new form (RHF + zod; muscle_group constrained to the 5 D-01 keys) ─
   const {
     control,
     handleSubmit,
@@ -121,22 +223,20 @@ export default function ExercisePicker() {
   } = useForm<ExerciseFormInput>({
     resolver: zodResolver(exerciseFormSchema),
     mode: "onSubmit",
-    defaultValues: { name: "", muscle_group: "", equipment: "", notes: "" },
+    defaultValues: { name: "", muscle_group: null, equipment: "", notes: "" },
   });
 
   const onCreateAndAdd = (input: ExerciseFormInput) => {
     if (!userId || !planId) {
-      setBannerError("Du måste vara inloggad.");
+      setBannerError(t("errorNotSignedIn"));
       return;
     }
     setBannerError(null);
     const exerciseId = randomUUID();
     // Both mutations share scope.id='plan:<planId>' (set on hook instances).
-    // TanStack v5 serializes mutations within a scope, so on offline replay
-    // create lands BEFORE add (FK safety per RESEARCH §5). Firing both with
-    // mutate (not mutateAsync) returns immediately so we can router.back()
-    // even when offline — UAT 2026-05-10 regression: mutateAsync stalled
-    // "Skapa & lägg till" forever in airplane mode.
+    // Fire with .mutate (NOT mutateAsync) so router.back() lands immediately
+    // even offline — mutateAsync stalls forever on paused mutations (SP-2).
+    // User-created → seed_key omitted (NULL on the wire → raw render, D-16).
     createExercise.mutate(
       {
         id: exerciseId,
@@ -146,7 +246,7 @@ export default function ExercisePicker() {
         equipment: input.equipment ?? null,
         notes: input.notes ?? null,
       },
-      { onError: () => setBannerError("Något gick fel. Försök igen.") },
+      { onError: () => setBannerError(t("errorGeneric")) },
     );
     addExerciseToPlan.mutate({
       id: randomUUID(),
@@ -158,243 +258,735 @@ export default function ExercisePicker() {
     router.back();
   };
 
-  return (
-    // Modal screens are presented in a separate native UIViewController on
-    // iOS, which does NOT inherit the root <GestureHandlerRootView> from
-    // app/_layout.tsx. Each modal must wrap its own content. UAT 2026-05-10:
-    // tapping "Lägg till övning" threw "GestureDetector must be used as a
-    // descendant of GestureHandlerRootView" until this wrapper landed.
-    // https://docs.swmansion.com/react-native-gesture-handler/docs/fundamentals/installation
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaView className="flex-1 bg-white dark:bg-gray-900">
-        <Stack.Screen
-          options={{
-            presentation: "modal",
-            title: "Lägg till övning",
-            headerShown: true,
-          }}
-        />
-      <KeyboardAvoidingView
-        className="flex-1"
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
-        {showCreateForm ? (
-          <ScrollView
-            contentContainerStyle={{
-              paddingHorizontal: 16,
-              paddingVertical: 24,
-              gap: 24,
-            }}
-            keyboardShouldPersistTaps="handled"
-          >
-            <Text className="text-2xl font-semibold text-gray-900 dark:text-gray-50">
-              Ny övning
-            </Text>
+  const dismissCreate = () => {
+    setShowCreateForm(false);
+    reset();
+    setBannerError(null);
+  };
 
-            {bannerError && (
-              <View className="flex-row items-start justify-between gap-2">
-                <Text
-                  className="flex-1 text-base text-red-600 dark:text-red-400"
-                  accessibilityLiveRegion="polite"
+  return (
+    // Modal screens need their own GestureHandlerRootView with a theme-aware
+    // backdrop (the root wrapper does not propagate into iOS modal
+    // UIViewControllers — Phase 4 UAT 2026-05-10). SP-8.
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: tk.bg }}>
+      <SafeAreaView className="flex-1 bg-forge-bg-light dark:bg-forge-bg">
+        <Stack.Screen
+          options={{ presentation: "modal", headerShown: false }}
+        />
+
+        {/* Modal header — Stäng (dismiss, accent) + centered title (browse:
+            Lägg till övning; create: Ny övning). Create mode shows ← Tillbaka
+            instead of Stäng so the back affordance returns to browse. */}
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            paddingHorizontal: 16,
+            paddingVertical: 8,
+            minHeight: 44,
+          }}
+        >
+          <Pressable
+            onPress={showCreateForm ? dismissCreate : () => router.back()}
+            accessibilityRole="button"
+            accessibilityLabel={showCreateForm ? t("back") : t("closeModal")}
+            hitSlop={8}
+            style={({ pressed }) => (pressed ? { opacity: 0.6 } : null)}
+          >
+            <Text
+              style={{
+                fontSize: 16,
+                fontWeight: "600",
+                color: tk.accent,
+                letterSpacing: -0.2,
+              }}
+            >
+              {showCreateForm ? t("back") : t("closeModal")}
+            </Text>
+          </Pressable>
+
+          <Text
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              textAlign: "center",
+              fontSize: 15,
+              fontWeight: "600",
+              color: tk.text,
+              letterSpacing: -0.2,
+            }}
+            pointerEvents="none"
+          >
+            {showCreateForm ? t("createExercise") : t("addExercise")}
+          </Text>
+
+          {/* Spacer to balance the header so the title stays centered. */}
+          <View style={{ width: 56 }} pointerEvents="none" />
+        </View>
+
+        <KeyboardAvoidingView
+          className="flex-1"
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
+          {showCreateForm ? (
+            // ── FExercisePickerNew — inline create-new form ────────────────
+            <ScrollView
+              contentContainerStyle={{
+                paddingHorizontal: 16,
+                paddingTop: 12,
+                paddingBottom: 32,
+                gap: 20,
+              }}
+              keyboardShouldPersistTaps="handled"
+            >
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontWeight: "400",
+                  color: tk.text3,
+                  lineHeight: 17,
+                }}
+              >
+                {t("createExerciseSub")}
+              </Text>
+
+              {bannerError ? (
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "flex-start",
+                    justifyContent: "space-between",
+                    gap: 8,
+                  }}
                 >
-                  {bannerError}
-                </Text>
-                <Pressable
-                  onPress={() => setBannerError(null)}
-                  accessibilityRole="button"
-                  accessibilityLabel="Stäng"
-                  className="px-2 py-1"
-                  hitSlop={8}
-                >
-                  <Text className="text-base font-semibold text-red-600 dark:text-red-400">
-                    ✕
+                  <Text
+                    accessibilityLiveRegion="polite"
+                    style={{
+                      flex: 1,
+                      fontSize: 14,
+                      fontWeight: "600",
+                      color: tk.danger,
+                    }}
+                  >
+                    {bannerError}
                   </Text>
+                  <Pressable
+                    onPress={() => setBannerError(null)}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("closeModal")}
+                    hitSlop={8}
+                    style={({ pressed }) => (pressed ? { opacity: 0.6 } : null)}
+                  >
+                    <Icon name="close" size={16} color={tk.danger} strokeWidth={2} />
+                  </Pressable>
+                </View>
+              ) : null}
+
+              {/* Name (raw, D-16) — barbell icon */}
+              <FieldBlock label={t("name")} tk={tk}>
+                <Controller
+                  control={control}
+                  name="name"
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <ForgeFieldRow
+                      tk={tk}
+                      icon="barbell"
+                      value={value ?? ""}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                      placeholder={t("name")}
+                      error={!!errors.name}
+                      accessibilityLabel={t("name")}
+                    />
+                  )}
+                />
+                {errors.name ? (
+                  <FieldError tk={tk}>{errors.name.message}</FieldError>
+                ) : null}
+              </FieldBlock>
+
+              {/* Muscle-group dropdown (D-01 — emits one of the 5 keys) */}
+              <FieldBlock label={t("muscleGroup")} tk={tk}>
+                <Controller
+                  control={control}
+                  name="muscle_group"
+                  render={({ field: { onChange, value } }) => (
+                    <MuscleGroupDropdown
+                      tk={tk}
+                      value={(value as MuscleGroupKey | null) ?? null}
+                      onChange={onChange}
+                      placeholder={t("selectMuscleGroup")}
+                      labelFor={(k) => t(mgLabelKey(k))}
+                    />
+                  )}
+                />
+                {errors.muscle_group ? (
+                  <FieldError tk={tk}>{errors.muscle_group.message}</FieldError>
+                ) : null}
+              </FieldBlock>
+
+              {/* Equipment free-text (stored as written, D-02) — scale icon */}
+              <FieldBlock label={t("equipment")} tk={tk}>
+                <Controller
+                  control={control}
+                  name="equipment"
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <ForgeFieldRow
+                      tk={tk}
+                      icon="scale"
+                      value={value ?? ""}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                      placeholder={t("equipmentPlaceholder")}
+                      error={!!errors.equipment}
+                      accessibilityLabel={t("equipment")}
+                    />
+                  )}
+                />
+                {errors.equipment ? (
+                  <FieldError tk={tk}>{errors.equipment.message}</FieldError>
+                ) : null}
+              </FieldBlock>
+
+              {/* Notes multiline (raw, D-16) */}
+              <FieldBlock
+                label={`${t("notes")} ${t("optional")}`}
+                tk={tk}
+              >
+                <Controller
+                  control={control}
+                  name="notes"
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <View
+                      style={{
+                        minHeight: 92,
+                        borderRadius: 14,
+                        backgroundColor: tk.surface,
+                        borderWidth: 1,
+                        borderColor: errors.notes ? tk.danger : tk.border,
+                        paddingHorizontal: 16,
+                        paddingVertical: 12,
+                      }}
+                    >
+                      <TextInput
+                        value={value ?? ""}
+                        onChangeText={onChange}
+                        onBlur={onBlur}
+                        placeholder={t("notesPlaceholder")}
+                        placeholderTextColor={tk.text3}
+                        multiline
+                        textAlignVertical="top"
+                        accessibilityLabel={t("notes")}
+                        style={{
+                          flex: 1,
+                          fontSize: 14,
+                          color: tk.text,
+                          lineHeight: 20,
+                          letterSpacing: -0.1,
+                          minHeight: 68,
+                        }}
+                      />
+                    </View>
+                  )}
+                />
+                {errors.notes ? (
+                  <FieldError tk={tk}>{errors.notes.message}</FieldError>
+                ) : null}
+              </FieldBlock>
+
+              {/* Submit — chains create→add under shared scope (SP-2 .mutate).
+                  ForgeButton primitive (box decoration via className) so the
+                  accent fill renders under NativeWind 4. */}
+              <ForgeButton
+                label={t("createAndAdd")}
+                icon="plus"
+                iconPosition="trailing"
+                variant="primary"
+                size="lg"
+                fullWidth
+                loading={isSubmitting}
+                onPress={handleSubmit(onCreateAndAdd)}
+              />
+            </ScrollView>
+          ) : (
+            // ── FExercisePicker — browse (search + filter pills + list) ─────
+            <View style={{ flex: 1 }}>
+              {/* Search field (48 tall, inline magnifier) */}
+              <View style={{ paddingHorizontal: 16, paddingTop: 4 }}>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 8,
+                    height: 48,
+                    borderRadius: 14,
+                    backgroundColor: tk.surface,
+                    borderWidth: 1,
+                    borderColor: tk.border,
+                    paddingHorizontal: 14,
+                  }}
+                >
+                  <MagnifierIcon color={tk.text3} />
+                  <TextInput
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    placeholder={t("searchExercise")}
+                    placeholderTextColor={tk.text3}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    accessibilityLabel={t("searchExercise")}
+                    style={{
+                      flex: 1,
+                      fontSize: 16,
+                      color: tk.text,
+                      letterSpacing: -0.2,
+                    }}
+                  />
+                </View>
+              </View>
+
+              {/* Filter-pill row (D-04 — single-select: Alla + 5 D-01 keys).
+                  `flexGrow:0` + `alignSelf:flex-start` pin the horizontal
+                  ScrollView to its content height — without them RN stretches a
+                  horizontal ScrollView vertically inside a flex-column parent and
+                  clips the pills (device UAT 2026-06-12, IMG_1049). */}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={{ flexGrow: 0, flexShrink: 0, alignSelf: "stretch" }}
+                contentContainerStyle={{
+                  paddingHorizontal: 16,
+                  paddingVertical: 12,
+                  gap: 6,
+                  alignItems: "center",
+                }}
+              >
+                <FilterPill
+                  tk={tk}
+                  label={t("mgAll")}
+                  active={activeGroup === null}
+                  onPress={() => setActiveGroup(null)}
+                />
+                {MUSCLE_GROUP_KEYS.map((key) => (
+                  <FilterPill
+                    key={key}
+                    tk={tk}
+                    label={t(mgLabelKey(key))}
+                    active={activeGroup === key}
+                    // Tapping the active pill clears (back to Alla); else select.
+                    onPress={() =>
+                      setActiveGroup((prev) => (prev === key ? null : key))
+                    }
+                  />
+                ))}
+              </ScrollView>
+
+              {/* Create-new CTA (dashed accent border + accent plus tile) */}
+              <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
+                <Pressable
+                  onPress={() => setShowCreateForm(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("createExercise")}
+                  className="flex-row items-center gap-3 py-3 px-4 rounded-forge-md border border-dashed border-forge-accent-light dark:border-forge-accent bg-forge-accentSoft-light dark:bg-forge-accentSoft"
+                  style={({ pressed }) => (pressed ? { opacity: 0.85 } : null)}
+                >
+                  <View
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 10,
+                      backgroundColor: tk.accent,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Icon name="plus" size={18} color={tk.accentText} strokeWidth={2.2} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={{
+                        fontSize: 15,
+                        fontWeight: "600",
+                        color: tk.accent,
+                        letterSpacing: -0.2,
+                      }}
+                    >
+                      {t("createExercise")}
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        fontWeight: "400",
+                        color: tk.text2,
+                        marginTop: 1,
+                      }}
+                    >
+                      {t("createExerciseSub")}
+                    </Text>
+                  </View>
                 </Pressable>
               </View>
-            )}
 
-            {/* Four Controller-wrapped fields: name (required), muscle_group,
-                equipment, notes. Iterating over a tuple keeps the form layout
-                consistent and the labels/placeholders co-located with their
-                fields per UI-SPEC §"Inline create-form". */}
-            {(["name", "muscle_group", "equipment", "notes"] as const).map(
-              (fieldName) => {
-                const labels: Record<typeof fieldName, string> = {
-                  name: "Namn",
-                  muscle_group: "Muskelgrupp",
-                  equipment: "Utrustning",
-                  notes: "Anteckningar",
-                };
-                const placeholders: Record<typeof fieldName, string> = {
-                  name: "t.ex. Bänkpress",
-                  muscle_group: "t.ex. Bröst",
-                  equipment: "t.ex. Skivstång",
-                  notes: "(valfritt)",
-                };
-                const isMultiline = fieldName === "notes";
-                return (
-                  <Controller
-                    key={fieldName}
-                    control={control}
-                    name={fieldName}
-                    render={({ field: { onChange, onBlur, value } }) => (
-                      <View className="gap-2">
-                        <Text className="text-sm font-semibold text-gray-900 dark:text-gray-50">
-                          {labels[fieldName]}
-                        </Text>
-                        <TextInput
-                          value={value ?? ""}
-                          onChangeText={onChange}
-                          onBlur={onBlur}
-                          placeholder={placeholders[fieldName]}
-                          placeholderTextColor="#9CA3AF"
-                          autoCapitalize="sentences"
-                          autoComplete="off"
-                          textContentType="none"
-                          multiline={isMultiline}
-                          numberOfLines={isMultiline ? 3 : undefined}
-                          textAlignVertical={isMultiline ? "top" : undefined}
-                          style={isMultiline ? { minHeight: 80 } : undefined}
-                          accessibilityLabel={labels[fieldName]}
-                          className={`w-full rounded-lg bg-gray-100 dark:bg-gray-800 px-4 py-3 text-base text-gray-900 dark:text-gray-50 border ${
-                            errors[fieldName]
-                              ? "border-red-600 dark:border-red-400"
-                              : "border-gray-300 dark:border-gray-700"
-                          } focus:border-blue-600 dark:focus:border-blue-500`}
-                        />
-                        {errors[fieldName] && (
-                          <Text
-                            className="text-base text-red-600 dark:text-red-400"
-                            accessibilityLiveRegion="polite"
-                          >
-                            {errors[fieldName]?.message}
-                          </Text>
-                        )}
-                      </View>
-                    )}
-                  />
-                );
-              },
-            )}
-
-            <Pressable
-              onPress={handleSubmit(onCreateAndAdd)}
-              disabled={isSubmitting}
-              accessibilityRole="button"
-              accessibilityLabel={
-                isSubmitting ? "Skapar" : "Skapa & lägg till"
-              }
-              className="w-full rounded-lg bg-blue-600 dark:bg-blue-500 py-4 items-center justify-center disabled:opacity-60 active:opacity-80"
-            >
-              <Text className="text-base font-semibold text-white">
-                {isSubmitting ? "Skapar…" : "Skapa & lägg till"}
-              </Text>
-            </Pressable>
-
-            <Pressable
-              onPress={() => {
-                setShowCreateForm(false);
-                reset();
-                setBannerError(null);
-              }}
-              accessibilityRole="button"
-              accessibilityLabel="Avbryt"
-              className="items-center justify-center py-3"
-            >
-              <Text className="text-base text-blue-600 dark:text-blue-400">
-                Avbryt
-              </Text>
-            </Pressable>
-          </ScrollView>
-        ) : (
-          <View className="flex-1 px-4 pt-4 gap-3">
-            <Pressable
-              onPress={() => setShowCreateForm(true)}
-              accessibilityRole="button"
-              accessibilityLabel="Skapa ny övning"
-              className="flex-row items-center gap-2 rounded-lg border border-blue-600 dark:border-blue-500 px-4 py-3 active:opacity-80"
-            >
-              <Ionicons name="add" size={20} color={accent} />
-              <Text className="text-base font-semibold text-blue-600 dark:text-blue-400">
-                Skapa ny övning
-              </Text>
-            </Pressable>
-
-            <TextInput
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              placeholder="Sök övning…"
-              placeholderTextColor="#9CA3AF"
-              autoCapitalize="none"
-              autoCorrect={false}
-              accessibilityLabel="Sök övning"
-              className="w-full rounded-lg bg-gray-100 dark:bg-gray-800 px-4 py-3 text-base text-gray-900 dark:text-gray-50 border border-gray-300 dark:border-gray-700 focus:border-blue-600 dark:focus:border-blue-500"
-            />
-
-            <FlatList
-              data={filtered}
-              keyExtractor={(item) => item.id}
-              contentContainerStyle={{ paddingBottom: 24, flexGrow: 1 }}
-              ItemSeparatorComponent={() => <View className="h-2" />}
-              ListEmptyComponent={
-                <View className="flex-1 items-center justify-center gap-4 px-4 mt-12">
-                  <Ionicons
-                    name="add-circle-outline"
-                    size={48}
-                    color={accent}
-                  />
-                  <Text className="text-2xl font-semibold text-gray-900 dark:text-gray-50">
-                    {searchQuery.trim()
-                      ? "Inga matchande övningar."
-                      : "Inga övningar än"}
-                  </Text>
-                  <Text className="text-base text-gray-500 dark:text-gray-400 text-center">
-                    {searchQuery.trim()
-                      ? 'Tryck "Skapa ny övning".'
-                      : "Skapa din första."}
-                  </Text>
-                </View>
-              }
-              renderItem={({ item: exercise }) => {
-                const subtitle = [exercise.muscle_group, exercise.equipment]
-                  .filter(Boolean)
-                  .join(" · ");
-                return (
-                  <Pressable
-                    onPress={() => onPickExisting(exercise.id)}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Lägg till ${exercise.name}`}
-                    className="flex-row items-center bg-gray-100 dark:bg-gray-800 rounded-lg px-4 py-4 active:opacity-80"
+              {/* Exercise list (bilingual rows). `flex:1` lets the list own the
+                  remaining vertical space and scroll, instead of sizing to
+                  content and getting squeezed by the pills row above. */}
+              <FlatList
+                data={filtered}
+                keyExtractor={(item) => item.id}
+                style={{ flex: 1 }}
+                contentContainerStyle={{
+                  paddingHorizontal: 16,
+                  paddingBottom: 32,
+                  flexGrow: 1,
+                  gap: 8,
+                }}
+                keyboardShouldPersistTaps="handled"
+                ListEmptyComponent={
+                  <View
+                    style={{
+                      flex: 1,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      paddingTop: 48,
+                      gap: 8,
+                    }}
                   >
-                    <View className="flex-1 mr-2">
-                      <Text
-                        className="text-base font-semibold text-gray-900 dark:text-gray-50"
-                        numberOfLines={1}
+                    <Text
+                      style={{
+                        fontSize: 16,
+                        fontWeight: "600",
+                        color: tk.text2,
+                        textAlign: "center",
+                      }}
+                    >
+                      {t("noExercisesMatch")}
+                    </Text>
+                  </View>
+                }
+                renderItem={({ item: exercise }) => {
+                  const name = displayName(exercise);
+                  const mgKey = resolveMuscleGroupKey(exercise.muscle_group);
+                  const equip = displayEquipment(exercise);
+                  const subtitle = [
+                    mgKey ? t(mgLabelKey(mgKey)) : null,
+                    equip,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ");
+                  return (
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 12,
+                        backgroundColor: tk.surface,
+                        borderRadius: 14,
+                        borderWidth: 1,
+                        borderColor: tk.border,
+                        paddingHorizontal: 14,
+                        paddingVertical: 12,
+                      }}
+                    >
+                      <View
+                        style={{
+                          width: 36,
+                          height: 36,
+                          borderRadius: 10,
+                          backgroundColor: tk.surface2,
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
                       >
-                        {exercise.name}
-                      </Text>
-                      {subtitle ? (
+                        <Icon name="barbell" size={18} color={tk.text2} strokeWidth={1.8} />
+                      </View>
+                      <View style={{ flex: 1 }}>
                         <Text
-                          className="text-sm text-gray-500 dark:text-gray-400"
                           numberOfLines={1}
+                          style={{
+                            fontSize: 15,
+                            fontWeight: "600",
+                            color: tk.text,
+                            letterSpacing: -0.2,
+                          }}
                         >
-                          {subtitle}
+                          {name}
                         </Text>
-                      ) : null}
+                        {subtitle ? (
+                          <Text
+                            numberOfLines={1}
+                            style={{
+                              fontSize: 12,
+                              fontWeight: "400",
+                              color: tk.text2,
+                              marginTop: 1,
+                            }}
+                          >
+                            {subtitle}
+                          </Text>
+                        ) : null}
+                      </View>
+                      <Pressable
+                        onPress={() => onPickExisting(exercise.id)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`${t("addExercise")}: ${name}`}
+                        hitSlop={8}
+                        className="w-[30px] h-[30px] rounded-full items-center justify-center border border-forge-accent-light dark:border-forge-accent bg-forge-accentSoft-light dark:bg-forge-accentSoft"
+                        style={({ pressed }) => (pressed ? { opacity: 0.7 } : null)}
+                      >
+                        <Icon name="plus" size={16} color={tk.accent} strokeWidth={2.4} />
+                      </Pressable>
                     </View>
-                    <Ionicons
-                      name="add-circle-outline"
-                      size={24}
-                      color={accent}
-                    />
-                  </Pressable>
-                );
-              }}
-            />
-          </View>
-        )}
+                  );
+                }}
+              />
+            </View>
+          )}
         </KeyboardAvoidingView>
       </SafeAreaView>
     </GestureHandlerRootView>
+  );
+}
+
+// ── Local composed controls ─────────────────────────────────────────────────
+
+// Widened token-bag type (the literal `typeof TOKENS.light` would make the
+// dark variant non-assignable since each hex infers as a distinct literal).
+type Tk = Record<keyof (typeof TOKENS)["light"], string>;
+
+// Eyebrow field label + a vertical-stack wrapper for a form control.
+function FieldBlock({
+  label,
+  tk,
+  children,
+}: {
+  label: string;
+  tk: Tk;
+  children: React.ReactNode;
+}) {
+  return (
+    <View style={{ gap: 8 }}>
+      <Text
+        style={{
+          fontSize: 11,
+          fontWeight: "700",
+          letterSpacing: 1.5,
+          color: tk.text3,
+          textTransform: "uppercase",
+        }}
+      >
+        {label}
+      </Text>
+      {children}
+    </View>
+  );
+}
+
+function FieldError({ tk, children }: { tk: Tk; children: React.ReactNode }) {
+  return (
+    <Text
+      accessibilityLiveRegion="polite"
+      style={{ fontSize: 13, fontWeight: "400", color: tk.danger }}
+    >
+      {children}
+    </Text>
+  );
+}
+
+// A single-line ForgeField-shaped input row with a leading Icon. Inline-styled
+// to carry the optical 56-tall field height (FNewPlan precedent); border flips
+// to danger on error.
+function ForgeFieldRow({
+  tk,
+  icon,
+  value,
+  onChangeText,
+  onBlur,
+  placeholder,
+  error,
+  accessibilityLabel,
+}: {
+  tk: Tk;
+  icon: "barbell" | "scale";
+  value: string;
+  onChangeText: (text: string) => void;
+  onBlur: () => void;
+  placeholder: string;
+  error: boolean;
+  accessibilityLabel: string;
+}) {
+  return (
+    <View
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 10,
+        height: 56,
+        borderRadius: 14,
+        backgroundColor: tk.surface,
+        borderWidth: error ? 2 : 1,
+        borderColor: error ? tk.danger : tk.border,
+        paddingHorizontal: 16,
+      }}
+    >
+      <Icon name={icon} size={18} color={tk.text3} strokeWidth={1.8} />
+      <TextInput
+        value={value}
+        onChangeText={onChangeText}
+        onBlur={onBlur}
+        placeholder={placeholder}
+        placeholderTextColor={tk.text3}
+        autoCapitalize="sentences"
+        autoComplete="off"
+        accessibilityLabel={accessibilityLabel}
+        style={{
+          flex: 1,
+          fontSize: 16,
+          color: tk.text,
+          letterSpacing: -0.2,
+        }}
+      />
+    </View>
+  );
+}
+
+// Muscle-group dropdown (D-01): a button showing the placeholder or the current
+// value (via labelFor), trailing chevronDown, that toggles an inline selector
+// over the 5 D-01 keys. The selected value is STORED as the key; displayed via
+// labelFor(key). Inline overlay (no portal Modal — Phase 4 lesson).
+function MuscleGroupDropdown({
+  tk,
+  value,
+  onChange,
+  placeholder,
+  labelFor,
+}: {
+  tk: Tk;
+  value: MuscleGroupKey | null;
+  onChange: (next: MuscleGroupKey) => void;
+  placeholder: string;
+  labelFor: (key: MuscleGroupKey) => string;
+}) {
+  const [open, setOpen] = useState(false);
+  const currentLabel = value ? labelFor(value) : placeholder;
+  return (
+    <View>
+      <Pressable
+        onPress={() => setOpen((o) => !o)}
+        accessibilityRole="button"
+        accessibilityLabel={currentLabel}
+        accessibilityState={{ expanded: open }}
+        className={`flex-row items-center justify-between h-14 rounded-forge-md px-4 border bg-forge-surface-light dark:bg-forge-surface ${
+          open
+            ? "border-forge-accent-light dark:border-forge-accent"
+            : "border-forge-border-light dark:border-forge-border"
+        }`}
+        style={({ pressed }) => (pressed ? { opacity: 0.85 } : null)}
+      >
+        <Text
+          style={{
+            fontSize: 16,
+            color: value ? tk.text : tk.text3,
+            letterSpacing: -0.2,
+          }}
+        >
+          {currentLabel}
+        </Text>
+        <Icon name="chevronDown" size={18} color={tk.text2} strokeWidth={2} />
+      </Pressable>
+
+      {open ? (
+        <View
+          style={{
+            marginTop: 8,
+            borderRadius: 14,
+            backgroundColor: tk.surface,
+            borderWidth: 1,
+            borderColor: tk.border,
+            overflow: "hidden",
+          }}
+        >
+          {MUSCLE_GROUP_KEYS.map((key, i) => {
+            const selected = value === key;
+            return (
+              <Pressable
+                key={key}
+                onPress={() => {
+                  onChange(key);
+                  setOpen(false);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={labelFor(key)}
+                accessibilityState={{ selected }}
+                className={`flex-row items-center justify-between px-4 py-3.5 ${
+                  i === 0
+                    ? ""
+                    : "border-t border-forge-border-light dark:border-forge-border"
+                } ${
+                  selected ? "bg-forge-accentSoft-light dark:bg-forge-accentSoft" : ""
+                }`}
+                style={({ pressed }) => (pressed ? { opacity: 0.7 } : null)}
+              >
+                <Text
+                  style={{
+                    fontSize: 16,
+                    color: selected ? tk.accent : tk.text,
+                    fontWeight: selected ? "600" : "400",
+                    letterSpacing: -0.2,
+                  }}
+                >
+                  {labelFor(key)}
+                </Text>
+                {selected ? (
+                  <Icon name="check" size={18} color={tk.accent} strokeWidth={2.2} />
+                ) : null}
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+// Single filter pill (D-04). Active = accent fill + accentText; inactive =
+// surface + border + text2. Optical: padding 6×12, radius 18.
+function FilterPill({
+  tk,
+  label,
+  active,
+  onPress,
+}: {
+  tk: Tk;
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ selected: active }}
+      hitSlop={6}
+      className={`py-1.5 px-3 rounded-full border ${
+        active
+          ? "bg-forge-accent-light dark:bg-forge-accent border-forge-accent-light dark:border-forge-accent"
+          : "bg-forge-surface-light dark:bg-forge-surface border-forge-border-light dark:border-forge-border"
+      }`}
+      style={({ pressed }) => (pressed ? { opacity: 0.8 } : null)}
+    >
+      <Text
+        style={{
+          fontSize: 13,
+          fontWeight: "600",
+          color: active ? tk.accentText : tk.text2,
+          letterSpacing: -0.1,
+        }}
+      >
+        {label}
+      </Text>
+    </Pressable>
   );
 }

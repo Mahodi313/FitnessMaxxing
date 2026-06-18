@@ -89,11 +89,78 @@ jobs:
       - name: Checkout kod
         uses: actions/checkout@v4
 
-      - name: Öppna Draft PR mot main (om den inte redan finns)
+      # Läs aktuell milestone (version + namn + faser) från .planning så att
+      # PR-titeln följer med när v1 → v2 → v3 ... Ingen hårdkodad version här.
+      - name: Läs aktuell milestone från .planning
+        id: milestone
+        run: |
+          PROJECT=.planning/PROJECT.md
+          ROADMAP=.planning/ROADMAP.md
+
+          # "## Current Milestone: v2.0 — Forge Redesign" → version + namn
+          LINE=$(grep -m1 '^## Current Milestone:' "$PROJECT" | sed 's/^## Current Milestone:[[:space:]]*//')
+          VERSION=$(printf '%s' "$LINE" | grep -oE 'v[0-9]+(\.[0-9]+)*' | head -1)
+          NAME=$(printf '%s' "$LINE" | sed -E 's/^v[0-9.]+[[:space:]]*[—–-]+[[:space:]]*//')
+
+          # Fallbacks om raden saknas/avviker — workflow får aldrig krascha på detta
+          [ -z "$VERSION" ] && VERSION="vNext"
+          [ -z "$NAME" ] && NAME="$VERSION"
+
+          # Faser i den AKTIVA milestonen från ROADMAP:
+          # börja vid "### ... active)", samla "#### Phase N: ..." tills nästa ## / ### rubrik
+          PHASES=$(awk '
+            /^### .*active\)/ { inblock=1; next }
+            inblock && /^(##|###) / { exit }
+            inblock && /^#### Phase / { line=$0; sub(/^#### /,"",line); print "- [ ] " line }
+          ' "$ROADMAP")
+          [ -z "$PHASES" ] && PHASES="- [ ] Se .planning/ROADMAP.md"
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          {
+            echo "phases<<PHASES_EOF"
+            echo "$PHASES"
+            echo "PHASES_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "Milestone: $VERSION — $NAME"
+
+      - name: Öppna/uppdatera Draft PR mot main
         uses: actions/github-script@v7
+        env:
+          MILESTONE_VERSION: ${{ steps.milestone.outputs.version }}
+          MILESTONE_NAME: ${{ steps.milestone.outputs.name }}
+          MILESTONE_PHASES: ${{ steps.milestone.outputs.phases }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
+            const version = process.env.MILESTONE_VERSION;
+            const name = process.env.MILESTONE_NAME;
+            const phases = process.env.MILESTONE_PHASES;
+            const today = new Date().toISOString().split('T')[0];
+
+            const title = `🚀 ${version} Release — dev → main`;
+            const body = [
+              `## FitnessMaxxing ${version} — ${name}`,
+              ``,
+              `Detta är en **Draft PR** som uppdateras automatiskt när kod mergas till \`dev\`.`,
+              `Titel och faslista läses från \`.planning/PROJECT.md\` + \`.planning/ROADMAP.md\` — byt milestone där så följer PR:n med automatiskt.`,
+              ``,
+              `### Status`,
+              `> Mergea INTE förrän alla ${version}-faser är klara och testade på riktigt i gymmet.`,
+              ``,
+              `### Faser`,
+              phases,
+              ``,
+              `### Krav för att merga`,
+              `- [ ] Alla faser verifierade av GSD`,
+              `- [ ] Testat på gymmet`,
+              `- [ ] Inga kända buggar`,
+              ``,
+              `---`,
+              `*Automatiskt skapad av GitHub Actions · senaste push: ${today}*`,
+            ].join('\n');
+
             const existingPRs = await github.rest.pulls.list({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -105,23 +172,26 @@ jobs:
             if (existingPRs.data.length > 0) {
               const pr = existingPRs.data[0];
               console.log('Draft PR finns redan:', pr.html_url);
+              // Skriv om titel + body till aktuell milestone (self-heal vid milestone-byte)
               await github.rest.pulls.update({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 pull_number: pr.number,
-                body: pr.body + `\n- ✅ Senaste push: ${new Date().toISOString().split('T')[0]}`
+                title,
+                body
               });
+              console.log(`Uppdaterade PR #${pr.number} → ${version}`);
               return;
             }
 
             const pr = await github.rest.pulls.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: '🚀 V1.0 Release — dev → main',
+              title,
               head: 'dev',
               base: 'main',
               draft: true,
-              body: `## FitnessMaxxing V1.0\n\nDetta är en **Draft PR** som uppdateras automatiskt när kod mergas till \`dev\`.\n\n### Status\n> Mergea INTE förrän alla V1-faser är klara och testade på riktigt i gymmet.\n\n### Faser\n- [ ] Phase 1: Bootstrap & Infra\n- [ ] Phase 2: Schema, RLS & Types\n- [ ] Phase 3: Auth & Persistent Session\n- [ ] Phase 4: Träningsplaner\n- [ ] Phase 5: Logga pass (kärnflödet)\n- [ ] Phase 6: Historik & Progression\n- [ ] Phase 7: Polish\n- [ ] Phase 8: Offline-stöd\n\n### Krav för att merga\n- [ ] Alla faser verifierade av GSD\n- [ ] Testat på gymmet i minst 1 vecka\n- [ ] Inga kända buggar\n\n---\n*Automatiskt skapad av GitHub Actions*`
+              body
             });
 
             console.log('Draft PR skapad:', pr.data.html_url);

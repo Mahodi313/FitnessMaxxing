@@ -16,6 +16,15 @@ import { z } from "zod";
 
 export const signUpSchema = z
   .object({
+    // Collected at sign-up → stored to profiles.display_name via the 0008
+    // handle_new_user trigger (signUp metadata → raw_user_meta_data). The
+    // .max(80) cap is the trust boundary for this user-supplied string (the
+    // trigger stores it as plain text; RN has no HTML-injection surface).
+    name: z
+      .string()
+      .trim()
+      .min(1, { error: "Namn krävs" })
+      .max(80, { error: "Namn för långt" }),
     email: z.email({ error: "Email måste vara giltigt" }),
     password: z.string().min(12, { error: "Minst 12 tecken" }),
     confirmPassword: z.string().min(1, { error: "Bekräfta ditt lösenord" }),

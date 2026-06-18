@@ -1,0 +1,40 @@
+{
+  "phase": "12",
+  "plans": {
+    "01": {
+      "issue_id": "FIT-99",
+      "linear_id": "a4f615de-b245-45d7-ad39-09cf512d474e"
+    },
+    "02": {
+      "issue_id": "FIT-100",
+      "linear_id": "a900699d-0a61-4f37-a7c9-0056141b5b0f"
+    },
+    "03": {
+      "issue_id": "FIT-101",
+      "linear_id": "05333307-c93d-48a9-bfcf-a2f4191bd394"
+    },
+    "04": {
+      "issue_id": "FIT-102",
+      "linear_id": "57b83214-ce1b-40b9-a9db-1d5c53a45cd6"
+    },
+    "05": {
+      "issue_id": "FIT-103",
+      "linear_id": "d5edc36b-a488-45d0-a34d-b2678ae70f93"
+    },
+    "06": {
+      "issue_id": "FIT-104",
+      "linear_id": "947ce806-a1aa-472f-a08c-163db8f4d9c5"
+    },
+    "07": {
+      "issue_id": "FIT-105",
+      "linear_id": "0c239b54-b83a-4e8b-b4ed-28b485c8f814"
+    },
+    "08": {
+      "issue_id": "FIT-106",
+      "linear_id": "b1639e10-0c6c-4971-a5dc-f9dd5fbf365f"
+    }
+  },
+  "epic_issue_id": "FIT-98",
+  "epic_linear_id": "79b9bdce-b5cc-4ea2-a68a-db937ce2f094",
+  "last_synced": "2026-06-13T16:47:07.477Z"
+}

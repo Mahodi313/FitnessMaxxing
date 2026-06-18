@@ -34,6 +34,12 @@ type SessionInsertVars = {
   id: string;
   user_id: string;
   plan_id?: string | null;
+  // Phase 10 D-11: the plan's name captured at session-start so the session's
+  // history row still reads the former name after the plan is hard-deleted
+  // (coalesce(p.name, s.plan_name_snapshot) in get_session_summaries). The
+  // ['session','start'] optimisticRow + insert in lib/query/client.ts already
+  // read this field — the hook's vars type needs to surface it.
+  plan_name_snapshot?: string | null;
   started_at?: string;
 };
 type SessionFinishVars = { id: string; finished_at: string; notes?: string | null };

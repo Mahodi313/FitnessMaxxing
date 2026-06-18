@@ -3,10 +3,12 @@ import "../global.css";
 import { useEffect } from "react";
 import { useColorScheme } from "nativewind";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Stack } from "expo-router";
+import { Stack, router } from "expo-router";
+import * as Notifications from "expo-notifications";
 import { z } from "zod";
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
+import * as Font from "expo-font";
 // react-native-gesture-handler must be imported in the entry file so its
 // native modules register before any GestureDetector descendant renders. The
 // named import below triggers the module load — separately importing it for
@@ -30,7 +32,32 @@ import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client
 import { queryClient } from "@/lib/query/client";
 import { asyncStoragePersister } from "@/lib/query/persister";
 import "@/lib/query/network";
+// i18next module-singleton init (Plan 08-01). MUST appear AFTER the
+// @/lib/query/* side-effect imports above — those are LOAD-BEARING and must not
+// be reordered (see header lines 18-29). This side-effect import runs
+// i18n.init() before any JSX renders so t()/changeLanguage are live for the
+// LocaleBootstrap gate below. (PATTERNS §_layout.tsx step 4 / CLAUDE.md.)
+// eslint-disable-next-line import/no-duplicates -- LOAD-BEARING explicit side-effect form (PATTERNS §_layout.tsx step 4); kept separate from the default import below so the i18n.init() ordering vs @/lib/query/* is unambiguous.
+import "@/lib/i18n";
+// Default-import the same module for the i18n instance used in LocaleBootstrap's
+// changeLanguage() call. The bundler caches the module, so this does NOT re-run
+// init() — the side-effect import above already did. Keeping both forms makes
+// the LOAD-BEARING side-effect explicit while giving LocaleBootstrap the handle.
+// eslint-disable-next-line import/no-duplicates
+import i18n from "@/lib/i18n";
+// resolveLanguage (Plan 09-01): three-state fm:language pref → two-state engine
+// language. Imported here so LocaleBootstrap can resolve a stored 'system' pref
+// via the device locale instead of silently rewriting it to 'sv'.
+// eslint-disable-next-line import/no-duplicates
+import { resolveLanguage } from "@/lib/i18n";
 import { usePersistenceStore } from "@/lib/persistence-store";
+import { useFontStore } from "@/lib/font-store";
+// FIT-111: live display-unit store + boot hydration. UnitsBootstrap reads
+// fm:units once at boot and mirrors it into useUnitStore so every read-side
+// screen re-renders on a Settings unit toggle (no restart). fm:units stays the
+// durable source via getPref/setPref.
+import { useUnitStore } from "@/lib/units-store";
+import { getPref } from "@/lib/prefs";
 
 // Importing useAuthStore here triggers the module-scope onAuthStateChange listener
 // + getSession() init flow registered in app/lib/auth-store.ts. Order does not
@@ -55,6 +82,58 @@ SplashScreen.preventAutoHideAsync().catch(() => {
 // focusManager + onlineManager + onlineManager.subscribe(resumePausedMutations)
 // are wired in @/lib/query/network.ts (imported above for side-effects).
 
+// ---- Rest-timer notifications (Phase 14, Plan 14-02) ----------------------
+// FOREGROUND HANDLER (RESEARCH §Pattern 5): how a delivered notification is
+// presented while the app is foregrounded. Uses the CURRENT field names
+// (shouldShowBanner / shouldShowList) — NOT the deprecated single-alert field
+// (expo-notifications ~0.29+; CLAUDE/RESEARCH §State of the Art). D-14 gating
+// (timer ON && fm:notifications ON && permission granted) is enforced at
+// SCHEDULE time in the store/caller, so an unwanted notification is never
+// scheduled in the first place — the handler just decides presentation.
+// Module scope (NOT a useEffect) so it is set exactly once before any JSX
+// renders, like the network.ts AppState blocks.
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
+
+// TAP → DEEP-LINK (D-15 / M4 anti-phishing, T-14-03). The tap response routes
+// ONLY into the in-app authenticated `(app)/workout/[sessionId]` route — never
+// `Linking.openURL` of an external URL. `data.sessionId` is VALIDATED as a
+// non-empty string before `router.push`; a missing/garbage payload is ignored.
+//
+// FAST-REFRESH GUARD (Pitfall 7): module-scope side-effects re-run on every hot
+// reload, so `addNotificationResponseReceivedListener` would STACK — N taps
+// firing N route pushes after N reloads. Same globalThis sentinel teardown
+// pattern as APPSTATE_BGFLUSH_KEY in lib/query/network.ts: remove the prior
+// subscription before registering a fresh one.
+const NOTIF_RESPONSE_SUB_KEY = "__fitnessmaxxing_notif_response_sub__";
+const globalNotifRef = globalThis as unknown as Record<
+  string,
+  { remove: () => void } | undefined
+>;
+if (globalNotifRef[NOTIF_RESPONSE_SUB_KEY]) {
+  globalNotifRef[NOTIF_RESPONSE_SUB_KEY].remove();
+}
+const notifResponseSub = Notifications.addNotificationResponseReceivedListener(
+  (response) => {
+    const data = response.notification.request.content.data as {
+      sessionId?: unknown;
+    };
+    const sessionId = data?.sessionId;
+    // M4: validate the routing token is a non-empty string before navigating;
+    // route only into the authenticated (app) group, never an external URL.
+    if (typeof sessionId === "string" && sessionId.length > 0) {
+      router.push(`/(app)/workout/${sessionId}`);
+    }
+  },
+);
+globalNotifRef[NOTIF_RESPONSE_SUB_KEY] = notifResponseSub;
+
 /**
  * Render-side splash hide controller. When status flips out of 'loading',
  * fires SplashScreen.hideAsync() in an effect (post-commit) so React 19
@@ -63,13 +142,18 @@ SplashScreen.preventAutoHideAsync().catch(() => {
  */
 function SplashScreenController() {
   const status = useAuthStore((s) => s.status);
+  // Plan 08-02 (DSGN-02): extend the splash gate so it also waits for the
+  // self-hosted fonts to load AND the saved locale to apply. Both flags flip
+  // fail-open (FontBootstrap / LocaleBootstrap), so this gate cannot hang.
+  const fontsReady = useFontStore((s) => s.fontsReady);
+  const localeReady = useFontStore((s) => s.localeReady);
   useEffect(() => {
-    if (status !== "loading") {
+    if (status !== "loading" && fontsReady && localeReady) {
       SplashScreen.hideAsync().catch(() => {
         // Already hidden / not visible — safe to ignore.
       });
     }
-  }, [status]);
+  }, [status, fontsReady, localeReady]);
   return null;
 }
 
@@ -96,6 +180,80 @@ function ThemeBootstrap() {
         console.warn("[theme] AsyncStorage read failed — defaulting to system");
       });
   }, [setColorScheme]);
+  return null;
+}
+
+/**
+ * Loads the 4 self-hosted Forge font faces (Inter Display R/SB/B + JetBrains
+ * Mono Regular) via expo-font during the splash-hold window, then flips
+ * fontsReady (DSGN-02). FAIL-OPEN: setFontsReady(true) on BOTH success AND
+ * failure (D-05 / RESEARCH Pitfall 7) — a missing/corrupt font face must never
+ * hang the splash forever. Each family key here is the exact NativeWind
+ * fontFamily token from tailwind.config.js (Task 1). No D-05 standard-Inter
+ * fallback was needed — all 3 real Inter Display weights are bundled (Task 2).
+ */
+function FontBootstrap() {
+  const setFontsReady = useFontStore((s) => s.setFontsReady);
+  useEffect(() => {
+    void Font.loadAsync({
+      InterDisplay: require("../assets/fonts/InterDisplay-Regular.otf"),
+      "InterDisplay-SemiBold": require("../assets/fonts/InterDisplay-SemiBold.otf"),
+      "InterDisplay-Bold": require("../assets/fonts/InterDisplay-Bold.otf"),
+      JetBrainsMono: require("../assets/fonts/JetBrainsMono-Regular.ttf"),
+    })
+      .then(() => setFontsReady(true))
+      .catch(() => setFontsReady(true)); // FAIL-OPEN — D-05 / Pitfall 7
+  }, [setFontsReady]);
+  return null;
+}
+
+/**
+ * Applies the user's saved language override (fm:language) before the splash
+ * clears, then flips localeReady (I18N-01). Reuses ThemeBootstrap's exact
+ * corrupt-value-tolerant idiom — a tampered/garbage value falls back to the
+ * default and never throws (T-09-06 / T-08-03).
+ *
+ * Phase 9 (Plan 09-02, RESEARCH Pitfall 2): the pref is THREE-STATE
+ * (`system | sv | en`). The enum is widened to include `"system"` (default
+ * `"system"`) and the parsed pref is piped through `resolveLanguage()` before
+ * `i18n.changeLanguage()` — so a stored `'system'` resolves via the device
+ * locale (D-11) instead of being silently rewritten to `'sv'` on cold launch.
+ * resolveLanguage returns only the `'sv'|'en'` literal union, so no free text
+ * reaches the engine (T-09-08).
+ *
+ * FAIL-OPEN via .finally(): localeReady flips on success AND IO failure so a
+ * read error / corrupt pref can never hang the splash (T-09-09 / Pitfall 7).
+ */
+function LocaleBootstrap() {
+  const setLocaleReady = useFontStore((s) => s.setLocaleReady);
+  useEffect(() => {
+    void AsyncStorage.getItem("fm:language")
+      .then((v) => {
+        const pref = z.enum(["system", "sv", "en"]).catch("system").parse(v);
+        return i18n.changeLanguage(resolveLanguage(pref));
+      })
+      .catch(() => {
+        // IO error reading fm:language — i18n keeps its init language; the
+        // .finally below still clears the splash gate.
+      })
+      .finally(() => setLocaleReady(true));
+  }, [setLocaleReady]);
+  return null;
+}
+
+/**
+ * FIT-111: reads fm:units during the splash-hold window and mirrors it into
+ * useUnitStore so the read-side screens render the correct unit from the first
+ * frame. ThemeBootstrap precedent — fires in parallel with the auth-status
+ * splash gate and does NOT block splash hiding (the "metric" default renders
+ * fine pre-hydration; the correct unit flips in on the next tick, so this is
+ * NOT added to the splash-ready gate). getPref is corrupt-tolerant
+ * (z.enum(...).catch("metric")) so a tampered fm:units never throws.
+ */
+function UnitsBootstrap() {
+  useEffect(() => {
+    void getPref("fm:units").then((u) => useUnitStore.getState().hydrate(u));
+  }, []);
   return null;
 }
 
@@ -180,6 +338,9 @@ export default function RootLayout() {
         }}
       >
         <ThemeBootstrap />
+        <FontBootstrap />
+        <LocaleBootstrap />
+        <UnitsBootstrap />
         <SplashScreenController />
         <RootNavigator />
         <StatusBar style={isDark ? "light" : "dark"} />

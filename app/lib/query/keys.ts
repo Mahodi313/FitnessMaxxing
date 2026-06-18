@@ -113,3 +113,103 @@ export const exerciseTopSetsKeys = {
       window,
     ] as const,
 };
+
+// ---------------------------------------------------------------------------
+// Phase 12 — Home dashboard + chart-detail summary cache slots (12-04, D-24).
+//
+// These factories are ADDITIVE. The Phase 6 exerciseChartKeys /
+// exerciseTopSetsKeys 5-state `window` unions above remain BYTE-UNCHANGED —
+// the v1 chart still types against them until the screens migrate. D-24
+// forbids widening/mutating any existing factory; new read-side surfaces get
+// brand-new cache slots instead.
+//
+// `dashboardKeys.summary()` is the single offline-first slot for
+// get_dashboard_summary (Home hero + History card + lifetime eyebrow — D-03).
+// The single PersistQueryClientProvider hydrates it for free.
+//
+// `exerciseSummaryKeys.byExercise(exerciseId, metric, range)` is keyed against
+// the NEW 3-state ChartRange ("30d" | "90d" | "All", default 90d — D-11) so
+// the chart-summary slot is distinct from the v1 5-state exerciseChartKeys
+// slot and toggling range produces a fresh cache entry.
+// ---------------------------------------------------------------------------
+
+export const dashboardKeys = {
+  all: ["dashboard"] as const,
+  summary: () => [...dashboardKeys.all, "summary"] as const,
+};
+
+export const exerciseSummaryKeys = {
+  all: ["exercise-summary"] as const,
+  byExercise: (
+    exerciseId: string,
+    metric: "weight" | "volume",
+    range: "30d" | "90d" | "All",
+  ) =>
+    [
+      ...exerciseSummaryKeys.all,
+      "by-exercise",
+      exerciseId,
+      metric,
+      range,
+    ] as const,
+};
+
+// ---------------------------------------------------------------------------
+// Phase 13 (13-03) — PR-celebration read-side cache slots (F18).
+//
+// These factories are ADDITIVE (D-24 lineage): no existing factory above is
+// widened or mutated. Each new read-side surface from the four PR RPCs
+// (migration 0012, Plan 13-02) gets its own brand-new cache slot.
+//
+// `bestE1rmKeys.all` is the SINGLE offline-first slot for get_best_working_sets
+// — the all-time-best-working-set reference per exercise that feeds live PR
+// detection (D-06/PR-01). It has NO per-exercise arg because the RPC returns
+// every exercise's best in one call (mirrors the dashboardKeys.summary() single
+// slot rather than the per-exercise lastValueKeys.byExercise shape). Finishing a
+// session invalidates this slot (the ONE additive line in client.ts onSettled).
+//
+// `prHistoryKeys.byExercise(exerciseId)` keys the chronological was_pr-per-set
+// rows for the read-side session-detail trophies (D-14/D-15).
+//
+// `exerciseSetsInRangeKeys.byExerciseSince(exerciseId, since)` keys raw range
+// working sets for the chart e1RM hero + delta (D-16). `since` is the ISO
+// string (or null for "All") so toggling range produces a distinct slot.
+//
+// `sessionPrFlagsKeys.byIds(sessionIds)` keys the history-LIST has_pr aggregator
+// off a STABLE join of the SORTED id list — the same visible session set hits
+// one cache entry regardless of input ordering (D-14, one call over the list).
+// ---------------------------------------------------------------------------
+
+export const bestE1rmKeys = {
+  all: ["best-e1rm"] as const,
+};
+
+export const prHistoryKeys = {
+  all: ["pr-history"] as const,
+  byExercise: (exerciseId: string) =>
+    [...prHistoryKeys.all, "by-exercise", exerciseId] as const,
+};
+
+export const exerciseSetsInRangeKeys = {
+  all: ["exercise-sets-in-range"] as const,
+  byExerciseSince: (exerciseId: string, since: string | null) =>
+    [
+      ...exerciseSetsInRangeKeys.all,
+      "by-exercise",
+      exerciseId,
+      since,
+    ] as const,
+};
+
+export const sessionPrFlagsKeys = {
+  all: ["session-pr-flags"] as const,
+  // Key off a stable join of the SORTED id list so the same visible set of
+  // sessions maps to ONE cache entry regardless of array ordering. A copy is
+  // sorted (never mutate the caller's array).
+  byIds: (sessionIds: string[]) =>
+    [
+      ...sessionPrFlagsKeys.all,
+      "by-ids",
+      [...sessionIds].sort().join(","),
+    ] as const,
+};

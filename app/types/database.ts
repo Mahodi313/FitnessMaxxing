@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       exercise_sets: {
@@ -76,6 +101,7 @@ export type Database = {
           muscle_group: string | null
           name: string
           notes: string | null
+          seed_key: string | null
           user_id: string | null
         }
         Insert: {
@@ -85,6 +111,7 @@ export type Database = {
           muscle_group?: string | null
           name: string
           notes?: string | null
+          seed_key?: string | null
           user_id?: string | null
         }
         Update: {
@@ -94,6 +121,7 @@ export type Database = {
           muscle_group?: string | null
           name?: string
           notes?: string | null
+          seed_key?: string | null
           user_id?: string | null
         }
         Relationships: []
@@ -152,18 +180,21 @@ export type Database = {
           display_name: string | null
           id: string
           preferred_unit: string | null
+          weekly_goal: number
         }
         Insert: {
           created_at?: string | null
           display_name?: string | null
           id: string
           preferred_unit?: string | null
+          weekly_goal?: number
         }
         Update: {
           created_at?: string | null
           display_name?: string | null
           id?: string
           preferred_unit?: string | null
+          weekly_goal?: number
         }
         Relationships: []
       }
@@ -201,6 +232,7 @@ export type Database = {
           id: string
           notes: string | null
           plan_id: string | null
+          plan_name_snapshot: string | null
           started_at: string
           user_id: string
         }
@@ -210,6 +242,7 @@ export type Database = {
           id?: string
           notes?: string | null
           plan_id?: string | null
+          plan_name_snapshot?: string | null
           started_at?: string
           user_id: string
         }
@@ -219,6 +252,7 @@ export type Database = {
           id?: string
           notes?: string | null
           plan_id?: string | null
+          plan_name_snapshot?: string | null
           started_at?: string
           user_id?: string
         }
@@ -237,11 +271,62 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_best_working_sets: {
+        Args: never
+        Returns: {
+          exercise_id: string
+          reps: number
+          weight_kg: number
+        }[]
+      }
+      get_dashboard_summary: {
+        Args: { p_tz?: string }
+        Returns: {
+          lifetime_hours: number
+          lifetime_sessions: number
+          sessions_this_week: number
+          streak_weeks: number
+          volume_prior_week_kg: number
+          volume_this_week_kg: number
+          weekly_goal: number
+          weekly_volume_series: Json
+        }[]
+      }
       get_exercise_chart: {
         Args: { p_exercise_id: string; p_metric: string; p_since: string }
         Returns: {
           day: string
           value: number
+        }[]
+      }
+      get_exercise_pr_history: {
+        Args: { p_exercise_id: string }
+        Returns: {
+          completed_at: string
+          reps: number
+          session_id: string
+          set_id: string
+          was_pr: boolean
+          weight_kg: number
+        }[]
+      }
+      get_exercise_sets_in_range: {
+        Args: { p_exercise_id: string; p_since: string }
+        Returns: {
+          completed_at: string
+          reps: number
+          weight_kg: number
+        }[]
+      }
+      get_exercise_summary: {
+        Args: { p_exercise_id: string; p_metric: string; p_since: string }
+        Returns: {
+          avg_rpe: number
+          current_best: number
+          range_first_value: number
+          top_set_reps: number
+          top_set_weight_kg: number
+          vol_per_session_kg: number
         }[]
       }
       get_exercise_top_sets: {
@@ -251,6 +336,13 @@ export type Database = {
           reps: number
           session_id: string
           weight_kg: number
+        }[]
+      }
+      get_session_pr_flags: {
+        Args: { p_session_ids: string[] }
+        Returns: {
+          has_pr: boolean
+          session_id: string
         }[]
       }
       get_session_summaries: {
@@ -394,6 +486,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       set_type: ["working", "warmup", "dropset", "failure"],
